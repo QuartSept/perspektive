@@ -1,6 +1,11 @@
 import { getLanguage, t, type MessageKey } from '../i18n';
 import { INK_IDS, type InkId } from '../engine/stroke';
 import {
+  SNAP_RADIUS_MAX,
+  SNAP_RADIUS_MIN,
+  type SnapSettings,
+} from '../perspective/snap-settings';
+import {
   BRUSH_OPACITY_MAX,
   BRUSH_OPACITY_MIN,
   BRUSH_WIDTH_MAX,
@@ -9,17 +14,20 @@ import {
   type BrushSettings,
 } from '../tools/brush-settings';
 
-/** Fırça paneli: mürekkep rengi, kalınlık, opaklık. */
+/** Fırça paneli: mürekkep rengi, kalınlık, opaklık, mıknatıs yarıçapı. */
 export class BrushPanel {
   private readonly swatches: HTMLButtonElement[] = [];
   private readonly width: HTMLInputElement;
   private readonly widthValue: HTMLOutputElement;
   private readonly opacity: HTMLInputElement;
   private readonly opacityValue: HTMLOutputElement;
+  private readonly snapRadius: HTMLInputElement;
+  private readonly snapRadiusValue: HTMLOutputElement;
 
   constructor(
     root: HTMLElement,
     private readonly settings: BrushSettings,
+    private readonly snap: SnapSettings,
   ) {
     const swatchGroup = root.querySelector<HTMLElement>('#ink-swatches')!;
     for (const ink of INK_IDS) {
@@ -55,7 +63,15 @@ export class BrushPanel {
       settings.setOpacity(Number(this.opacity.value) / 100);
     });
 
+    this.snapRadius = root.querySelector('#snap-radius')!;
+    this.snapRadiusValue = root.querySelector('#snap-radius-value')!;
+    this.snapRadius.min = String(SNAP_RADIUS_MIN);
+    this.snapRadius.max = String(SNAP_RADIUS_MAX);
+    this.snapRadius.step = '1';
+    this.snapRadius.addEventListener('input', () => snap.setRadius(Number(this.snapRadius.value)));
+
     settings.onChange(() => this.update());
+    snap.onChange(() => this.update());
     this.update();
   }
 
@@ -77,6 +93,11 @@ export class BrushPanel {
       style: 'percent',
       maximumFractionDigits: 0,
     }).format(s.opacity);
+
+    const radius = this.snap.radius;
+    if (Number(this.snapRadius.value) !== radius) this.snapRadius.value = String(radius);
+    this.snapRadiusValue.textContent = `${radius} px`;
+    this.snapRadius.disabled = !this.snap.enabled;
   }
 
   /** Renk grubunda ok tuşlarıyla gezinme (radiogroup). */

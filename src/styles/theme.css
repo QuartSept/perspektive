@@ -30,7 +30,8 @@
   --color-horizon-active: rgba(194, 85, 61, 0.9);
   --color-marker-fill: #fdfcf8;
   --color-marker-halo: rgba(43, 42, 39, 0.1);
-  --color-snap: #c2553d;
+  --color-snap: #e0661f;
+  --snap-opacity: 0.75;
 
   /* Mürekkep paleti (Aşama 3+) */
   --ink-black: #1f1e1c;

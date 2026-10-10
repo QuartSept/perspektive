@@ -4,6 +4,7 @@ import type { CanvasTheme } from '../engine/theme';
 import type { Viewport } from '../engine/viewport';
 import { proximityWeight, rayAngles, rayOpacities } from './rays';
 import type { PerspectiveScene } from './scene';
+import type { SnapLine } from './snapping';
 
 export const MARKER_RADIUS = 5.5;
 
@@ -83,6 +84,24 @@ export function drawGuides(view: GuideView): void {
     ctx.lineWidth = active ? 2 : 1.25;
     ctx.stroke();
   }
+}
+
+/** Kilitli perspektif doğrusu: kalın, vurgu renginde, ekran boyunca. */
+export function drawSnapLine(view: GuideView, line: SnapLine): void {
+  const { ctx, dpr, viewport, theme } = view;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const o = viewport.worldToScreen(line.origin);
+  const reach = reachToCorners(o, viewport.width, viewport.height);
+  const dx = line.direction.x * reach;
+  const dy = line.direction.y * reach;
+  ctx.beginPath();
+  ctx.moveTo(o.x - dx, o.y - dy);
+  ctx.lineTo(o.x + dx, o.y + dy);
+  ctx.strokeStyle = theme.snap;
+  ctx.globalAlpha = theme.snapOpacity;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
 }
 
 /** Kaçış noktası işaretçileri (üzerine gelme / seçim durumlarıyla). */

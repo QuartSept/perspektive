@@ -135,6 +135,14 @@ body {
   color: var(--color-accent);
 }
 
+/* Açık ama geçici olarak askıda (ör. Space ile serbest mod) */
+.tool-btn[aria-pressed="true"].is-suspended {
+  background: transparent;
+  color: var(--color-text-muted);
+  outline: 1px dashed var(--color-ui-border);
+  outline-offset: -3px;
+}
+
 .tool-btn:focus-visible,
 .zoom-readout:focus-visible,
 .select:focus-visible {

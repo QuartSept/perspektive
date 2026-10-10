@@ -5,8 +5,20 @@ import type { EditorState } from './state';
 import { drawStroke, type Stroke } from './stroke';
 import type { CanvasTheme } from './theme';
 import type { Viewport } from './viewport';
-import { drawGuides, drawMarkers, type GuideView } from '../perspective/guide-renderer';
+import {
+  drawGuides,
+  drawMarkers,
+  drawSnapLine,
+  type GuideView,
+} from '../perspective/guide-renderer';
 import type { PerspectiveScene } from '../perspective/scene';
+import type { SnapLine } from '../perspective/snapping';
+
+/** Etkileşim katmanında anlık gösterilenler (çizilmekte olan stroke, kilit doğrusu). */
+export interface InteractionSource {
+  readonly preview: Stroke | null;
+  readonly snapLine: SnapLine | null;
+}
 
 /** Katmanları kirli (dirty) bayraklarıyla, kare başına en fazla bir kez çizer. */
 export class Renderer {
@@ -20,8 +32,7 @@ export class Renderer {
     private readonly scene: PerspectiveScene,
     private readonly state: EditorState,
     private readonly doc: DrawingDocument,
-    /** Çizilmekte olan stroke (etkileşim katmanında önizlenir). */
-    private readonly getPreview: () => Stroke | null,
+    private readonly interaction: InteractionSource,
     public theme: CanvasTheme,
   ) {}
 
@@ -93,7 +104,8 @@ export class Renderer {
 
   private drawInteraction(): void {
     const ctx = this.layers.clear('interaction');
-    const preview = this.getPreview();
+    const { preview, snapLine } = this.interaction;
+    if (snapLine) drawSnapLine(this.guideView(ctx), snapLine);
     if (preview) {
       this.viewport.applyTo(ctx, this.layers.dpr);
       drawStroke(ctx, preview, this.theme.inks[preview.style.ink]);

@@ -25,6 +25,12 @@
           </button>
         </div>
 
+        <div class="toolbar__group">
+          <button class="tool-btn" type="button" id="magnet-toggle" data-i18n-title="tool.magnet" aria-pressed="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h4v8a2 2 0 0 0 4 0V4h4v8a6 6 0 0 1-12 0z"/><path d="M6 8h4M14 8h4"/></svg>
+          </button>
+        </div>
+
         <div class="toolbar__group" role="group" data-i18n-aria-label="toolbar.history">
           <button class="tool-btn" type="button" data-action="undo" data-i18n-title="history.undo" disabled>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7 4.5 11.5 9 16"/><path d="M5 11.5h9.5a5 5 0 0 1 0 10H12"/></svg>
@@ -81,6 +87,16 @@
           </div>
           <input type="range" id="brush-opacity" class="range" />
         </div>
+
+        <div class="field">
+          <div class="field__row">
+            <label for="snap-radius" data-i18n="snap.radius">Mıknatıs yarıçapı</label>
+            <output id="snap-radius-value" for="snap-radius"></output>
+          </div>
+          <input type="range" id="snap-radius" class="range" />
+        </div>
+
+        <p class="panel__hint" data-i18n="snap.hint"></p>
       </section>
 
       <section class="panel" id="perspective-panel" data-i18n-aria-label="perspective.title">

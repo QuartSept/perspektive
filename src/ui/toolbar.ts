@@ -8,6 +8,7 @@ export interface ToolbarHandlers {
   onTool(id: string): void;
   onAction(action: ToolbarAction): void;
   onPaperChange(kind: PaperKind): void;
+  onMagnetToggle(): void;
 }
 
 /** index.html'deki araç çubuğu öğelerini olaylara bağlar. */
@@ -17,6 +18,7 @@ export class Toolbar {
   private readonly paperSelect: HTMLSelectElement;
   private readonly undoButton: HTMLButtonElement;
   private readonly redoButton: HTMLButtonElement;
+  private readonly magnetButton: HTMLButtonElement;
 
   constructor(root: HTMLElement, handlers: ToolbarHandlers) {
     this.toolButtons = [...root.querySelectorAll<HTMLButtonElement>('[data-tool]')];
@@ -24,6 +26,8 @@ export class Toolbar {
     this.paperSelect = root.querySelector('#paper-select')!;
     this.undoButton = root.querySelector('[data-action="undo"]')!;
     this.redoButton = root.querySelector('[data-action="redo"]')!;
+    this.magnetButton = root.querySelector('#magnet-toggle')!;
+    this.magnetButton.addEventListener('click', () => handlers.onMagnetToggle());
 
     for (const btn of this.toolButtons) {
       btn.addEventListener('click', () => handlers.onTool(btn.dataset.tool!));
@@ -56,6 +60,12 @@ export class Toolbar {
   setHistory(canUndo: boolean, canRedo: boolean): void {
     this.undoButton.disabled = !canUndo;
     this.redoButton.disabled = !canRedo;
+  }
+
+  /** `suspended`: açık ama Space ile geçici olarak devre dışı. */
+  setMagnet(enabled: boolean, suspended: boolean): void {
+    this.magnetButton.setAttribute('aria-pressed', String(enabled));
+    this.magnetButton.classList.toggle('is-suspended', enabled && suspended);
   }
 
   setPaper(kind: PaperKind): void {

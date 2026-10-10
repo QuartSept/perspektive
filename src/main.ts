@@ -13,6 +13,7 @@ import { readCanvasTheme } from './engine/theme';
 import { Viewport, type Padding } from './engine/viewport';
 import { editScene } from './perspective/commands';
 import { PerspectiveScene, type PerspectiveMode } from './perspective/scene';
+import { SnapSettings } from './perspective/snap-settings';
 import { BrushTool } from './tools/brush';
 import { BrushSettings } from './tools/brush-settings';
 import { HandTool } from './tools/hand';
@@ -41,10 +42,22 @@ const state = new EditorState();
 const doc = new DrawingDocument();
 const history = new History();
 const brushSettings = new BrushSettings();
+const snapSettings = new SnapSettings();
 const input = new InputController(stage, viewport);
 
-const brush = new BrushTool(viewport, doc, history, brushSettings, () =>
-  renderer.requestRender('interaction'),
+const brush = new BrushTool(
+  viewport,
+  doc,
+  history,
+  brushSettings,
+  scene,
+  {
+    isActive: () => snapSettings.enabled && !state.temporaryFree,
+    get radius() {
+      return snapSettings.radius;
+    },
+  },
+  () => renderer.requestRender('interaction'),
 );
 const tools: Record<string, Tool> = {
   brush,
@@ -59,7 +72,7 @@ const renderer = new Renderer(
   scene,
   state,
   doc,
-  () => brush.preview,
+  brush,
   readCanvasTheme(),
 );
 
@@ -67,9 +80,10 @@ const toolbar = new Toolbar(toolbarEl, {
   onTool: selectTool,
   onAction: runAction,
   onPaperChange: changePaper,
+  onMagnetToggle: () => snapSettings.setEnabled(!snapSettings.enabled),
 });
 
-new BrushPanel(document.getElementById('brush-panel')!, brushSettings);
+new BrushPanel(document.getElementById('brush-panel')!, brushSettings, snapSettings);
 
 const panel = new PerspectivePanel(panelEl, {
   onModeChange: changeMode,
@@ -194,7 +208,14 @@ scene.onChange(() => {
   updatePanel();
 });
 
+function syncMagnetButton(): void {
+  toolbar.setMagnet(snapSettings.enabled, state.temporaryFree);
+}
+
+snapSettings.onChange(syncMagnetButton);
+
 state.onChange((changed) => {
+  if (changed.has('temporaryFree')) syncMagnetButton();
   renderer.requestRender('guides', 'interaction');
   if (changed.has('selectedPointId') || changed.has('guidesVisible')) updatePanel();
 });
@@ -225,6 +246,20 @@ function isTextEntry(target: EventTarget | null): boolean {
   }
   return false;
 }
+
+// Space basılı tutulunca geçici serbest mod. Odaktaki düğmenin Space ile
+// tetiklenmesini de engeller.
+window.addEventListener('keydown', (e) => {
+  if (e.code !== 'Space' || isTextEntry(e.target)) return;
+  e.preventDefault();
+  state.update({ temporaryFree: true });
+});
+window.addEventListener('keyup', (e) => {
+  if (e.code !== 'Space') return;
+  if (!isTextEntry(e.target)) e.preventDefault();
+  state.update({ temporaryFree: false });
+});
+window.addEventListener('blur', () => state.update({ temporaryFree: false }));
 
 window.addEventListener('keydown', (e) => {
   if (isTextEntry(e.target)) return;
@@ -270,6 +305,10 @@ window.addEventListener('keydown', (e) => {
     case 'p':
     case 'P':
       selectTool('point');
+      break;
+    case 'm':
+    case 'M':
+      snapSettings.setEnabled(!snapSettings.enabled);
       break;
     case 'g':
     case 'G':

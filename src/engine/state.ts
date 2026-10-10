@@ -10,6 +10,8 @@ export interface EditorStateData {
   selectedPointId: string | null;
   draggingPointId: string | null;
   horizonHovered: boolean;
+  /** Space basılı: mıknatıs geçici olarak kapalı. */
+  temporaryFree: boolean;
 }
 
 export class EditorState implements EditorStateData {
@@ -20,6 +22,7 @@ export class EditorState implements EditorStateData {
   selectedPointId: string | null = null;
   draggingPointId: string | null = null;
   horizonHovered = false;
+  temporaryFree = false;
 
   private listeners = new Set<(changed: Set<keyof EditorStateData>) => void>();
 

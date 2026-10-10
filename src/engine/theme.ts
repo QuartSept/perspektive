@@ -16,6 +16,9 @@ export interface CanvasTheme {
   guideOpacityStrong: number;
   guideOpacityDim: number;
   markerFill: string;
+  /** Kilitlenen perspektif doğrusu. */
+  snap: string;
+  snapOpacity: number;
   markerHalo: string;
 }
 
@@ -41,6 +44,8 @@ export function readCanvasTheme(el: Element = document.documentElement): CanvasT
     guideOpacityStrong: n('--guide-opacity-strong', 0.55),
     guideOpacityDim: n('--guide-opacity-dim', 0.07),
     markerFill: v('--color-marker-fill'),
+    snap: v('--color-snap'),
+    snapOpacity: n('--snap-opacity', 0.75),
     markerHalo: v('--color-marker-halo'),
   };
 }
