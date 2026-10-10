@@ -1,0 +1,18 @@
+{
+  "app.title": "Perspektif",
+  "toolbar.label": "Araç çubuğu",
+  "toolbar.tools": "Araçlar",
+  "toolbar.paper": "Kâğıt",
+  "toolbar.view": "Görünüm",
+  "tool.hand": "Kaydır (H)",
+  "paper.label": "Kâğıt boyutu",
+  "paper.a4": "A4",
+  "paper.a5": "A5",
+  "paper.square": "Kare",
+  "paper.screen": "Ekran boyu",
+  "view.zoomIn": "Yakınlaştır (+)",
+  "view.zoomOut": "Uzaklaştır (−)",
+  "view.zoomReset": "%100 (1)",
+  "view.fit": "Sayfaya sığdır (0)",
+  "stage.label": "Çizim alanı"
+}

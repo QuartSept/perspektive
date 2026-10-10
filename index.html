@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title data-i18n="app.title">Perspektif</title>
+  </head>
+  <body>
+    <div id="app">
+      <header class="toolbar" role="toolbar" data-i18n-aria-label="toolbar.label">
+        <div class="toolbar__group">
+          <span class="toolbar__brand" data-i18n="app.title">Perspektif</span>
+        </div>
+
+        <div class="toolbar__group" role="group" data-i18n-aria-label="toolbar.tools">
+          <button class="tool-btn" type="button" data-tool="hand" data-i18n-title="tool.hand" aria-pressed="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 11V5.5a1.5 1.5 0 0 1 3 0V10m0-5.5a1.5 1.5 0 0 1 3 0V10m0-4a1.5 1.5 0 0 1 3 0v4m0-2a1.5 1.5 0 0 1 3 0v6.5a6.5 6.5 0 0 1-6.5 6.5h-1.2a6 6 0 0 1-4.6-2.2L4.4 14.6a1.6 1.6 0 0 1 2.4-2.1L8 13.8"/></svg>
+          </button>
+        </div>
+
+        <div class="toolbar__spacer"></div>
+
+        <div class="toolbar__group" role="group" data-i18n-aria-label="toolbar.paper">
+          <label class="visually-hidden" for="paper-select" data-i18n="paper.label">Kâğıt</label>
+          <select id="paper-select" class="select">
+            <option value="a4" data-i18n="paper.a4">A4</option>
+            <option value="a5" data-i18n="paper.a5">A5</option>
+            <option value="square" data-i18n="paper.square">Kare</option>
+            <option value="screen" data-i18n="paper.screen">Ekran boyu</option>
+          </select>
+        </div>
+
+        <div class="toolbar__group" role="group" data-i18n-aria-label="toolbar.view">
+          <button class="tool-btn" type="button" data-action="zoom-out" data-i18n-title="view.zoomOut">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg>
+          </button>
+          <button class="zoom-readout" type="button" data-action="zoom-reset" data-i18n-title="view.zoomReset">100%</button>
+          <button class="tool-btn" type="button" data-action="zoom-in" data-i18n-title="view.zoomIn">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14"/></svg>
+          </button>
+          <button class="tool-btn" type="button" data-action="zoom-fit" data-i18n-title="view.fit">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <main id="stage" class="stage" data-i18n-aria-label="stage.label"></main>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

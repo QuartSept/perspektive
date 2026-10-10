@@ -1,0 +1,45 @@
+/*
+ * Tema değişkenleri. Uygulamadaki tüm renkler buradan gelir;
+ * canvas çizimleri de bu değişkenleri okur (engine/theme.ts).
+ * Koyu tema ileride ayrı bir değişken setiyle eklenecek.
+ */
+:root {
+  /* Tuval */
+  --color-desk: #e7e3da;
+  --color-paper: #fdfcf8;
+  --color-paper-border: rgba(43, 42, 39, 0.14);
+  --color-paper-shadow: rgba(60, 50, 30, 0.18);
+
+  /* Arayüz */
+  --color-ui-bg: rgba(253, 252, 248, 0.92);
+  --color-ui-border: rgba(43, 42, 39, 0.12);
+  --color-ui-hover: rgba(43, 42, 39, 0.06);
+  --color-ui-active: rgba(43, 42, 39, 0.11);
+  --color-text: #2b2a27;
+  --color-text-muted: #77736a;
+  --color-accent: #c2553d;
+  --color-focus: #3a6fb0;
+
+  /* Kılavuzlar (Aşama 2+) */
+  --color-guide: rgba(58, 111, 176, 0.22);
+  --color-guide-active: rgba(58, 111, 176, 0.55);
+  --color-horizon: rgba(194, 85, 61, 0.55);
+  --color-snap: #c2553d;
+  --color-vanishing-point: #c2553d;
+
+  /* Mürekkep paleti (Aşama 3+) */
+  --ink-black: #1f1e1c;
+  --ink-gray-dark: #55524c;
+  --ink-gray: #8c887f;
+  --ink-gray-light: #bdb9b0;
+  --ink-red: #b8432f;
+  --ink-blue: #2f5f9e;
+  --ink-green: #3f7a4a;
+  --ink-ochre: #c08a2b;
+
+  /* Ölçüler */
+  --radius: 10px;
+  --radius-sm: 7px;
+  --shadow-ui: 0 1px 2px rgba(60, 50, 30, 0.08), 0 6px 20px rgba(60, 50, 30, 0.08);
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}

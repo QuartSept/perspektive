@@ -1,0 +1,18 @@
+{
+  "app.title": "Perspektif",
+  "toolbar.label": "Toolbar",
+  "toolbar.tools": "Tools",
+  "toolbar.paper": "Paper",
+  "toolbar.view": "View",
+  "tool.hand": "Pan (H)",
+  "paper.label": "Paper size",
+  "paper.a4": "A4",
+  "paper.a5": "A5",
+  "paper.square": "Square",
+  "paper.screen": "Screen size",
+  "view.zoomIn": "Zoom in (+)",
+  "view.zoomOut": "Zoom out (−)",
+  "view.zoomReset": "100% (1)",
+  "view.fit": "Fit to page (0)",
+  "stage.label": "Drawing area"
+}
