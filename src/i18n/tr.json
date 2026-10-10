@@ -26,5 +26,21 @@
   "perspective.deletePoint": "Seçili noktayı sil",
   "perspective.hintAdd": "Kaçış noktası eklemek için tuvale tıklayın. Kâğıt dışına da koyabilirsiniz.",
   "perspective.hintEdit": "Noktaları ya da ufku sürükleyerek taşıyın. Seçili noktayı Delete ile silin.",
-  "perspective.hintOtherTool": "Noktaları düzenlemek için kaçış noktası aracını seçin (P)."
+  "perspective.hintOtherTool": "Noktaları düzenlemek için kaçış noktası aracını seçin (P).",
+  "tool.brush": "Fırça (B)",
+  "toolbar.history": "Geçmiş",
+  "history.undo": "Geri al (Ctrl+Z)",
+  "history.redo": "İleri al (Ctrl+Shift+Z)",
+  "brush.title": "Fırça",
+  "brush.color": "Renk",
+  "brush.width": "Kalınlık ([ ])",
+  "brush.opacity": "Opaklık",
+  "ink.black": "Siyah",
+  "ink.gray-dark": "Koyu gri",
+  "ink.gray": "Gri",
+  "ink.gray-light": "Açık gri",
+  "ink.red": "Kırmızı",
+  "ink.blue": "Mavi",
+  "ink.green": "Yeşil",
+  "ink.ochre": "Hardal"
 }

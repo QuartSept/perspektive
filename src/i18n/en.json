@@ -26,5 +26,21 @@
   "perspective.deletePoint": "Delete selected point",
   "perspective.hintAdd": "Click the canvas to add a vanishing point. It can sit outside the paper too.",
   "perspective.hintEdit": "Drag points or the horizon to move them. Press Delete to remove the selected point.",
-  "perspective.hintOtherTool": "Select the vanishing point tool (P) to edit points."
+  "perspective.hintOtherTool": "Select the vanishing point tool (P) to edit points.",
+  "tool.brush": "Brush (B)",
+  "toolbar.history": "History",
+  "history.undo": "Undo (Ctrl+Z)",
+  "history.redo": "Redo (Ctrl+Shift+Z)",
+  "brush.title": "Brush",
+  "brush.color": "Color",
+  "brush.width": "Size ([ ])",
+  "brush.opacity": "Opacity",
+  "ink.black": "Black",
+  "ink.gray-dark": "Dark gray",
+  "ink.gray": "Gray",
+  "ink.gray-light": "Light gray",
+  "ink.red": "Red",
+  "ink.blue": "Blue",
+  "ink.green": "Green",
+  "ink.ochre": "Ochre"
 }

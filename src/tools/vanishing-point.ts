@@ -1,6 +1,8 @@
 import type { Point } from '../engine/geometry';
+import type { History } from '../engine/history';
 import type { EditorState } from '../engine/state';
 import type { Viewport } from '../engine/viewport';
+import { beginSceneEdit } from '../perspective/commands';
 import type { PerspectiveScene } from '../perspective/scene';
 import type { Tool, ToolPointerEvent } from './tool';
 
@@ -22,11 +24,14 @@ type Drag =
 export class VanishingPointTool implements Tool {
   readonly id = 'point';
   private drag: Drag | null = null;
+  /** Sürükleme bitince değişikliği geçmişe yazar. */
+  private commitEdit: (() => void) | null = null;
 
   constructor(
     private readonly viewport: Viewport,
     private readonly scene: PerspectiveScene,
     private readonly state: EditorState,
+    private readonly history: History,
     private readonly onCursorChange: () => void,
   ) {}
 
@@ -38,7 +43,7 @@ export class VanishingPointTool implements Tool {
   }
 
   deactivate(): void {
-    this.drag = null;
+    this.endDrag();
     this.state.update({
       hoveredPointId: null,
       horizonHovered: false,
@@ -48,6 +53,7 @@ export class VanishingPointTool implements Tool {
   }
 
   onPointerDown(e: ToolPointerEvent): void {
+    this.commitEdit = beginSceneEdit(this.history, this.scene);
     const hitId = this.hitPoint(e.screen);
     if (hitId) {
       const p = this.scene.getPoint(hitId)!;
@@ -90,6 +96,8 @@ export class VanishingPointTool implements Tool {
   }
 
   private endDrag(): void {
+    this.commitEdit?.();
+    this.commitEdit = null;
     this.drag = null;
     this.state.update({ draggingPointId: null });
     this.onCursorChange();

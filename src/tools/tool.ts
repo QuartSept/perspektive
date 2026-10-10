@@ -5,6 +5,11 @@ export interface ToolPointerEvent {
   screen: Point;
   /** Dünya koordinatı. */
   world: Point;
+  /**
+   * Son olaydan bu yana tarayıcının birleştirdiği ara örnekler (dünya koordinatı),
+   * `world` dahil, zaman sırasıyla. Akıcı stroke için kullanılır.
+   */
+  samples: Point[];
   native: PointerEvent;
 }
 

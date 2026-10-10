@@ -1,5 +1,9 @@
+import { INK_IDS, type InkId } from './stroke';
+
 /** Canvas çizimleri için CSS değişkenlerinden okunan renkler. */
 export interface CanvasTheme {
+  /** Mürekkep paleti: `--ink-<id>`. */
+  inks: Record<InkId, string>;
   desk: string;
   paper: string;
   paperBorder: string;
@@ -22,7 +26,10 @@ export function readCanvasTheme(el: Element = document.documentElement): CanvasT
     const parsed = parseFloat(v(name));
     return Number.isFinite(parsed) ? parsed : fallback;
   };
+  const inks = {} as Record<InkId, string>;
+  for (const id of INK_IDS) inks[id] = v(`--ink-${id}`);
   return {
+    inks,
     desk: v('--color-desk'),
     paper: v('--color-paper'),
     paperBorder: v('--color-paper-border'),

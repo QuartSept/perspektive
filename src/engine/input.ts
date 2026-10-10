@@ -41,6 +41,11 @@ export class InputController {
     for (const fn of this.hoverListeners) fn(screen);
   }
 
+  /** Sürmekte olan bir araç ya da kaydırma hareketi var mı. */
+  get busy(): boolean {
+    return this.pan !== null || this.toolPointer !== null;
+  }
+
   get activeTool(): Tool | null {
     return this.tool;
   }
@@ -65,7 +70,12 @@ export class InputController {
 
   private toToolEvent(e: PointerEvent): ToolPointerEvent {
     const screen = this.localPoint(e);
-    return { screen, world: this.viewport.screenToWorld(screen), native: e };
+    const world = this.viewport.screenToWorld(screen);
+    const coalesced = e.type === 'pointermove' ? (e.getCoalescedEvents?.() ?? []) : [];
+    const samples = coalesced.length
+      ? coalesced.map((c) => this.viewport.screenToWorld(this.localPoint(c)))
+      : [world];
+    return { screen, world, samples, native: e };
   }
 
   private onPointerDown = (e: PointerEvent): void => {

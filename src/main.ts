@@ -2,6 +2,8 @@ import './styles/theme.css';
 import './styles/main.css';
 
 import { applyTranslations } from './i18n';
+import { DrawingDocument } from './engine/document';
+import { History } from './engine/history';
 import { InputController } from './engine/input';
 import { LayerStack } from './engine/layers';
 import { Paper, type PaperKind } from './engine/paper';
@@ -9,12 +11,16 @@ import { Renderer } from './engine/renderer';
 import { EditorState } from './engine/state';
 import { readCanvasTheme } from './engine/theme';
 import { Viewport, type Padding } from './engine/viewport';
+import { editScene } from './perspective/commands';
 import { PerspectiveScene, type PerspectiveMode } from './perspective/scene';
+import { BrushTool } from './tools/brush';
+import { BrushSettings } from './tools/brush-settings';
 import { HandTool } from './tools/hand';
 import type { Tool } from './tools/tool';
 import { VanishingPointTool } from './tools/vanishing-point';
+import { BrushPanel } from './ui/brush-panel';
 import { PerspectivePanel } from './ui/perspective-panel';
-import { Toolbar, type ViewAction } from './ui/toolbar';
+import { Toolbar, type ToolbarAction } from './ui/toolbar';
 
 const ZOOM_STEP = 1.25;
 const FIT_MARGIN = 32;
@@ -23,6 +29,7 @@ applyTranslations();
 
 const stage = document.getElementById('stage')!;
 const toolbarEl = document.querySelector<HTMLElement>('.toolbar')!;
+const sidebarEl = document.getElementById('sidebar')!;
 const panelEl = document.getElementById('perspective-panel')!;
 stage.tabIndex = 0;
 
@@ -31,23 +38,42 @@ const layers = new LayerStack(stage);
 const paper = new Paper('a4', { width: 0, height: 0 });
 const scene = new PerspectiveScene();
 const state = new EditorState();
-const renderer = new Renderer(layers, viewport, paper, scene, state, readCanvasTheme());
+const doc = new DrawingDocument();
+const history = new History();
+const brushSettings = new BrushSettings();
 const input = new InputController(stage, viewport);
 
+const brush = new BrushTool(viewport, doc, history, brushSettings, () =>
+  renderer.requestRender('interaction'),
+);
 const tools: Record<string, Tool> = {
-  point: new VanishingPointTool(viewport, scene, state, () => input.updateCursor()),
+  brush,
+  point: new VanishingPointTool(viewport, scene, state, history, () => input.updateCursor()),
   hand: new HandTool(viewport, () => input.updateCursor()),
 };
 
+const renderer = new Renderer(
+  layers,
+  viewport,
+  paper,
+  scene,
+  state,
+  doc,
+  () => brush.preview,
+  readCanvasTheme(),
+);
+
 const toolbar = new Toolbar(toolbarEl, {
   onTool: selectTool,
-  onViewAction: runViewAction,
+  onAction: runAction,
   onPaperChange: changePaper,
 });
 
+new BrushPanel(document.getElementById('brush-panel')!, brushSettings);
+
 const panel = new PerspectivePanel(panelEl, {
   onModeChange: changeMode,
-  onHorizonFreeChange: (free) => scene.setHorizonLocked(!free),
+  onHorizonFreeChange: (free) => editScene(history, scene, () => scene.setHorizonLocked(!free)),
   onRayCountChange: (count) => scene.setRayCount(count),
   onGuidesVisibleChange: setGuidesVisible,
   onDeletePoint: deleteSelectedPoint,
@@ -73,12 +99,21 @@ function setGuidesVisible(visible: boolean): void {
 }
 
 function changeMode(mode: PerspectiveMode): void {
-  scene.setMode(mode, paper.rect, state.selectedPointId);
+  editScene(history, scene, () => scene.setMode(mode, paper.rect, state.selectedPointId));
 }
 
 function deleteSelectedPoint(): void {
-  if (!state.selectedPointId) return;
-  scene.removePoint(state.selectedPointId);
+  const id = state.selectedPointId;
+  if (!id) return;
+  editScene(history, scene, () => scene.removePoint(id));
+}
+
+function undo(): void {
+  if (!input.busy) history.undo();
+}
+
+function redo(): void {
+  if (!input.busy) history.redo();
 }
 
 function updatePanel(): void {
@@ -94,7 +129,7 @@ function updatePanel(): void {
 function fitPadding(): Padding {
   const stageRect = stage.getBoundingClientRect();
   const toolbarBottom = toolbarEl.getBoundingClientRect().bottom - stageRect.top;
-  const panelRight = panelEl.getBoundingClientRect().right - stageRect.left;
+  const panelRight = sidebarEl.getBoundingClientRect().right - stageRect.left;
   return {
     top: toolbarBottom + FIT_MARGIN,
     right: FIT_MARGIN,
@@ -107,8 +142,14 @@ function fitToPaper(): void {
   viewport.fitRect(paper.rect, fitPadding());
 }
 
-function runViewAction(action: ViewAction): void {
+function runAction(action: ToolbarAction): void {
   switch (action) {
+    case 'undo':
+      undo();
+      break;
+    case 'redo':
+      redo();
+      break;
     case 'zoom-in':
       viewport.zoomAt({ x: viewport.width / 2, y: viewport.height / 2 }, ZOOM_STEP);
       break;
@@ -158,6 +199,10 @@ state.onChange((changed) => {
   if (changed.has('selectedPointId') || changed.has('guidesVisible')) updatePanel();
 });
 
+doc.onChange(() => renderer.requestRender('drawing'));
+
+history.onChange(() => toolbar.setHistory(history.canUndo, history.canRedo));
+
 input.onHover((pointer) => state.update({ pointer }));
 
 let initialized = false;
@@ -182,22 +227,41 @@ function isTextEntry(target: EventTarget | null): boolean {
 }
 
 window.addEventListener('keydown', (e) => {
-  if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (isTextEntry(e.target)) return;
+
+  if ((e.ctrlKey || e.metaKey) && !e.altKey) {
+    const key = e.key.toLowerCase();
+    if (key === 'z' && !e.shiftKey) undo();
+    else if ((key === 'z' && e.shiftKey) || key === 'y') redo();
+    else return;
+    e.preventDefault();
+    return;
+  }
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
 
   switch (e.key) {
     case '+':
     case '=':
-      runViewAction('zoom-in');
+      runAction('zoom-in');
       break;
     case '-':
-      runViewAction('zoom-out');
+      runAction('zoom-out');
       break;
     case '0':
-      runViewAction('zoom-fit');
+      runAction('zoom-fit');
       break;
     case '1':
-      runViewAction('zoom-reset');
+      runAction('zoom-reset');
+      break;
+    case 'b':
+    case 'B':
+      selectTool('brush');
+      break;
+    case '[':
+      brushSettings.stepWidth(-1);
+      break;
+    case ']':
+      brushSettings.stepWidth(1);
       break;
     case 'h':
     case 'H':
@@ -227,5 +291,5 @@ window.addEventListener('keydown', (e) => {
 
 paper.set('a4', viewport);
 scene.reset(paper.rect);
-selectTool('point');
+selectTool('brush');
 layers.syncSize();

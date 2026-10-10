@@ -14,6 +14,24 @@ export interface Horizon {
   angle: number;
 }
 
+export interface SceneSnapshot {
+  mode: PerspectiveMode;
+  horizonLocked: boolean;
+  points: VanishingPoint[];
+}
+
+export function snapshotsEqual(a: SceneSnapshot, b: SceneSnapshot): boolean {
+  return (
+    a.mode === b.mode &&
+    a.horizonLocked === b.horizonLocked &&
+    a.points.length === b.points.length &&
+    a.points.every((p, i) => {
+      const q = b.points[i];
+      return p.id === q.id && p.x === q.x && p.y === q.y;
+    })
+  );
+}
+
 export const RAY_COUNT_MIN = 12;
 export const RAY_COUNT_MAX = 72;
 export const RAY_COUNT_STEP = 4;
@@ -159,6 +177,22 @@ export class PerspectiveScene {
     if (angle > Math.PI / 2) angle -= Math.PI;
     else if (angle < -Math.PI / 2) angle += Math.PI;
     return { origin: { x: a.x, y: a.y }, angle };
+  }
+
+  /** Geri alınabilir kurgu durumu (ışın sayısı görünüm tercihi sayılır, dahil değil). */
+  snapshot(): SceneSnapshot {
+    return {
+      mode: this.mode,
+      horizonLocked: this.horizonLocked,
+      points: this.points.map((p) => ({ ...p })),
+    };
+  }
+
+  restore(snap: SceneSnapshot): void {
+    this.mode = snap.mode;
+    this.horizonLocked = snap.horizonLocked;
+    this.points = snap.points.map((p) => ({ ...p }));
+    this.emit();
   }
 
   /** Kilitlenince noktaları ortalama y'de hizalar. */

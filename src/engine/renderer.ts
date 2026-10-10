@@ -1,15 +1,14 @@
+import type { DrawingDocument } from './document';
 import type { LayerName, LayerStack } from './layers';
 import type { Paper } from './paper';
 import type { EditorState } from './state';
+import { drawStroke, type Stroke } from './stroke';
 import type { CanvasTheme } from './theme';
 import type { Viewport } from './viewport';
 import { drawGuides, drawMarkers, type GuideView } from '../perspective/guide-renderer';
 import type { PerspectiveScene } from '../perspective/scene';
 
-/**
- * Katmanları kirli (dirty) bayraklarıyla, kare başına en fazla bir kez çizer.
- * Çizim katmanı Aşama 3'te doldurulacak.
- */
+/** Katmanları kirli (dirty) bayraklarıyla, kare başına en fazla bir kez çizer. */
 export class Renderer {
   private dirty = new Set<LayerName>();
   private frame = 0;
@@ -20,6 +19,9 @@ export class Renderer {
     private readonly paper: Paper,
     private readonly scene: PerspectiveScene,
     private readonly state: EditorState,
+    private readonly doc: DrawingDocument,
+    /** Çizilmekte olan stroke (etkileşim katmanında önizlenir). */
+    private readonly getPreview: () => Stroke | null,
     public theme: CanvasTheme,
   ) {}
 
@@ -34,7 +36,7 @@ export class Renderer {
     const dirty = this.dirty;
     this.dirty = new Set();
     if (dirty.has('paper')) this.drawPaper();
-    if (dirty.has('drawing')) this.layers.clear('drawing');
+    if (dirty.has('drawing')) this.drawDrawing();
     if (dirty.has('guides')) this.drawGuides();
     if (dirty.has('interaction')) this.drawInteraction();
   }
@@ -76,6 +78,14 @@ export class Renderer {
     ctx.strokeRect(0, 0, width, height);
   }
 
+  private drawDrawing(): void {
+    const ctx = this.layers.clear('drawing');
+    this.viewport.applyTo(ctx, this.layers.dpr);
+    for (const stroke of this.doc.strokes) {
+      drawStroke(ctx, stroke, this.theme.inks[stroke.style.ink]);
+    }
+  }
+
   private drawGuides(): void {
     const ctx = this.layers.clear('guides');
     if (this.state.guidesVisible) drawGuides(this.guideView(ctx));
@@ -83,6 +93,11 @@ export class Renderer {
 
   private drawInteraction(): void {
     const ctx = this.layers.clear('interaction');
+    const preview = this.getPreview();
+    if (preview) {
+      this.viewport.applyTo(ctx, this.layers.dpr);
+      drawStroke(ctx, preview, this.theme.inks[preview.style.ink]);
+    }
     if (this.state.markersVisible) drawMarkers(this.guideView(ctx));
   }
 }
