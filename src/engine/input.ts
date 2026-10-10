@@ -16,6 +16,7 @@ export class InputController {
   private tool: Tool | null = null;
   private toolPointer: number | null = null;
   private pan: { pointerId: number; last: Point } | null = null;
+  private hoverListeners = new Set<(screen: Point | null) => void>();
 
   constructor(
     private readonly stage: HTMLElement,
@@ -26,8 +27,18 @@ export class InputController {
     stage.addEventListener('pointerup', this.onPointerUp);
     stage.addEventListener('pointercancel', this.onPointerCancel);
     stage.addEventListener('lostpointercapture', this.onPointerCancel);
+    stage.addEventListener('pointerleave', this.onPointerLeave);
     stage.addEventListener('wheel', this.onWheel, { passive: false });
     stage.addEventListener('contextmenu', (e) => e.preventDefault());
+  }
+
+  /** İmlecin tuval üzerindeki konumu (her araçta); tuvalden çıkınca null. */
+  onHover(fn: (screen: Point | null) => void): void {
+    this.hoverListeners.add(fn);
+  }
+
+  private emitHover(screen: Point | null): void {
+    for (const fn of this.hoverListeners) fn(screen);
   }
 
   get activeTool(): Tool | null {
@@ -76,7 +87,13 @@ export class InputController {
     }
   };
 
+  private onPointerLeave = (e: PointerEvent): void => {
+    if (this.pan || e.pointerId === this.toolPointer) return;
+    this.emitHover(null);
+  };
+
   private onPointerMove = (e: PointerEvent): void => {
+    this.emitHover(this.localPoint(e));
     if (this.pan && e.pointerId === this.pan.pointerId) {
       const p = this.localPoint(e);
       this.viewport.panBy(p.x - this.pan.last.x, p.y - this.pan.last.y);

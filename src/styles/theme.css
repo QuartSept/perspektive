@@ -20,12 +20,17 @@
   --color-accent: #c2553d;
   --color-focus: #3a6fb0;
 
-  /* Kılavuzlar (Aşama 2+) */
-  --color-guide: rgba(58, 111, 176, 0.22);
-  --color-guide-active: rgba(58, 111, 176, 0.55);
-  --color-horizon: rgba(194, 85, 61, 0.55);
+  /* Kılavuzlar: her kaçış noktasının kendi rengi, ışın opaklığı ayrı */
+  --color-vp-1: #3a6fb0;
+  --color-vp-2: #3f8a63;
+  --guide-opacity: 0.2;
+  --guide-opacity-strong: 0.6;
+  --guide-opacity-dim: 0.06;
+  --color-horizon: rgba(194, 85, 61, 0.5);
+  --color-horizon-active: rgba(194, 85, 61, 0.9);
+  --color-marker-fill: #fdfcf8;
+  --color-marker-halo: rgba(43, 42, 39, 0.1);
   --color-snap: #c2553d;
-  --color-vanishing-point: #c2553d;
 
   /* Mürekkep paleti (Aşama 3+) */
   --ink-black: #1f1e1c;

@@ -158,3 +158,136 @@ body {
   white-space: nowrap;
   border: 0;
 }
+
+/* ---------- Perspektif paneli ---------- */
+
+.panel {
+  position: absolute;
+  z-index: 10;
+  top: 70px;
+  left: 12px;
+  width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  background: var(--color-ui-bg);
+  border: 1px solid var(--color-ui-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-ui);
+  backdrop-filter: blur(8px);
+}
+
+.panel__title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.panel__hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-text-muted);
+}
+
+.segmented {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  padding: 2px;
+  gap: 2px;
+  background: var(--color-ui-hover);
+  border-radius: var(--radius-sm);
+}
+
+.segmented button {
+  height: 28px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.segmented button[aria-checked="true"] {
+  background: var(--color-paper);
+  color: var(--color-text);
+  box-shadow: 0 1px 2px rgba(60, 50, 30, 0.12);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.field__row output {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+}
+
+.range {
+  width: 100%;
+  margin: 0;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+.switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.switch input {
+  margin: 0;
+  accent-color: var(--color-accent);
+  cursor: inherit;
+}
+
+.switch.is-disabled {
+  color: var(--color-text-muted);
+  opacity: 0.6;
+  cursor: default;
+}
+
+.btn {
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--color-ui-border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--color-ui-hover);
+}
+
+.btn:disabled {
+  color: var(--color-text-muted);
+  opacity: 0.6;
+  cursor: default;
+}
+
+.segmented button:focus-visible,
+.btn:focus-visible,
+.range:focus-visible,
+.switch input:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
+}

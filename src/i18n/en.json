@@ -14,5 +14,17 @@
   "view.zoomOut": "Zoom out (−)",
   "view.zoomReset": "100% (1)",
   "view.fit": "Fit to page (0)",
-  "stage.label": "Drawing area"
+  "stage.label": "Drawing area",
+  "tool.point": "Vanishing point (P)",
+  "perspective.title": "Perspective",
+  "perspective.mode": "Perspective type",
+  "perspective.onePoint": "1-point",
+  "perspective.twoPoint": "2-point",
+  "perspective.freeHorizon": "Unlock horizon",
+  "perspective.rayCount": "Ray count",
+  "perspective.showGuides": "Guides (G)",
+  "perspective.deletePoint": "Delete selected point",
+  "perspective.hintAdd": "Click the canvas to add a vanishing point. It can sit outside the paper too.",
+  "perspective.hintEdit": "Drag points or the horizon to move them. Press Delete to remove the selected point.",
+  "perspective.hintOtherTool": "Select the vanishing point tool (P) to edit points."
 }

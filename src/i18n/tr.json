@@ -14,5 +14,17 @@
   "view.zoomOut": "Uzaklaştır (−)",
   "view.zoomReset": "%100 (1)",
   "view.fit": "Sayfaya sığdır (0)",
-  "stage.label": "Çizim alanı"
+  "stage.label": "Çizim alanı",
+  "tool.point": "Kaçış noktası (P)",
+  "perspective.title": "Perspektif",
+  "perspective.mode": "Perspektif türü",
+  "perspective.onePoint": "1 nokta",
+  "perspective.twoPoint": "2 nokta",
+  "perspective.freeHorizon": "Ufku serbest bırak",
+  "perspective.rayCount": "Işın sayısı",
+  "perspective.showGuides": "Kılavuzlar (G)",
+  "perspective.deletePoint": "Seçili noktayı sil",
+  "perspective.hintAdd": "Kaçış noktası eklemek için tuvale tıklayın. Kâğıt dışına da koyabilirsiniz.",
+  "perspective.hintEdit": "Noktaları ya da ufku sürükleyerek taşıyın. Seçili noktayı Delete ile silin.",
+  "perspective.hintOtherTool": "Noktaları düzenlemek için kaçış noktası aracını seçin (P)."
 }
