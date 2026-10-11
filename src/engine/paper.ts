@@ -35,6 +35,17 @@ export class Paper {
     }
   }
 
+  /** Kayıttan geri yükleme; `screen` türünün boyutu o anki ekrandan değil kayıttan gelir. */
+  restore(kind: PaperKind, width: number, height: number): void {
+    if (kind === 'screen') {
+      this.kind = kind;
+      this.width = width;
+      this.height = height;
+    } else {
+      this.set(kind, { width, height });
+    }
+  }
+
   get rect(): Rect {
     return { x: 0, y: 0, width: this.width, height: this.height };
   }

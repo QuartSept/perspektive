@@ -47,5 +47,10 @@
   "snap.radius": "Mıknatıs yarıçapı",
   "snap.hint": "Mıknatıs açıkken çizgiler kaçış noktalarına ve dikeye kilitlenir. Geçici serbest çizim için Space basılı tutun.",
   "tool.eraser": "Silgi (E) — boyut: [ ]",
-  "brush.smoothing": "Yumuşatma"
+  "brush.smoothing": "Yumuşatma",
+  "document.clear": "Çizimi temizle",
+  "document.clearConfirm": "Tüm çizgiler silinsin mi? Kaçış noktaları korunur. Ctrl+Z ile geri alabilirsiniz.",
+  "save.saving": "Kaydediliyor…",
+  "save.saved": "Kaydedildi",
+  "save.error": "Kaydedilemedi"
 }

@@ -1,8 +1,9 @@
 import { PAPER_KINDS, type PaperKind } from '../engine/paper';
-import { getLanguage } from '../i18n';
+import { getLanguage, t, type MessageKey } from '../i18n';
+import type { SaveStatus } from '../storage/autosave';
 
 export type ViewAction = 'zoom-in' | 'zoom-out' | 'zoom-reset' | 'zoom-fit';
-export type ToolbarAction = ViewAction | 'undo' | 'redo';
+export type ToolbarAction = ViewAction | 'undo' | 'redo' | 'clear';
 
 export interface ToolbarHandlers {
   onTool(id: string): void;
@@ -19,6 +20,8 @@ export class Toolbar {
   private readonly undoButton: HTMLButtonElement;
   private readonly redoButton: HTMLButtonElement;
   private readonly magnetButton: HTMLButtonElement;
+  private readonly clearButton: HTMLButtonElement;
+  private readonly saveStatus: HTMLElement;
 
   constructor(root: HTMLElement, handlers: ToolbarHandlers) {
     this.toolButtons = [...root.querySelectorAll<HTMLButtonElement>('[data-tool]')];
@@ -27,6 +30,8 @@ export class Toolbar {
     this.undoButton = root.querySelector('[data-action="undo"]')!;
     this.redoButton = root.querySelector('[data-action="redo"]')!;
     this.magnetButton = root.querySelector('#magnet-toggle')!;
+    this.clearButton = root.querySelector('[data-action="clear"]')!;
+    this.saveStatus = root.querySelector('#save-status')!;
     this.magnetButton.addEventListener('click', () => handlers.onMagnetToggle());
 
     for (const btn of this.toolButtons) {
@@ -66,6 +71,23 @@ export class Toolbar {
   setMagnet(enabled: boolean, suspended: boolean): void {
     this.magnetButton.setAttribute('aria-pressed', String(enabled));
     this.magnetButton.classList.toggle('is-suspended', enabled && suspended);
+  }
+
+  setCanClear(canClear: boolean): void {
+    this.clearButton.disabled = !canClear;
+  }
+
+  setSaveStatus(status: SaveStatus): void {
+    const key: MessageKey | null =
+      status === 'pending' || status === 'saving'
+        ? 'save.saving'
+        : status === 'saved'
+          ? 'save.saved'
+          : status === 'error'
+            ? 'save.error'
+            : null;
+    this.saveStatus.dataset.status = status;
+    this.saveStatus.textContent = key ? t(key) : '';
   }
 
   setPaper(kind: PaperKind): void {

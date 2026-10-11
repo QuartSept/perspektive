@@ -1,7 +1,8 @@
 import './styles/theme.css';
 import './styles/main.css';
 
-import { applyTranslations } from './i18n';
+import { applyTranslations, t } from './i18n';
+import { ReplaceStrokesCommand } from './engine/commands';
 import { DrawingDocument } from './engine/document';
 import { History } from './engine/history';
 import { InputController } from './engine/input';
@@ -18,6 +19,8 @@ import { BrushTool } from './tools/brush';
 import { BrushSettings } from './tools/brush-settings';
 import { StrokeEraserTool } from './tools/eraser';
 import { HandTool } from './tools/hand';
+import { Autosave } from './storage/autosave';
+import { loadPrefs, savePrefs, type PrefsTargets } from './storage/prefs';
 import type { Tool } from './tools/tool';
 import { VanishingPointTool } from './tools/vanishing-point';
 import { BrushPanel } from './ui/brush-panel';
@@ -129,6 +132,13 @@ function deleteSelectedPoint(): void {
   editScene(history, scene, () => scene.removePoint(id));
 }
 
+/** Tüm stroke'ları siler (geri alınabilir); kaçış noktaları korunur. */
+function clearDrawing(): void {
+  if (input.busy || doc.strokes.length === 0) return;
+  if (!window.confirm(t('document.clearConfirm'))) return;
+  history.execute(new ReplaceStrokesCommand(doc, doc.strokes.map((s) => s.id), []));
+}
+
 function undo(): void {
   if (!input.busy) history.undo();
 }
@@ -171,6 +181,9 @@ function runAction(action: ToolbarAction): void {
     case 'redo':
       redo();
       break;
+    case 'clear':
+      clearDrawing();
+      break;
     case 'zoom-in':
       viewport.zoomAt({ x: viewport.width / 2, y: viewport.height / 2 }, ZOOM_STEP);
       break;
@@ -199,6 +212,7 @@ function changePaper(kind: PaperKind): void {
   toolbar.setPaper(kind);
   fitToPaper();
   renderer.requestRender();
+  autosave.markDirty();
 }
 
 viewport.onChange(() => {
@@ -206,7 +220,24 @@ viewport.onChange(() => {
   renderer.requestRender();
 });
 
+const autosave = new Autosave({ doc, scene, paper }, (status) => toolbar.setSaveStatus(status));
+
+const prefsTargets: PrefsTargets = {
+  brush: brushSettings,
+  snap: snapSettings,
+  getGuidesVisible: () => state.guidesVisible,
+  setGuidesVisible,
+};
+let prefsTimer = 0;
+function schedulePrefsSave(): void {
+  window.clearTimeout(prefsTimer);
+  prefsTimer = window.setTimeout(() => savePrefs(prefsTargets), 300);
+}
+brushSettings.onChange(schedulePrefsSave);
+snapSettings.onChange(schedulePrefsSave);
+
 scene.onChange(() => {
+  autosave.markDirty();
   if (state.selectedPointId && !scene.getPoint(state.selectedPointId)) {
     state.update({ selectedPointId: null, hoveredPointId: null, draggingPointId: null });
   }
@@ -223,11 +254,16 @@ snapSettings.onChange(syncMagnetButton);
 
 state.onChange((changed) => {
   if (changed.has('temporaryFree')) syncMagnetButton();
+  if (changed.has('guidesVisible')) schedulePrefsSave();
   renderer.requestRender('guides', 'interaction');
   if (changed.has('selectedPointId') || changed.has('guidesVisible')) updatePanel();
 });
 
-doc.onChange(() => renderer.requestRender('drawing'));
+doc.onChange(() => {
+  renderer.requestRender('drawing');
+  toolbar.setCanClear(doc.strokes.length > 0);
+  autosave.markDirty();
+});
 
 history.onChange(() => toolbar.setHistory(history.canUndo, history.canRedo));
 
@@ -273,7 +309,8 @@ window.addEventListener('keydown', (e) => {
 
   if ((e.ctrlKey || e.metaKey) && !e.altKey) {
     const key = e.key.toLowerCase();
-    if (key === 'z' && !e.shiftKey) undo();
+    if (key === 's') void autosave.flush();
+    else if (key === 'z' && !e.shiftKey) undo();
     else if ((key === 'z' && e.shiftKey) || key === 'y') redo();
     else return;
     e.preventDefault();
@@ -341,7 +378,26 @@ window.addEventListener('keydown', (e) => {
   e.preventDefault();
 });
 
-paper.set('a4', viewport);
-scene.reset(paper.rect);
+async function restore(): Promise<void> {
+  paper.set('a4', viewport);
+  scene.reset(paper.rect);
+  loadPrefs(prefsTargets);
+
+  const saved = await autosave.load();
+  if (saved) {
+    paper.restore(saved.paper.kind, saved.paper.width, saved.paper.height);
+    toolbar.setPaper(paper.kind);
+    scene.restore(saved.scene);
+    scene.setRayCount(saved.scene.rayCount);
+    doc.replaceAll(saved.strokes);
+    history.clear();
+    if (initialized) fitToPaper();
+    renderer.requestRender();
+  }
+  autosave.start();
+}
+
 selectTool('brush');
+syncMagnetButton();
 layers.syncSize();
+void restore();

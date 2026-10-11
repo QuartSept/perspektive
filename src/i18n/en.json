@@ -47,5 +47,10 @@
   "snap.radius": "Magnet radius",
   "snap.hint": "With the magnet on, lines lock to vanishing points and verticals. Hold Space to draw freely for a moment.",
   "tool.eraser": "Eraser (E) — size: [ ]",
-  "brush.smoothing": "Smoothing"
+  "brush.smoothing": "Smoothing",
+  "document.clear": "Clear drawing",
+  "document.clearConfirm": "Delete all lines? Vanishing points are kept. You can undo with Ctrl+Z.",
+  "save.saving": "Saving…",
+  "save.saved": "Saved",
+  "save.error": "Couldn't save"
 }
