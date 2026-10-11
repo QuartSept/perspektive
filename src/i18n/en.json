@@ -52,5 +52,21 @@
   "document.clearConfirm": "Delete all lines? Vanishing points are kept. You can undo with Ctrl+Z.",
   "save.saving": "Saving…",
   "save.saved": "Saved",
-  "save.error": "Couldn't save"
+  "save.error": "Couldn't save",
+  "toolbar.output": "Output",
+  "output.pngButton": "Download as PNG",
+  "output.printButton": "Print (Ctrl+P)",
+  "output.pngTitle": "Download as PNG",
+  "output.printTitle": "Print",
+  "output.content": "Content",
+  "output.drawingOnly": "My drawing only",
+  "output.withGuides": "With guides",
+  "output.scale": "Scale",
+  "output.scaleActual": "Actual size (100%)",
+  "output.scaleFit": "Fit to page (10 mm margin)",
+  "output.printHint": "For actual size, set scale to 100% and margins to \"None\" in the print dialog. Your printer may not reach the last few millimetres of the sheet.",
+  "output.download": "Download",
+  "output.print": "Print",
+  "output.cancel": "Cancel",
+  "output.pngError": "Couldn't create the PNG."
 }

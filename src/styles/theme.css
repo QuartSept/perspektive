@@ -35,7 +35,11 @@
   --color-cursor: rgba(43, 42, 39, 0.85);
   --color-cursor-halo: rgba(253, 252, 248, 0.9);
 
-  /* Mürekkep paleti (Aşama 3+) */
+  /* Çıktı (PNG / yazdırma) */
+  --color-print-paper: #ffffff;
+  --print-guide-opacity: 0.35;
+
+  /* Mürekkep paleti */
   --ink-black: #1f1e1c;
   --ink-gray-dark: #55524c;
   --ink-gray: #8c887f;

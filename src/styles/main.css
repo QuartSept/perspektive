@@ -359,3 +359,137 @@ body {
   outline: 2px solid var(--color-focus);
   outline-offset: 1px;
 }
+
+/* ---------- Diyalog ---------- */
+
+.dialog {
+  width: min(360px, calc(100vw - 32px));
+  padding: 0;
+  border: 1px solid var(--color-ui-border);
+  border-radius: var(--radius);
+  background: var(--color-paper);
+  color: var(--color-text);
+  box-shadow: 0 12px 40px rgba(60, 50, 30, 0.22);
+}
+
+.dialog::backdrop {
+  background: rgba(43, 42, 39, 0.25);
+}
+
+.dialog form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px;
+}
+
+.dialog__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.choice {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.choice[hidden] {
+  display: none;
+}
+
+.choice legend {
+  margin-bottom: 8px;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.choice label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.choice input {
+  margin: 0;
+  accent-color: var(--color-accent);
+}
+
+.choice input:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.dialog__hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-text-muted);
+}
+
+.dialog__error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-accent);
+}
+
+.dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.btn--primary {
+  border-color: var(--color-text);
+  background: var(--color-text);
+  color: var(--color-paper);
+}
+
+.btn--primary:hover:not(:disabled) {
+  background: var(--color-text);
+  opacity: 0.88;
+}
+
+/* ---------- Yazdırma görünümü ---------- */
+
+#print-root {
+  display: none;
+}
+
+@media print {
+  html,
+  body {
+    height: auto;
+    overflow: visible;
+    background: #fff;
+  }
+
+  #app {
+    display: none !important;
+  }
+
+  #print-root {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--page-w, 210mm);
+    height: var(--page-h, 297mm);
+    overflow: hidden;
+    break-after: avoid;
+  }
+
+  #print-root canvas {
+    display: block;
+    width: var(--print-w);
+    height: var(--print-h);
+  }
+}

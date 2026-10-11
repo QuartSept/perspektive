@@ -46,6 +46,15 @@
           </button>
         </div>
 
+        <div class="toolbar__group" role="group" data-i18n-aria-label="toolbar.output">
+          <button class="tool-btn" type="button" data-action="export-png" data-i18n-title="output.pngButton">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19.5h14"/></svg>
+          </button>
+          <button class="tool-btn" type="button" data-action="print" data-i18n-title="output.printButton">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9V4h10v5M7 17H5a1.5 1.5 0 0 1-1.5-1.5v-5A1.5 1.5 0 0 1 5 9h14a1.5 1.5 0 0 1 1.5 1.5v5A1.5 1.5 0 0 1 19 17h-2"/><path d="M7 14h10v6H7z"/></svg>
+          </button>
+        </div>
+
         <span class="save-status" id="save-status" role="status" aria-live="polite"></span>
 
         <div class="toolbar__spacer"></div>
@@ -148,7 +157,35 @@
       </div>
 
       <main id="stage" class="stage" data-i18n-aria-label="stage.label"></main>
+
+      <dialog class="dialog" id="output-dialog" aria-labelledby="output-title">
+        <form method="dialog">
+          <h2 class="dialog__title" id="output-title"></h2>
+
+          <fieldset class="choice">
+            <legend data-i18n="output.content">İçerik</legend>
+            <label><input type="radio" name="content" value="drawing" checked /> <span data-i18n="output.drawingOnly">Yalnızca çizimim</span></label>
+            <label><input type="radio" name="content" value="guides" /> <span data-i18n="output.withGuides">Kılavuzlarla birlikte</span></label>
+          </fieldset>
+
+          <fieldset class="choice" id="output-scale">
+            <legend data-i18n="output.scale">Ölçek</legend>
+            <label><input type="radio" name="scale" value="actual" /> <span data-i18n="output.scaleActual">Gerçek boyut</span></label>
+            <label><input type="radio" name="scale" value="fit" /> <span data-i18n="output.scaleFit">Sayfaya sığdır</span></label>
+            <p class="dialog__hint" data-i18n="output.printHint"></p>
+          </fieldset>
+
+          <p class="dialog__error" id="output-error" role="alert" hidden></p>
+
+          <div class="dialog__actions">
+            <button type="button" class="btn" id="output-cancel" data-i18n="output.cancel">İptal</button>
+            <button type="submit" class="btn btn--primary" id="output-confirm"></button>
+          </div>
+        </form>
+      </dialog>
     </div>
+
+    <div id="print-root" aria-hidden="true"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

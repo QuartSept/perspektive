@@ -3,7 +3,7 @@ import { getLanguage, t, type MessageKey } from '../i18n';
 import type { SaveStatus } from '../storage/autosave';
 
 export type ViewAction = 'zoom-in' | 'zoom-out' | 'zoom-reset' | 'zoom-fit';
-export type ToolbarAction = ViewAction | 'undo' | 'redo' | 'clear';
+export type ToolbarAction = ViewAction | 'undo' | 'redo' | 'clear' | 'export-png' | 'print';
 
 export interface ToolbarHandlers {
   onTool(id: string): void;

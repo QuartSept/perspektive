@@ -23,6 +23,9 @@ export interface CanvasTheme {
   /** Silgi gibi daire imleçler. */
   cursor: string;
   cursorHalo: string;
+  /** PNG / yazdırma kâğıt rengi ve kılavuz opaklığı. */
+  printPaper: string;
+  printGuideOpacity: number;
 }
 
 export function readCanvasTheme(el: Element = document.documentElement): CanvasTheme {
@@ -52,5 +55,7 @@ export function readCanvasTheme(el: Element = document.documentElement): CanvasT
     markerHalo: v('--color-marker-halo'),
     cursor: v('--color-cursor'),
     cursorHalo: v('--color-cursor-halo'),
+    printPaper: v('--color-print-paper'),
+    printGuideOpacity: n('--print-guide-opacity', 0.35),
   };
 }

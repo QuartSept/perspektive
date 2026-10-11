@@ -24,6 +24,8 @@ import { loadPrefs, savePrefs, type PrefsTargets } from './storage/prefs';
 import type { Tool } from './tools/tool';
 import { VanishingPointTool } from './tools/vanishing-point';
 import { BrushPanel } from './ui/brush-panel';
+import { defaultPrintScale, downloadPng, PrintView } from './ui/output';
+import { OutputDialog, type OutputMode } from './ui/output-dialog';
 import { PerspectivePanel } from './ui/perspective-panel';
 import { Toolbar, type ToolbarAction } from './ui/toolbar';
 
@@ -132,6 +134,18 @@ function deleteSelectedPoint(): void {
   editScene(history, scene, () => scene.removePoint(id));
 }
 
+const pageSources = { paper, doc, scene, theme: renderer.theme };
+const printView = new PrintView(pageSources);
+const outputDialog = new OutputDialog({
+  onPng: (includeGuides) => downloadPng(pageSources, { includeGuides }),
+  onPrint: (includeGuides, scale) => printView.print({ includeGuides, scale }),
+});
+
+function openOutput(mode: OutputMode): void {
+  if (input.busy) return;
+  outputDialog.open(mode, defaultPrintScale(paper.kind));
+}
+
 /** Tüm stroke'ları siler (geri alınabilir); kaçış noktaları korunur. */
 function clearDrawing(): void {
   if (input.busy || doc.strokes.length === 0) return;
@@ -183,6 +197,12 @@ function runAction(action: ToolbarAction): void {
       break;
     case 'clear':
       clearDrawing();
+      break;
+    case 'export-png':
+      openOutput('png');
+      break;
+    case 'print':
+      openOutput('print');
       break;
     case 'zoom-in':
       viewport.zoomAt({ x: viewport.width / 2, y: viewport.height / 2 }, ZOOM_STEP);
@@ -293,7 +313,7 @@ function isTextEntry(target: EventTarget | null): boolean {
 // Space basılı tutulunca geçici serbest mod. Odaktaki düğmenin Space ile
 // tetiklenmesini de engeller.
 window.addEventListener('keydown', (e) => {
-  if (e.code !== 'Space' || isTextEntry(e.target)) return;
+  if (e.code !== 'Space' || isTextEntry(e.target) || outputDialog.isOpen) return;
   e.preventDefault();
   state.update({ temporaryFree: true });
 });
@@ -305,11 +325,13 @@ window.addEventListener('keyup', (e) => {
 window.addEventListener('blur', () => state.update({ temporaryFree: false }));
 
 window.addEventListener('keydown', (e) => {
-  if (isTextEntry(e.target)) return;
+  // Diyalog açıkken kısayollar kapalı (Esc diyaloğu kapatır)
+  if (isTextEntry(e.target) || outputDialog.isOpen) return;
 
   if ((e.ctrlKey || e.metaKey) && !e.altKey) {
     const key = e.key.toLowerCase();
     if (key === 's') void autosave.flush();
+    else if (key === 'p') openOutput('print');
     else if (key === 'z' && !e.shiftKey) undo();
     else if ((key === 'z' && e.shiftKey) || key === 'y') redo();
     else return;

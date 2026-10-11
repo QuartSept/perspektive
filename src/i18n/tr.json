@@ -52,5 +52,21 @@
   "document.clearConfirm": "Tüm çizgiler silinsin mi? Kaçış noktaları korunur. Ctrl+Z ile geri alabilirsiniz.",
   "save.saving": "Kaydediliyor…",
   "save.saved": "Kaydedildi",
-  "save.error": "Kaydedilemedi"
+  "save.error": "Kaydedilemedi",
+  "toolbar.output": "Çıktı",
+  "output.pngButton": "PNG olarak indir",
+  "output.printButton": "Yazdır (Ctrl+P)",
+  "output.pngTitle": "PNG olarak indir",
+  "output.printTitle": "Yazdır",
+  "output.content": "İçerik",
+  "output.drawingOnly": "Yalnızca çizimim",
+  "output.withGuides": "Kılavuzlarla birlikte",
+  "output.scale": "Ölçek",
+  "output.scaleActual": "Gerçek boyut (%100)",
+  "output.scaleFit": "Sayfaya sığdır (10 mm kenar)",
+  "output.printHint": "Gerçek boyut için yazdırma penceresinde ölçeği %100, kenar boşluklarını \"Yok\" seçin. Yazıcınız kâğıt kenarındaki birkaç milimetreyi basamayabilir.",
+  "output.download": "İndir",
+  "output.print": "Yazdır",
+  "output.cancel": "İptal",
+  "output.pngError": "PNG oluşturulamadı."
 }
