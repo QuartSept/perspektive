@@ -13,7 +13,7 @@ import {
   type SnapLine,
 } from '../perspective/snapping';
 import type { BrushSettings } from './brush-settings';
-import type { Tool, ToolPointerEvent } from './tool';
+import type { Tool, ToolOverlay, ToolPointerEvent } from './tool';
 
 /** Ardışık örnekler arasında en az bu kadar ekran pikseli olmalı. */
 const MIN_SAMPLE_DISTANCE_PX = 0.75;
@@ -21,6 +21,8 @@ const MIN_SAMPLE_DISTANCE_PX = 0.75;
 const DECIDE_MIN_PX = 12;
 /** Bu uzaklığa kadar uygun aday çıkmazsa stroke serbest kalır. */
 const DECIDE_MAX_PX = 40;
+/** Yumuşatma %100'deyken "ip" uzunluğu, ekran pikseli. */
+const SMOOTHING_MAX_PX = 14;
 
 export interface MagnetSource {
   /** Mıknatıs şu an etkin mi (kalıcı ayar + Space ile geçici serbest mod). */
@@ -44,12 +46,18 @@ type Phase =
  * Fırça. Stroke çizilirken etkileşim katmanında önizlenir, bırakılınca komut
  * olarak belgeye eklenir. Mıknatıs açıkken stroke kaçış noktası ışınlarına,
  * dikeye (ve 1 noktada yataya) kilitlenir.
+ *
+ * Serbest çizim "ip" (lazy brush) yöntemiyle yumuşatılır: fırça ucu imleci
+ * sabit uzunlukta bir iple izler, ipten kısa titremeler çizgiye geçmez.
+ * Örnekleme hızından bağımsızdır.
  */
-export class BrushTool implements Tool {
+export class BrushTool implements Tool, ToolOverlay {
   readonly id = 'brush';
   readonly cursor = 'crosshair';
   private stroke: Stroke | null = null;
   private phase: Phase = { kind: 'free' };
+  /** Yumuşatılmış fırça ucu (ipin ucundaki nokta). */
+  private tip: Point | null = null;
 
   constructor(
     private readonly viewport: Viewport,
@@ -60,6 +68,10 @@ export class BrushTool implements Tool {
     private readonly magnet: MagnetSource,
     private readonly onPreviewChange: () => void,
   ) {}
+
+  get overlay(): ToolOverlay {
+    return this;
+  }
 
   /** Çizilmekte olan stroke (önizleme için). */
   get preview(): Stroke | null {
@@ -78,6 +90,7 @@ export class BrushTool implements Tool {
   onPointerDown(e: ToolPointerEvent): void {
     const start = e.world;
     this.stroke = { id: newStrokeId(), points: [start.x, start.y], style: this.settings.toStyle() };
+    this.tip = start;
     const candidates = this.magnet.isActive() ? candidateLines(this.scene, start) : [];
     this.phase = candidates.length
       ? { kind: 'deciding', start, candidates }
@@ -94,9 +107,11 @@ export class BrushTool implements Tool {
   onPointerUp(e: ToolPointerEvent): void {
     const stroke = this.stroke;
     if (!stroke) return;
-    // Karar aşamasında kalan kısa hareket ham örnekleriyle olduğu gibi kalır
     this.handleSample(e.world);
+    // İp gecikmesini kapat: serbest stroke imlecin bırakıldığı yerde biter
+    if (this.phase.kind !== 'locked') this.pushPoint(e.world);
     this.stroke = null;
+    this.tip = null;
     this.phase = { kind: 'free' };
     this.history.execute(addStrokeCommand(this.doc, stroke));
     this.onPreviewChange();
@@ -105,6 +120,7 @@ export class BrushTool implements Tool {
   onPointerCancel(): void {
     if (!this.stroke) return;
     this.stroke = null;
+    this.tip = null;
     this.phase = { kind: 'free' };
     this.onPreviewChange();
   }
@@ -138,6 +154,7 @@ export class BrushTool implements Tool {
       if (offLine || !this.magnet.isActive()) {
         // Kilit bırakılır; stroke son izdüşüm noktasından serbest devam eder
         this.phase = { kind: 'free' };
+        this.tip = lastPoint(this.stroke!);
         this.addFreeSample(p);
       } else {
         this.setLockedEnd(phase.line, p);
@@ -156,7 +173,18 @@ export class BrushTool implements Tool {
     stroke.points.push(end.x, end.y);
   }
 
+  /** Ham örneği ipten geçirip stroke'a ekler. */
   private addFreeSample(p: Point): void {
+    const rope = (this.settings.smoothing * SMOOTHING_MAX_PX) / this.viewport.scale;
+    const tip = this.tip ?? p;
+    const d = Math.hypot(p.x - tip.x, p.y - tip.y);
+    if (d <= rope) return;
+    const k = (d - rope) / d;
+    this.tip = { x: tip.x + (p.x - tip.x) * k, y: tip.y + (p.y - tip.y) * k };
+    this.pushPoint(this.tip);
+  }
+
+  private pushPoint(p: Point): void {
     const stroke = this.stroke!;
     const last = lastPoint(stroke)!;
     const minDist = MIN_SAMPLE_DISTANCE_PX / this.viewport.scale;

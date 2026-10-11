@@ -20,6 +20,9 @@ export interface CanvasTheme {
   snap: string;
   snapOpacity: number;
   markerHalo: string;
+  /** Silgi gibi daire imleçler. */
+  cursor: string;
+  cursorHalo: string;
 }
 
 export function readCanvasTheme(el: Element = document.documentElement): CanvasTheme {
@@ -47,5 +50,7 @@ export function readCanvasTheme(el: Element = document.documentElement): CanvasT
     snap: v('--color-snap'),
     snapOpacity: n('--snap-opacity', 0.75),
     markerHalo: v('--color-marker-halo'),
+    cursor: v('--color-cursor'),
+    cursorHalo: v('--color-cursor-halo'),
   };
 }

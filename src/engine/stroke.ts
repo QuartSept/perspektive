@@ -42,13 +42,18 @@ export function lastPoint(stroke: Stroke): Point | null {
  * Stroke'u bağlamın mevcut (dünya) dönüşümüyle çizer.
  * Ara noktalar orta noktalardan geçen ikinci derece eğrilerle yumuşatılır.
  */
-export function drawStroke(ctx: CanvasRenderingContext2D, stroke: Stroke, color: string): void {
+export function drawStroke(
+  ctx: CanvasRenderingContext2D,
+  stroke: Stroke,
+  color: string,
+  alphaFactor = 1,
+): void {
   const p = stroke.points;
   const n = p.length / 2;
   if (n === 0) return;
   const { width, opacity } = stroke.style;
 
-  ctx.globalAlpha = opacity;
+  ctx.globalAlpha = opacity * alphaFactor;
   if (n === 1) {
     ctx.beginPath();
     ctx.arc(p[0], p[1], width / 2, 0, Math.PI * 2);

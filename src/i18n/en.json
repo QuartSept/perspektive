@@ -45,5 +45,7 @@
   "ink.ochre": "Ochre",
   "tool.magnet": "Magnet (M)",
   "snap.radius": "Magnet radius",
-  "snap.hint": "With the magnet on, lines lock to vanishing points and verticals. Hold Space to draw freely for a moment."
+  "snap.hint": "With the magnet on, lines lock to vanishing points and verticals. Hold Space to draw freely for a moment.",
+  "tool.eraser": "Eraser (E) — size: [ ]",
+  "brush.smoothing": "Smoothing"
 }

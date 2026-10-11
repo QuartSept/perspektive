@@ -16,6 +16,7 @@ import { PerspectiveScene, type PerspectiveMode } from './perspective/scene';
 import { SnapSettings } from './perspective/snap-settings';
 import { BrushTool } from './tools/brush';
 import { BrushSettings } from './tools/brush-settings';
+import { StrokeEraserTool } from './tools/eraser';
 import { HandTool } from './tools/hand';
 import type { Tool } from './tools/tool';
 import { VanishingPointTool } from './tools/vanishing-point';
@@ -59,8 +60,13 @@ const brush = new BrushTool(
   },
   () => renderer.requestRender('interaction'),
 );
+const eraser = new StrokeEraserTool(viewport, doc, history, (strokesChanged) => {
+  if (strokesChanged) renderer.requestRender('drawing', 'interaction');
+  else renderer.requestRender('interaction');
+});
 const tools: Record<string, Tool> = {
   brush,
+  eraser,
   point: new VanishingPointTool(viewport, scene, state, history, () => input.updateCursor()),
   hand: new HandTool(viewport, () => input.updateCursor()),
 };
@@ -72,7 +78,7 @@ const renderer = new Renderer(
   scene,
   state,
   doc,
-  brush,
+  () => input.activeTool?.overlay,
   readCanvasTheme(),
 );
 
@@ -95,8 +101,9 @@ const panel = new PerspectivePanel(panelEl, {
 
 function selectTool(id: string): void {
   const tool = tools[id];
-  if (!tool) return;
+  if (!tool || input.busy) return;
   input.setTool(tool);
+  renderer.requestRender('drawing', 'interaction');
   toolbar.setActiveTool(id);
   syncMarkers();
   updatePanel();
@@ -293,10 +300,16 @@ window.addEventListener('keydown', (e) => {
       selectTool('brush');
       break;
     case '[':
-      brushSettings.stepWidth(-1);
+    case ']': {
+      // Etkin aracın boyutu: silgide yarıçap, diğerlerinde fırça kalınlığı
+      const dir = e.key === ']' ? 1 : -1;
+      if (input.activeTool === eraser) eraser.stepRadius(dir);
+      else brushSettings.stepWidth(dir);
       break;
-    case ']':
-      brushSettings.stepWidth(1);
+    }
+    case 'e':
+    case 'E':
+      selectTool('eraser');
       break;
     case 'h':
     case 'H':

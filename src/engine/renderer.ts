@@ -2,7 +2,7 @@ import type { DrawingDocument } from './document';
 import type { LayerName, LayerStack } from './layers';
 import type { Paper } from './paper';
 import type { EditorState } from './state';
-import { drawStroke, type Stroke } from './stroke';
+import { drawStroke } from './stroke';
 import type { CanvasTheme } from './theme';
 import type { Viewport } from './viewport';
 import {
@@ -12,13 +12,10 @@ import {
   type GuideView,
 } from '../perspective/guide-renderer';
 import type { PerspectiveScene } from '../perspective/scene';
-import type { SnapLine } from '../perspective/snapping';
+import type { ToolOverlay } from '../tools/tool';
 
-/** Etkileşim katmanında anlık gösterilenler (çizilmekte olan stroke, kilit doğrusu). */
-export interface InteractionSource {
-  readonly preview: Stroke | null;
-  readonly snapLine: SnapLine | null;
-}
+/** Silinmek üzere işaretli stroke'ların opaklık çarpanı. */
+const FADED_ALPHA = 0.2;
 
 /** Katmanları kirli (dirty) bayraklarıyla, kare başına en fazla bir kez çizer. */
 export class Renderer {
@@ -32,7 +29,8 @@ export class Renderer {
     private readonly scene: PerspectiveScene,
     private readonly state: EditorState,
     private readonly doc: DrawingDocument,
-    private readonly interaction: InteractionSource,
+    /** Etkin aracın anlık geri bildirimi. */
+    private readonly getOverlay: () => ToolOverlay | undefined,
     public theme: CanvasTheme,
   ) {}
 
@@ -92,8 +90,10 @@ export class Renderer {
   private drawDrawing(): void {
     const ctx = this.layers.clear('drawing');
     this.viewport.applyTo(ctx, this.layers.dpr);
+    const faded = this.getOverlay()?.fadedStrokeIds;
     for (const stroke of this.doc.strokes) {
-      drawStroke(ctx, stroke, this.theme.inks[stroke.style.ink]);
+      const alpha = faded?.has(stroke.id) ? FADED_ALPHA : 1;
+      drawStroke(ctx, stroke, this.theme.inks[stroke.style.ink], alpha);
     }
   }
 
@@ -104,12 +104,33 @@ export class Renderer {
 
   private drawInteraction(): void {
     const ctx = this.layers.clear('interaction');
-    const { preview, snapLine } = this.interaction;
-    if (snapLine) drawSnapLine(this.guideView(ctx), snapLine);
-    if (preview) {
+    const overlay = this.getOverlay();
+    if (overlay?.snapLine) drawSnapLine(this.guideView(ctx), overlay.snapLine);
+    if (overlay?.preview) {
       this.viewport.applyTo(ctx, this.layers.dpr);
-      drawStroke(ctx, preview, this.theme.inks[preview.style.ink]);
+      drawStroke(ctx, overlay.preview, this.theme.inks[overlay.preview.style.ink]);
     }
     if (this.state.markersVisible) drawMarkers(this.guideView(ctx));
+    if (overlay?.cursorRadius && this.state.pointer) {
+      this.drawCursorCircle(ctx, this.state.pointer, overlay.cursorRadius);
+    }
+  }
+
+  /** Ekran uzayında, açık ve koyu zeminde görünür çift halkalı imleç. */
+  private drawCursorCircle(
+    ctx: CanvasRenderingContext2D,
+    at: { x: number; y: number },
+    radius: number,
+  ): void {
+    const { dpr } = this.layers;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.beginPath();
+    ctx.arc(at.x, at.y, radius, 0, Math.PI * 2);
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = this.theme.cursorHalo;
+    ctx.stroke();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = this.theme.cursor;
+    ctx.stroke();
   }
 }

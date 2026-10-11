@@ -14,13 +14,15 @@ import {
   type BrushSettings,
 } from '../tools/brush-settings';
 
-/** Fırça paneli: mürekkep rengi, kalınlık, opaklık, mıknatıs yarıçapı. */
+/** Fırça paneli: mürekkep rengi, kalınlık, opaklık, yumuşatma, mıknatıs yarıçapı. */
 export class BrushPanel {
   private readonly swatches: HTMLButtonElement[] = [];
   private readonly width: HTMLInputElement;
   private readonly widthValue: HTMLOutputElement;
   private readonly opacity: HTMLInputElement;
   private readonly opacityValue: HTMLOutputElement;
+  private readonly smoothing: HTMLInputElement;
+  private readonly smoothingValue: HTMLOutputElement;
   private readonly snapRadius: HTMLInputElement;
   private readonly snapRadiusValue: HTMLOutputElement;
 
@@ -63,6 +65,15 @@ export class BrushPanel {
       settings.setOpacity(Number(this.opacity.value) / 100);
     });
 
+    this.smoothing = root.querySelector('#brush-smoothing')!;
+    this.smoothingValue = root.querySelector('#brush-smoothing-value')!;
+    this.smoothing.min = '0';
+    this.smoothing.max = '100';
+    this.smoothing.step = '5';
+    this.smoothing.addEventListener('input', () => {
+      settings.setSmoothing(Number(this.smoothing.value) / 100);
+    });
+
     this.snapRadius = root.querySelector('#snap-radius')!;
     this.snapRadiusValue = root.querySelector('#snap-radius-value')!;
     this.snapRadius.min = String(SNAP_RADIUS_MIN);
@@ -93,6 +104,13 @@ export class BrushPanel {
       style: 'percent',
       maximumFractionDigits: 0,
     }).format(s.opacity);
+
+    const smoothPct = Math.round(s.smoothing * 100);
+    if (Number(this.smoothing.value) !== smoothPct) this.smoothing.value = String(smoothPct);
+    this.smoothingValue.textContent = new Intl.NumberFormat(lang, {
+      style: 'percent',
+      maximumFractionDigits: 0,
+    }).format(s.smoothing);
 
     const radius = this.snap.radius;
     if (Number(this.snapRadius.value) !== radius) this.snapRadius.value = String(radius);

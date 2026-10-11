@@ -45,5 +45,7 @@
   "ink.ochre": "Hardal",
   "tool.magnet": "Mıknatıs (M)",
   "snap.radius": "Mıknatıs yarıçapı",
-  "snap.hint": "Mıknatıs açıkken çizgiler kaçış noktalarına ve dikeye kilitlenir. Geçici serbest çizim için Space basılı tutun."
+  "snap.hint": "Mıknatıs açıkken çizgiler kaçış noktalarına ve dikeye kilitlenir. Geçici serbest çizim için Space basılı tutun.",
+  "tool.eraser": "Silgi (E) — boyut: [ ]",
+  "brush.smoothing": "Yumuşatma"
 }

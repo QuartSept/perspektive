@@ -12,6 +12,8 @@ export class BrushSettings implements StrokeStyle {
   width = 2;
   opacity = 1;
   ink: InkId = 'black';
+  /** Serbest çizim yumuşatması, 0..1 (stroke'a kaydedilmez). */
+  smoothing = 0.35;
 
   private listeners = new Set<() => void>();
 
@@ -45,6 +47,13 @@ export class BrushSettings implements StrokeStyle {
     const next = clamp(Math.round(opacity * 100) / 100, BRUSH_OPACITY_MIN, BRUSH_OPACITY_MAX);
     if (next === this.opacity) return;
     this.opacity = next;
+    this.emit();
+  }
+
+  setSmoothing(smoothing: number): void {
+    const next = clamp(Math.round(smoothing * 100) / 100, 0, 1);
+    if (next === this.smoothing) return;
+    this.smoothing = next;
     this.emit();
   }
 

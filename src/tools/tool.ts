@@ -1,4 +1,6 @@
 import type { Point } from '../engine/geometry';
+import type { Stroke } from '../engine/stroke';
+import type { SnapLine } from '../perspective/snapping';
 
 export interface ToolPointerEvent {
   /** Tuval öğesine göre CSS piksel. */
@@ -13,14 +15,27 @@ export interface ToolPointerEvent {
   native: PointerEvent;
 }
 
+/** Etkin aracın tuvalde anlık gösterdiği geri bildirim. */
+export interface ToolOverlay {
+  /** Çizilmekte olan stroke. */
+  readonly preview?: Stroke | null;
+  /** Kilitli perspektif doğrusu. */
+  readonly snapLine?: SnapLine | null;
+  /** Silinmek üzere işaretlenen stroke'lar (soluk çizilir). */
+  readonly fadedStrokeIds?: ReadonlySet<string>;
+  /** İmleç yerine çizilen daire yarıçapı, CSS piksel (ör. silgi). */
+  readonly cursorRadius?: number | null;
+}
+
 /**
- * Tüm araçların ortak arayüzü (el, fırça, silgi, nokta yerleştirme...).
+ * Tüm araçların ortak arayüzü (fırça, silgi, nokta yerleştirme, el...).
  * InputController yalnızca sol tuş hareketlerini etkin araca iletir;
  * sol tuş basılı değilken de onPointerMove çağrılır (üzerine gelme önizlemesi için).
  */
 export interface Tool {
   readonly id: string;
   readonly cursor: string;
+  readonly overlay?: ToolOverlay;
   activate?(): void;
   deactivate?(): void;
   onPointerDown(e: ToolPointerEvent): void;
