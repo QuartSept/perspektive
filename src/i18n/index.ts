@@ -4,9 +4,12 @@ import en from './en.json';
 export type Lang = 'tr' | 'en';
 export type MessageKey = keyof typeof tr;
 
+export const LANGUAGES: readonly Lang[] = ['tr', 'en'];
+
 const dictionaries: Record<Lang, Record<MessageKey, string>> = { tr, en };
 
 let current: Lang = detectLanguage();
+const listeners = new Set<(lang: Lang) => void>();
 
 function detectLanguage(): Lang {
   const langs = navigator.languages?.length ? navigator.languages : [navigator.language];
@@ -17,14 +20,26 @@ function detectLanguage(): Lang {
   return 'en';
 }
 
+export function isLang(v: unknown): v is Lang {
+  return LANGUAGES.includes(v as Lang);
+}
+
 export function getLanguage(): Lang {
   return current;
 }
 
+/** Dili değiştirir, DOM'u çevirir ve dinleyicilere (dinamik metinler) haber verir. */
 export function setLanguage(lang: Lang): void {
+  if (lang === current) return;
   current = lang;
   document.documentElement.lang = lang;
   applyTranslations();
+  for (const fn of listeners) fn(lang);
+}
+
+export function onLanguageChange(fn: (lang: Lang) => void): () => void {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
 }
 
 /** Anahtarın çevirisi; `{name}` yer tutucuları params ile doldurulur. */
@@ -36,6 +51,15 @@ export function t(key: MessageKey, params?: Record<string, string | number>): st
     }
   }
   return text;
+}
+
+/** Dile uygun sayı biçimi (TR: "2,5" ve "%35"; EN: "2.5" ve "35%"). */
+export function formatNumber(value: number, options?: Intl.NumberFormatOptions): string {
+  return new Intl.NumberFormat(current, options).format(value);
+}
+
+export function formatPercent(fraction: number): string {
+  return formatNumber(fraction, { style: 'percent', maximumFractionDigits: 0 });
 }
 
 /**

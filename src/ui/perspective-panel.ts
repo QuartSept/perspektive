@@ -50,6 +50,17 @@ export class PerspectivePanel {
         handlers.onModeChange(Number(btn.dataset.mode) as PerspectiveMode);
       });
     }
+    // radiogroup: ok tuşları seçimi değiştirir
+    root.querySelector('.segmented')!.addEventListener('keydown', (e) => {
+      const key = (e as KeyboardEvent).key;
+      const delta = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[key];
+      if (!delta) return;
+      e.preventDefault();
+      const index = this.modeButtons.findIndex((b) => b.getAttribute('aria-checked') === 'true');
+      const next = this.modeButtons[(index + delta + this.modeButtons.length) % this.modeButtons.length];
+      handlers.onModeChange(Number(next.dataset.mode) as PerspectiveMode);
+      next.focus();
+    });
     this.horizonFree.addEventListener('change', () => {
       handlers.onHorizonFreeChange(this.horizonFree.checked);
     });

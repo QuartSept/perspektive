@@ -81,6 +81,17 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
           </button>
         </div>
+
+        <div class="toolbar__group">
+          <label class="visually-hidden" for="lang-select" data-i18n="language.label">Dil</label>
+          <select id="lang-select" class="select select--compact">
+            <option value="tr">TR</option>
+            <option value="en">EN</option>
+          </select>
+          <button class="tool-btn" type="button" data-action="help" data-i18n-title="help.button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.6a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5v.6"/><path d="M12 17h.01" stroke-width="2.2"/></svg>
+          </button>
+        </div>
       </header>
 
       <div class="sidebar" id="sidebar">
@@ -156,7 +167,37 @@
       </section>
       </div>
 
-      <main id="stage" class="stage" data-i18n-aria-label="stage.label"></main>
+      <main id="stage" class="stage" data-i18n-aria-label="stage.label" aria-describedby="stage-description"></main>
+      <p id="stage-description" class="visually-hidden" data-i18n="stage.description"></p>
+
+      <dialog class="dialog dialog--wide" id="help-dialog" aria-labelledby="help-title">
+        <form method="dialog">
+          <h2 class="dialog__title" id="help-title" data-i18n="help.title">Klavye kısayolları</h2>
+          <dl class="shortcuts">
+            <dt><kbd>B</kbd></dt><dd data-i18n="help.brush"></dd>
+            <dt><kbd>E</kbd></dt><dd data-i18n="help.eraser"></dd>
+            <dt><kbd>P</kbd></dt><dd data-i18n="help.point"></dd>
+            <dt><kbd>H</kbd></dt><dd data-i18n="help.hand"></dd>
+            <dt><kbd data-i18n="help.keySpace">Space</kbd></dt><dd data-i18n="help.space"></dd>
+            <dt><kbd>M</kbd></dt><dd data-i18n="help.magnet"></dd>
+            <dt><kbd>G</kbd></dt><dd data-i18n="help.guides"></dd>
+            <dt><kbd>[</kbd> <kbd>]</kbd></dt><dd data-i18n="help.size"></dd>
+            <dt><kbd>Ctrl</kbd>+<kbd>Z</kbd></dt><dd data-i18n="help.undo"></dd>
+            <dt><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></dt><dd data-i18n="help.redo"></dd>
+            <dt><kbd>Delete</kbd></dt><dd data-i18n="help.delete"></dd>
+            <dt><kbd>+</kbd> <kbd>−</kbd></dt><dd data-i18n="help.zoom"></dd>
+            <dt><kbd>0</kbd> / <kbd>1</kbd></dt><dd data-i18n="help.fit"></dd>
+            <dt><kbd>Ctrl</kbd>+<kbd>S</kbd></dt><dd data-i18n="help.save"></dd>
+            <dt><kbd>Ctrl</kbd>+<kbd>P</kbd></dt><dd data-i18n="help.print"></dd>
+            <dt data-i18n="help.mousePanKey"></dt><dd data-i18n="help.mousePan"></dd>
+            <dt data-i18n="help.wheelKey"></dt><dd data-i18n="help.wheel"></dd>
+            <dt><kbd>?</kbd></dt><dd data-i18n="help.help"></dd>
+          </dl>
+          <div class="dialog__actions">
+            <button type="submit" class="btn btn--primary" data-i18n="help.close">Kapat</button>
+          </div>
+        </form>
+      </dialog>
 
       <dialog class="dialog" id="output-dialog" aria-labelledby="output-title">
         <form method="dialog">

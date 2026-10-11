@@ -1,4 +1,5 @@
 import { INK_IDS, type InkId } from '../engine/stroke';
+import { getLanguage, isLang, setLanguage } from '../i18n';
 import type { SnapSettings } from '../perspective/snap-settings';
 import type { BrushSettings } from '../tools/brush-settings';
 
@@ -9,6 +10,7 @@ interface Prefs {
   brush?: { width?: number; opacity?: number; ink?: string; smoothing?: number };
   snap?: { enabled?: boolean; radius?: number };
   guidesVisible?: boolean;
+  language?: string;
 }
 
 export interface PrefsTargets {
@@ -37,6 +39,7 @@ export function loadPrefs(t: PrefsTargets): void {
   if (typeof s.enabled === 'boolean') t.snap.setEnabled(s.enabled);
   if (num(s.radius)) t.snap.setRadius(s.radius);
   if (typeof prefs.guidesVisible === 'boolean') t.setGuidesVisible(prefs.guidesVisible);
+  if (isLang(prefs.language)) setLanguage(prefs.language);
 }
 
 export function savePrefs(t: PrefsTargets): void {
@@ -49,6 +52,7 @@ export function savePrefs(t: PrefsTargets): void {
     },
     snap: { enabled: t.snap.enabled, radius: t.snap.radius },
     guidesVisible: t.getGuidesVisible(),
+    language: getLanguage(),
   };
   try {
     localStorage.setItem(KEY, JSON.stringify(prefs));

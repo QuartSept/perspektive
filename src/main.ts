@@ -1,7 +1,7 @@
 import './styles/theme.css';
 import './styles/main.css';
 
-import { applyTranslations, t } from './i18n';
+import { applyTranslations, onLanguageChange, setLanguage, t } from './i18n';
 import { ReplaceStrokesCommand } from './engine/commands';
 import { DrawingDocument } from './engine/document';
 import { History } from './engine/history';
@@ -92,9 +92,10 @@ const toolbar = new Toolbar(toolbarEl, {
   onAction: runAction,
   onPaperChange: changePaper,
   onMagnetToggle: () => snapSettings.setEnabled(!snapSettings.enabled),
+  onLanguageChange: setLanguage,
 });
 
-new BrushPanel(document.getElementById('brush-panel')!, brushSettings, snapSettings);
+const brushPanel = new BrushPanel(document.getElementById('brush-panel')!, brushSettings, snapSettings);
 
 const panel = new PerspectivePanel(panelEl, {
   onModeChange: changeMode,
@@ -140,6 +141,20 @@ const outputDialog = new OutputDialog({
   onPng: (includeGuides) => downloadPng(pageSources, { includeGuides }),
   onPrint: (includeGuides, scale) => printView.print({ includeGuides, scale }),
 });
+
+const helpDialog = document.getElementById('help-dialog') as HTMLDialogElement;
+helpDialog.addEventListener('click', (e) => {
+  if (e.target === helpDialog) helpDialog.close();
+});
+
+function openHelp(): void {
+  if (!helpDialog.open) helpDialog.showModal();
+}
+
+/** Açık bir modal diyalog varken tuval kısayolları devre dışı. */
+function dialogOpen(): boolean {
+  return document.querySelector('dialog[open]') !== null;
+}
 
 function openOutput(mode: OutputMode): void {
   if (input.busy) return;
@@ -204,6 +219,9 @@ function runAction(action: ToolbarAction): void {
     case 'print':
       openOutput('print');
       break;
+    case 'help':
+      openHelp();
+      break;
     case 'zoom-in':
       viewport.zoomAt({ x: viewport.width / 2, y: viewport.height / 2 }, ZOOM_STEP);
       break;
@@ -254,6 +272,12 @@ function schedulePrefsSave(): void {
   prefsTimer = window.setTimeout(() => savePrefs(prefsTargets), 300);
 }
 brushSettings.onChange(schedulePrefsSave);
+onLanguageChange(() => {
+  toolbar.refreshLanguage();
+  brushPanel.update();
+  updatePanel();
+  schedulePrefsSave();
+});
 snapSettings.onChange(schedulePrefsSave);
 
 scene.onChange(() => {
@@ -313,7 +337,7 @@ function isTextEntry(target: EventTarget | null): boolean {
 // Space basılı tutulunca geçici serbest mod. Odaktaki düğmenin Space ile
 // tetiklenmesini de engeller.
 window.addEventListener('keydown', (e) => {
-  if (e.code !== 'Space' || isTextEntry(e.target) || outputDialog.isOpen) return;
+  if (e.code !== 'Space' || isTextEntry(e.target) || dialogOpen()) return;
   e.preventDefault();
   state.update({ temporaryFree: true });
 });
@@ -326,7 +350,7 @@ window.addEventListener('blur', () => state.update({ temporaryFree: false }));
 
 window.addEventListener('keydown', (e) => {
   // Diyalog açıkken kısayollar kapalı (Esc diyaloğu kapatır)
-  if (isTextEntry(e.target) || outputDialog.isOpen) return;
+  if (isTextEntry(e.target) || dialogOpen()) return;
 
   if ((e.ctrlKey || e.metaKey) && !e.altKey) {
     const key = e.key.toLowerCase();
@@ -377,6 +401,9 @@ window.addEventListener('keydown', (e) => {
     case 'p':
     case 'P':
       selectTool('point');
+      break;
+    case '?':
+      openHelp();
       break;
     case 'm':
     case 'M':

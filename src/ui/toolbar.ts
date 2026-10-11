@@ -1,15 +1,23 @@
 import { PAPER_KINDS, type PaperKind } from '../engine/paper';
-import { getLanguage, t, type MessageKey } from '../i18n';
+import { formatPercent, getLanguage, isLang, t, type Lang, type MessageKey } from '../i18n';
 import type { SaveStatus } from '../storage/autosave';
 
 export type ViewAction = 'zoom-in' | 'zoom-out' | 'zoom-reset' | 'zoom-fit';
-export type ToolbarAction = ViewAction | 'undo' | 'redo' | 'clear' | 'export-png' | 'print';
+export type ToolbarAction =
+  | ViewAction
+  | 'undo'
+  | 'redo'
+  | 'clear'
+  | 'export-png'
+  | 'print'
+  | 'help';
 
 export interface ToolbarHandlers {
   onTool(id: string): void;
   onAction(action: ToolbarAction): void;
   onPaperChange(kind: PaperKind): void;
   onMagnetToggle(): void;
+  onLanguageChange(lang: Lang): void;
 }
 
 /** index.html'deki araç çubuğu öğelerini olaylara bağlar. */
@@ -22,6 +30,9 @@ export class Toolbar {
   private readonly magnetButton: HTMLButtonElement;
   private readonly clearButton: HTMLButtonElement;
   private readonly saveStatus: HTMLElement;
+  private readonly langSelect: HTMLSelectElement;
+  private zoom = 1;
+  private status: SaveStatus = 'idle';
 
   constructor(root: HTMLElement, handlers: ToolbarHandlers) {
     this.toolButtons = [...root.querySelectorAll<HTMLButtonElement>('[data-tool]')];
@@ -32,6 +43,13 @@ export class Toolbar {
     this.magnetButton = root.querySelector('#magnet-toggle')!;
     this.clearButton = root.querySelector('[data-action="clear"]')!;
     this.saveStatus = root.querySelector('#save-status')!;
+    this.langSelect = root.querySelector('#lang-select')!;
+    this.langSelect.value = getLanguage();
+    this.langSelect.addEventListener('change', () => {
+      if (isLang(this.langSelect.value)) handlers.onLanguageChange(this.langSelect.value);
+      // Odak seçimde kalırsa tuval kısayolları çalışmaz
+      this.langSelect.blur();
+    });
     this.magnetButton.addEventListener('click', () => handlers.onMagnetToggle());
 
     for (const btn of this.toolButtons) {
@@ -54,12 +72,17 @@ export class Toolbar {
   }
 
   setZoom(scale: number): void {
+    this.zoom = scale;
     // TR: "%100", EN: "100%"
-    const text = new Intl.NumberFormat(getLanguage(), {
-      style: 'percent',
-      maximumFractionDigits: 0,
-    }).format(scale);
+    const text = formatPercent(scale);
     if (this.zoomReadout.textContent !== text) this.zoomReadout.textContent = text;
+  }
+
+  /** Dil değişince dinamik metinleri yeniler. */
+  refreshLanguage(): void {
+    this.langSelect.value = getLanguage();
+    this.setZoom(this.zoom);
+    this.setSaveStatus(this.status);
   }
 
   setHistory(canUndo: boolean, canRedo: boolean): void {
@@ -78,6 +101,7 @@ export class Toolbar {
   }
 
   setSaveStatus(status: SaveStatus): void {
+    this.status = status;
     const key: MessageKey | null =
       status === 'pending' || status === 'saving'
         ? 'save.saving'

@@ -1,4 +1,4 @@
-import { getLanguage, t, type MessageKey } from '../i18n';
+import { formatNumber, formatPercent, t, type MessageKey } from '../i18n';
 import { INK_IDS, type InkId } from '../engine/stroke';
 import {
   SNAP_RADIUS_MAX,
@@ -94,23 +94,16 @@ export class BrushPanel {
       btn.tabIndex = checked ? 0 : -1;
     }
 
-    const lang = getLanguage();
     if (Number(this.width.value) !== s.width) this.width.value = String(s.width);
-    this.widthValue.textContent = `${new Intl.NumberFormat(lang, { maximumFractionDigits: 1 }).format(s.width)} px`;
+    this.widthValue.textContent = `${formatNumber(s.width, { maximumFractionDigits: 1 })} px`;
 
     const pct = Math.round(s.opacity * 100);
     if (Number(this.opacity.value) !== pct) this.opacity.value = String(pct);
-    this.opacityValue.textContent = new Intl.NumberFormat(lang, {
-      style: 'percent',
-      maximumFractionDigits: 0,
-    }).format(s.opacity);
+    this.opacityValue.textContent = formatPercent(s.opacity);
 
     const smoothPct = Math.round(s.smoothing * 100);
     if (Number(this.smoothing.value) !== smoothPct) this.smoothing.value = String(smoothPct);
-    this.smoothingValue.textContent = new Intl.NumberFormat(lang, {
-      style: 'percent',
-      maximumFractionDigits: 0,
-    }).format(s.smoothing);
+    this.smoothingValue.textContent = formatPercent(s.smoothing);
 
     const radius = this.snap.radius;
     if (Number(this.snapRadius.value) !== radius) this.snapRadius.value = String(radius);

@@ -50,6 +50,9 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
+  /* Dar pencerede satır kırılmaz, yatay kaydırılır */
+  overflow-x: auto;
+  scrollbar-width: none;
   padding: 6px;
   background: var(--color-ui-bg);
   border: 1px solid var(--color-ui-border);
@@ -59,6 +62,7 @@ body {
 }
 
 .toolbar__group {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 2px;
@@ -77,7 +81,25 @@ body {
   border-left: none;
 }
 
+@media (max-width: 1100px) {
+  .toolbar__brand {
+    display: none;
+  }
+
+  .toolbar__brand + * {
+    border-left: none;
+  }
+}
+
+.select--compact {
+  padding: 0 4px;
+}
+
 .save-status {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   padding: 0 6px;
   font-size: 12px;
   color: var(--color-text-muted);
@@ -491,5 +513,49 @@ body {
     display: block;
     width: var(--print-w);
     height: var(--print-h);
+  }
+}
+
+/* ---------- Kısayol yardımı ---------- */
+
+.dialog--wide {
+  width: min(440px, calc(100vw - 32px));
+}
+
+.shortcuts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 16px;
+  margin: 0;
+  max-height: min(60vh, 520px);
+  overflow-y: auto;
+  font-size: 13px;
+}
+
+.shortcuts dt {
+  white-space: nowrap;
+  color: var(--color-text-muted);
+}
+
+.shortcuts dd {
+  margin: 0;
+}
+
+kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 1px 5px;
+  border: 1px solid var(--color-ui-border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--color-ui-bg);
+  font: 12px/1.4 var(--font-ui);
+  text-align: center;
+  color: var(--color-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
   }
 }
