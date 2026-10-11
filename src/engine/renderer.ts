@@ -3,6 +3,8 @@ import type { LayerName, LayerStack } from './layers';
 import type { Paper } from './paper';
 import type { EditorState } from './state';
 import { drawStroke } from './stroke';
+import { strokeBounds } from './stroke-geometry';
+import { rectsOverlap } from './geometry';
 import type { CanvasTheme } from './theme';
 import type { Viewport } from './viewport';
 import {
@@ -91,7 +93,10 @@ export class Renderer {
     const ctx = this.layers.clear('drawing');
     this.viewport.applyTo(ctx, this.layers.dpr);
     const faded = this.getOverlay()?.fadedStrokeIds;
+    const view = this.viewport.visibleWorldRect();
     for (const stroke of this.doc.strokes) {
+      // Görünür alanın dışındaki stroke'ları atla (yakınlaştırılmış büyük çizimlerde kazanç)
+      if (!rectsOverlap(strokeBounds(stroke), view, stroke.style.width / 2)) continue;
       const alpha = faded?.has(stroke.id) ? FADED_ALPHA : 1;
       drawStroke(ctx, stroke, this.theme.inks[stroke.style.ink], alpha);
     }

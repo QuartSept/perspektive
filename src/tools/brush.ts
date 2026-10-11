@@ -7,7 +7,7 @@ import type { Viewport } from '../engine/viewport';
 import type { PerspectiveScene } from '../perspective/scene';
 import {
   candidateLines,
-  chooseLine,
+  decideLine,
   distanceToLine,
   projectOnLine,
   type SnapLine,
@@ -21,6 +21,8 @@ const MIN_SAMPLE_DISTANCE_PX = 0.75;
 const DECIDE_MIN_PX = 12;
 /** Bu uzaklığa kadar uygun aday çıkmazsa stroke serbest kalır. */
 const DECIDE_MAX_PX = 40;
+/** Stroke kaçış noktasına bu kadar yakın başlarsa noktadan çıkan ışına kilitlenir. */
+const NEAR_POINT_PX = 10;
 /** Yumuşatma %100'deyken "ip" uzunluğu, ekran pikseli. */
 const SMOOTHING_MAX_PX = 14;
 
@@ -39,7 +41,7 @@ export interface MagnetSource {
  */
 type Phase =
   | { kind: 'deciding'; start: Point; candidates: SnapLine[] }
-  | { kind: 'locked'; line: SnapLine }
+  | { kind: 'locked'; line: SnapLine; start: Point }
   | { kind: 'free' };
 
 /**
@@ -91,7 +93,9 @@ export class BrushTool implements Tool, ToolOverlay {
     const start = e.world;
     this.stroke = { id: newStrokeId(), points: [start.x, start.y], style: this.settings.toStyle() };
     this.tip = start;
-    const candidates = this.magnet.isActive() ? candidateLines(this.scene, start) : [];
+    const candidates = this.magnet.isActive()
+      ? candidateLines(this.scene, start, NEAR_POINT_PX / this.viewport.scale)
+      : [];
     this.phase = candidates.length
       ? { kind: 'deciding', start, candidates }
       : { kind: 'free' };
@@ -139,13 +143,15 @@ export class BrushTool implements Tool, ToolOverlay {
       // Başlangıçtan şimdiki noktaya yön, titremeyi ortalar
       const moved = Math.hypot(p.x - phase.start.x, p.y - phase.start.y) * scale;
       if (moved < DECIDE_MIN_PX) return;
-      const line = chooseLine(phase.candidates, phase.start, p);
-      if (line) {
-        this.phase = { kind: 'locked', line };
-        this.setLockedEnd(line, p);
-      } else if (moved >= DECIDE_MAX_PX) {
+      const final = moved >= DECIDE_MAX_PX;
+      const decision = decideLine(phase.candidates, phase.start, p, final);
+      if (decision.kind === 'lock') {
+        this.phase = { kind: 'locked', line: decision.line, start: phase.start };
+        this.setLockedEnd(decision.line, phase.start, p);
+      } else if (decision.kind === 'none' && final) {
         this.phase = { kind: 'free' };
       }
+      // 'wait' ya da henüz aday yok: hareket sürdükçe yeniden denenir
       return;
     }
 
@@ -157,7 +163,7 @@ export class BrushTool implements Tool, ToolOverlay {
         this.tip = lastPoint(this.stroke!);
         this.addFreeSample(p);
       } else {
-        this.setLockedEnd(phase.line, p);
+        this.setLockedEnd(phase.line, phase.start, p);
       }
       return;
     }
@@ -165,12 +171,16 @@ export class BrushTool implements Tool, ToolOverlay {
     this.addFreeSample(p);
   }
 
-  /** Kilitliyken stroke iki noktadır: başlangıç ve imlecin doğru üzerindeki izdüşümü. */
-  private setLockedEnd(line: SnapLine, p: Point): void {
+  /**
+   * Kilitliyken stroke iki noktadır: başlangıcın ve imlecin doğru üzerindeki
+   * izdüşümleri. (Kaçış noktasından başlayan ışında başlangıç doğruya oturtulur.)
+   */
+  private setLockedEnd(line: SnapLine, start: Point, p: Point): void {
     const stroke = this.stroke!;
+    const s = projectOnLine(line, start);
     const end = projectOnLine(line, p);
-    stroke.points.length = 2;
-    stroke.points.push(end.x, end.y);
+    stroke.points.length = 0;
+    stroke.points.push(s.x, s.y, end.x, end.y);
   }
 
   /** Ham örneği ipten geçirip stroke'a ekler. */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseSavedDrawing } from './format';
+import { newestDrawing, parseSavedDrawing, type SavedDrawing } from './format';
 
 const valid = {
   version: 1,
@@ -52,5 +52,16 @@ describe('parseSavedDrawing', () => {
     })!;
     expect(parsed.scene.points).toHaveLength(1);
     expect(parsed.strokes[0].style.opacity).toBe(1);
+  });
+});
+
+describe('newestDrawing', () => {
+  const at = (savedAt: number) => ({ ...(valid as SavedDrawing), savedAt });
+
+  it('savedAt değeri büyük olanı seçer, null kaynakları atlar', () => {
+    expect(newestDrawing(at(5), at(9))?.savedAt).toBe(9);
+    expect(newestDrawing(at(9), null, at(5))?.savedAt).toBe(9);
+    expect(newestDrawing(null, at(3))?.savedAt).toBe(3);
+    expect(newestDrawing(null, null)).toBeNull();
   });
 });

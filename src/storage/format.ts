@@ -47,6 +47,15 @@ function parsePoint(v: unknown): VanishingPoint | null {
   return { id: v.id, x: v.x, y: v.y };
 }
 
+/** Birden fazla kaynaktan okunan kayıtlar arasından en yenisi (savedAt). */
+export function newestDrawing(...candidates: (SavedDrawing | null)[]): SavedDrawing | null {
+  let best: SavedDrawing | null = null;
+  for (const c of candidates) {
+    if (c && (!best || c.savedAt > best.savedAt)) best = c;
+  }
+  return best;
+}
+
 /**
  * Depodan gelen veriyi doğrular. Bozuk ya da tanınmayan veri için null döner;
  * tek tek bozuk stroke'lar atlanır, geri kalanı yüklenir.

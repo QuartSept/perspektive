@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { proximityWeight, rayAngles, rayOpacities } from './rays';
 import { PerspectiveScene } from './scene';
-import { candidateLines, chooseLine, distanceToLine, projectOnLine } from './snapping';
+import { candidateLines, chooseLine, decideLine, distanceToLine, projectOnLine } from './snapping';
 
 function scene(mode: 1 | 2): PerspectiveScene {
   const s = new PerspectiveScene();
@@ -21,10 +21,13 @@ describe('candidateLines', () => {
     expect(lines.map((l) => l.kind)).toEqual(['vanishing-point', 'vertical', 'horizontal']);
   });
 
-  it('başlangıç kaçış noktasının üstündeyse o ışın atlanır', () => {
+  it('başlangıç kaçış noktasına yakınsa o noktadan çıkan serbest ışın olur', () => {
     const s = scene(2);
-    const lines = candidateLines(s, { x: s.points[0].x, y: s.points[0].y });
-    expect(lines.filter((l) => l.kind === 'vanishing-point')).toHaveLength(1);
+    const p = s.points[0];
+    const lines = candidateLines(s, { x: p.x + 3, y: p.y + 4 }, 10);
+    const radial = lines.find((l) => l.radial)!;
+    expect(radial.pointId).toBe(p.id);
+    expect(radial.origin).toEqual({ x: p.x, y: p.y });
   });
 });
 
@@ -83,5 +86,43 @@ describe('ışınlar', () => {
     expect(near).toBe(0.6);
     expect(far).toBe(0.06);
     expect(rayOpacities([0, 0], 0.2, 0.6, 0.06)).toEqual([0.2, 0.2]);
+  });
+});
+
+describe('decideLine', () => {
+  it('serbest ışın hareket yönünü alır ve kaçış noktasından geçer', () => {
+    const s = scene(2);
+    const p = s.points[0];
+    const start = { x: p.x + 2, y: p.y - 2 };
+    const lines = candidateLines(s, start, 10);
+    // Noktadan aşağı-sağa ~60°: hiçbir "başlangıç→nokta" yönüyle ilgisi yok
+    const current = { x: start.x + 20, y: start.y + 35 };
+    const d = decideLine(lines, start, current, false);
+    expect(d.kind).toBe('lock');
+    const line = (d as { line: import('./snapping').SnapLine }).line;
+    expect(line.radial).toBe(true);
+    expect(distanceToLine(line, { x: p.x, y: p.y })).toBeCloseTo(0);
+    // Yön hareketten: başlangıç→imleç doğrusuna paralel
+    const move = { x: current.x - start.x, y: current.y - start.y };
+    const len = Math.hypot(move.x, move.y);
+    expect(Math.abs(line.direction.x * move.y - line.direction.y * move.x) / len).toBeCloseTo(0);
+  });
+
+  it('neredeyse eşit iki farklı adayda bekler, son kararda en iyisini seçer', () => {
+    // Ufkun hemen altında, iki kaçış noktasının arasında: iki ışın ~1.3° farklı
+    const s = scene(2);
+    const start = { x: 500, y: 405 };
+    const lines = candidateLines(s, start);
+    const current = { x: 520, y: 405 };
+    expect(decideLine(lines, start, current, false).kind).toBe('wait');
+    expect(decideLine(lines, start, current, true).kind).toBe('lock');
+  });
+
+  it('aynı doğruya düşen adaylar belirsizlik sayılmaz', () => {
+    // Tam ufuk üzerinde iki ışın aynı doğru
+    const s = scene(2);
+    const start = { x: 500, y: 400 };
+    const d = decideLine(candidateLines(s, start), start, { x: 520, y: 400 }, false);
+    expect(d.kind).toBe('lock');
   });
 });

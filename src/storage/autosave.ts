@@ -1,13 +1,15 @@
 import type { DrawingDocument } from '../engine/document';
 import type { Paper } from '../engine/paper';
 import type { PerspectiveScene } from '../perspective/scene';
-import { parseSavedDrawing, type SavedDrawing } from './format';
+import { newestDrawing, parseSavedDrawing, type SavedDrawing } from './format';
 import { idbGet, idbPut } from './idb';
 
 const KEY = 'current';
-/** IndexedDB yoksa (bazı gizli pencereler) yedek. */
+/** IndexedDB yoksa ya da yazma başarısızsa yedek. */
 const FALLBACK_KEY = 'perspektif.drawing.v1';
 const SAVE_DELAY_MS = 600;
+/** Kayıt başarısız olursa yeniden deneme aralığı. */
+const RETRY_MS = 5000;
 
 export type SaveStatus = 'idle' | 'pending' | 'saving' | 'saved' | 'error';
 
@@ -21,32 +23,41 @@ export interface AutosaveSources {
  * Çizimi otomatik kaydeder: her değişiklikte kısa bir gecikmeyle,
  * sekme gizlenince/kapanırken hemen. Yükleme tamamlanmadan kayıt yapılmaz
  * (yoksa boş başlangıç durumu kayıtlı çizimin üzerine yazılırdı).
+ *
+ * Asıl depo IndexedDB'dir. Bir yazma başarısız olursa o kayıt localStorage'a
+ * yedeklenir ama sonraki kayıtlar yine önce IndexedDB'yi dener; yüklemede iki
+ * kaynaktan en yeni olanı seçilir. (Önceden tek hata kalıcı olarak yedeğe
+ * geçiriyor, yükleme ise eski IndexedDB kaydını okuyordu.)
  */
 export class Autosave {
   private timer = 0;
   private enabled = false;
   private dirty = false;
   private writing: Promise<void> | null = null;
-  private useFallback = false;
+  /** IndexedDB hiç açılamadı (bazı gizli pencereler): doğrudan yedeğe yazılır. */
+  private idbUnavailable = false;
 
   constructor(
     private readonly sources: AutosaveSources,
     private readonly onStatus: (status: SaveStatus) => void,
   ) {}
 
-  /** Kayıtlı çizimi okur (yoksa ya da bozuksa null). */
+  /** Kayıtlı çizimi okur; iki kaynaktan yeni olanı (yoksa ya da bozuksa null). */
   async load(): Promise<SavedDrawing | null> {
+    let fromIdb: SavedDrawing | null = null;
     try {
-      return parseSavedDrawing(await idbGet(KEY));
+      fromIdb = parseSavedDrawing(await idbGet(KEY));
     } catch {
-      this.useFallback = true;
-      try {
-        const raw = localStorage.getItem(FALLBACK_KEY);
-        return raw ? parseSavedDrawing(JSON.parse(raw)) : null;
-      } catch {
-        return null;
-      }
+      this.idbUnavailable = true;
     }
+    let fromFallback: SavedDrawing | null = null;
+    try {
+      const raw = localStorage.getItem(FALLBACK_KEY);
+      fromFallback = raw ? parseSavedDrawing(JSON.parse(raw)) : null;
+    } catch {
+      // Okunamayan yedek yok sayılır
+    }
+    return newestDrawing(fromIdb, fromFallback);
   }
 
   /** Yükleme bittikten sonra çağrılır; değişiklikleri izlemeye başlar. */
@@ -83,6 +94,9 @@ export class Autosave {
     } catch {
       this.dirty = true;
       this.onStatus('error');
+      // Yeni değişiklik gelmese de kendiliğinden yeniden dene
+      window.clearTimeout(this.timer);
+      this.timer = window.setTimeout(() => void this.flush(), RETRY_MS);
     } finally {
       this.writing = null;
     }
@@ -106,14 +120,21 @@ export class Autosave {
   }
 
   private async write(data: SavedDrawing): Promise<void> {
-    if (!this.useFallback) {
+    if (!this.idbUnavailable) {
       try {
         await idbPut(KEY, data);
+        // Eski yedek artık geride; yüklemede karışıklık olmasın
+        try {
+          localStorage.removeItem(FALLBACK_KEY);
+        } catch {
+          // önemsiz
+        }
         return;
       } catch {
-        this.useFallback = true;
+        // Yedeğe düş; sonraki kayıt yine IndexedDB'yi dener
       }
     }
+    // İkisi de başarısızsa hata yukarı çıkar (durum: "Kaydedilemedi", yeniden deneme)
     localStorage.setItem(FALLBACK_KEY, JSON.stringify(data));
   }
 }

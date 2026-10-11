@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { rectsOverlap } from './geometry';
 import type { Stroke } from './stroke';
 import { segmentDistance, segmentTouchesStroke, strokeBounds } from './stroke-geometry';
 
@@ -32,5 +33,15 @@ describe('stroke geometrisi', () => {
     const dot: Stroke = { id: 'd', points: [10, 10], style: { width: 2, opacity: 1, ink: 'red' } };
     expect(segmentTouchesStroke(dot, { x: 13, y: 10 }, { x: 13, y: 10 }, 2)).toBe(true);
     expect(segmentTouchesStroke(dot, { x: 14, y: 10 }, { x: 14, y: 10 }, 2)).toBe(false);
+  });
+});
+
+describe('rectsOverlap', () => {
+  it('pay ile kesişim', () => {
+    const a = { x: 0, y: 0, width: 10, height: 10 };
+    expect(rectsOverlap(a, { x: 11, y: 0, width: 5, height: 5 })).toBe(false);
+    expect(rectsOverlap(a, { x: 11, y: 0, width: 5, height: 5 }, 1)).toBe(true);
+    // Sıfır kalınlıklı (yatay çizgi) sınır kutusu
+    expect(rectsOverlap({ x: 0, y: 5, width: 10, height: 0 }, a)).toBe(true);
   });
 });
