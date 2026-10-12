@@ -710,3 +710,28 @@ kbd {
   background: var(--color-accent);
   opacity: 0.88;
 }
+
+/* ---------- Referans görsel ---------- */
+
+.panel__stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.panel__stack[hidden] {
+  display: none;
+}
+
+.panel__row {
+  display: flex;
+  gap: 6px;
+}
+
+.panel__row .btn {
+  flex: 1;
+}
+
+.panel .dialog__error {
+  font-size: 12px;
+}

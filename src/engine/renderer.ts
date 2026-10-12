@@ -1,6 +1,7 @@
 import type { DrawingDocument } from './document';
 import type { LayerName, LayerStack } from './layers';
 import type { Paper } from './paper';
+import { fitImage, type ReferenceImage } from './reference';
 import type { EditorState } from './state';
 import { drawStroke } from './stroke';
 import { strokeBounds } from './stroke-geometry';
@@ -23,6 +24,8 @@ const FADED_ALPHA = 0.2;
 export class Renderer {
   private dirty = new Set<LayerName>();
   private frame = 0;
+  /** Kâğıt katmanında, kâğıdın üstünde çizilen referans görsel. */
+  reference: ReferenceImage | null = null;
 
   constructor(
     private readonly layers: LayerStack,
@@ -83,6 +86,19 @@ export class Renderer {
     ctx.fillStyle = t.paper;
     ctx.fillRect(0, 0, width, height);
     ctx.restore();
+
+    const ref = this.reference;
+    if (ref?.bitmap && ref.visible) {
+      const r = fitImage(ref.bitmap.width, ref.bitmap.height, this.paper.rect, ref.fit);
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, 0, width, height);
+      ctx.clip();
+      ctx.globalAlpha = ref.opacity;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(ref.bitmap, r.x, r.y, r.width, r.height);
+      ctx.restore();
+    }
 
     ctx.strokeStyle = t.paperBorder;
     ctx.lineWidth = 1 / this.viewport.scale;

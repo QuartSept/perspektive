@@ -192,8 +192,40 @@
         </label>
 
         <button type="button" class="btn" id="delete-point" data-i18n="perspective.deletePoint">Seçili noktayı sil</button>
+        <button type="button" class="btn" id="open-grid" data-i18n="grid.open">Izgara ekle…</button>
 
         <p class="panel__hint" id="perspective-hint"></p>
+      </section>
+
+      <section class="panel" id="reference-panel" data-i18n-aria-label="reference.title">
+        <h2 class="panel__title" data-i18n="reference.title">Referans görsel</h2>
+        <div id="reference-empty" class="panel__stack">
+          <button type="button" class="btn" data-reference-load data-i18n="reference.load">Görsel yükle…</button>
+          <p class="panel__hint" data-i18n="reference.hint"></p>
+        </div>
+        <div id="reference-controls" class="panel__stack" hidden>
+          <div class="field">
+            <div class="field__row">
+              <label for="reference-opacity" data-i18n="reference.opacity">Opaklık</label>
+              <output id="reference-opacity-value" for="reference-opacity"></output>
+            </div>
+            <input type="range" id="reference-opacity" class="range" />
+          </div>
+          <div class="segmented" id="reference-fit" role="radiogroup" data-i18n-aria-label="reference.fit">
+            <button type="button" role="radio" data-reference-fit="contain" data-i18n="reference.contain">Sığdır</button>
+            <button type="button" role="radio" data-reference-fit="cover" data-i18n="reference.cover">Kapla</button>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="reference-visible" />
+            <span data-i18n="reference.visible">Göster</span>
+          </label>
+          <div class="panel__row">
+            <button type="button" class="btn" data-reference-load data-i18n="reference.replace">Değiştir…</button>
+            <button type="button" class="btn" id="reference-remove" data-i18n="reference.remove">Kaldır</button>
+          </div>
+        </div>
+        <p class="dialog__error" id="reference-error" role="alert" hidden></p>
+        <input type="file" id="reference-file" accept="image/*" hidden />
       </section>
       </div>
 
@@ -296,6 +328,28 @@
           <button type="button" class="btn btn--primary" id="project-save" data-i18n="project.save">Kaydet</button>
         </div>
         <input type="file" id="project-file" accept=".json,application/json" hidden />
+      </form>
+    </dialog>
+
+    <dialog class="dialog" id="grid-dialog" aria-labelledby="grid-title">
+      <form method="dialog">
+        <h2 class="dialog__title" id="grid-title" data-i18n="grid.title">Perspektif ızgarası</h2>
+        <p class="dialog__hint" data-i18n="grid.hint"></p>
+        <fieldset class="choice">
+          <legend data-i18n="grid.plane">Düzlem</legend>
+          <label><input type="radio" name="grid-plane" value="floor" checked /> <span data-i18n="grid.floor">Zemin</span></label>
+          <label><input type="radio" name="grid-plane" value="wall-left" /> <span data-i18n="grid.wallLeft">Sol duvar</span></label>
+          <label><input type="radio" name="grid-plane" value="wall-right" /> <span data-i18n="grid.wallRight">Sağ duvar</span></label>
+        </fieldset>
+        <div class="field">
+          <label for="grid-size" data-i18n="grid.cells">Hücre sayısı</label>
+          <select id="grid-size" class="select"></select>
+        </div>
+        <p class="dialog__error" id="grid-error" role="alert" hidden></p>
+        <div class="dialog__actions">
+          <button type="button" class="btn" id="grid-cancel" data-i18n="confirm.cancel">Vazgeç</button>
+          <button type="submit" class="btn btn--primary" data-i18n="grid.add">Ekle</button>
+        </div>
       </form>
     </dialog>
 

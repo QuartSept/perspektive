@@ -19,6 +19,8 @@ Hesap ve sunucu yoktur; her şey tarayıcınızda kalır.
 - Proje dosyası (.json) kaydet / aç; dosyayı tuvale sürükleyip bırakarak da açılır
 - Şablonlar: küp, yol, oda, oda köşesi (üzerinden geçilecek açık gri kılavuzlarla) ve boş 1/2 nokta
 - İlk kullanımda boş tuvalde tek satırlık ipucu
+- Perspektif ızgarası: kaçış noktalarına göre zemin, sol duvar ya da sağ duvar (kareler perspektifte doğru kısalır)
+- Referans görsel altlığı: fotoğraf yükle ya da sürükle-bırak; opaklık, sığdır/kapla (çıktılara girmez)
 - Türkçe ve İngilizce arayüz
 
 Klavye kısayolları uygulama içinde `?` ile açılır.

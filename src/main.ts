@@ -9,6 +9,7 @@ import { History } from './engine/history';
 import { InputController } from './engine/input';
 import { LayerStack } from './engine/layers';
 import { renderPage } from './engine/page-render';
+import { ReferenceImage } from './engine/reference';
 import { Paper, type Orientation, type PaperKind } from './engine/paper';
 import { Renderer } from './engine/renderer';
 import { EditorState } from './engine/state';
@@ -17,6 +18,7 @@ import { Viewport, type Padding } from './engine/viewport';
 import { editScene } from './perspective/commands';
 import { PerspectiveScene, type PerspectiveMode } from './perspective/scene';
 import { buildTemplate, type TemplateId } from './perspective/templates';
+import { buildGrid } from './perspective/grid';
 import { SnapSettings } from './perspective/snap-settings';
 import { BrushTool } from './tools/brush';
 import { BrushSettings } from './tools/brush-settings';
@@ -33,6 +35,9 @@ import {
 } from './storage/project';
 import { TemplatesDialog } from './ui/templates-dialog';
 import { ConfirmDialog } from './ui/confirm-dialog';
+import { GridDialog } from './ui/grid-dialog';
+import { ReferencePanel } from './ui/reference-panel';
+import { ReferenceStore } from './storage/reference-store';
 import { loadPrefs, savePrefs, type PrefsTargets } from './storage/prefs';
 import type { Tool } from './tools/tool';
 import { VanishingPointTool } from './tools/vanishing-point';
@@ -304,7 +309,48 @@ document.getElementById('onboarding-close')!.addEventListener('click', () => {
   schedulePrefsSave();
 });
 
-// Dosyayı tuvale sürükleyip bırakarak açma
+// ---------- Perspektif ızgarası ----------
+
+const gridDialog = new GridDialog({
+  onAdd(plane, cells) {
+    const strokes = buildGrid(scene, plane, cells, paper);
+    if (!strokes) return false;
+    const start = doc.strokes.length;
+    history.execute(
+      new ReplaceStrokesCommand(
+        doc,
+        [],
+        strokes.map((stroke, i) => ({ index: start + i, stroke })),
+      ),
+    );
+    return true;
+  },
+});
+document.getElementById('open-grid')!.addEventListener('click', () => {
+  if (!input.busy && !dialogOpen()) gridDialog.open();
+});
+
+// ---------- Referans görsel ----------
+
+const reference = new ReferenceImage();
+renderer.reference = reference;
+reference.onChange(() => renderer.requestRender('paper'));
+const referenceStore = new ReferenceStore(reference);
+
+async function loadReferenceFile(file: File): Promise<void> {
+  try {
+    await reference.load(file);
+    referencePanel.showError(false);
+  } catch {
+    referencePanel.showError(true);
+  }
+}
+
+const referencePanel = new ReferencePanel(document.getElementById('reference-panel')!, reference, {
+  onFile: loadReferenceFile,
+});
+
+// Dosyayı tuvale sürükleyip bırakarak açma: görsel → referans, diğerleri → proje dosyası
 window.addEventListener('dragover', (e) => {
   if (e.dataTransfer?.types.includes('Files')) e.preventDefault();
 });
@@ -312,7 +358,9 @@ window.addEventListener('drop', (e) => {
   const file = e.dataTransfer?.files[0];
   if (!file) return;
   e.preventDefault();
-  if (!input.busy) void openProjectFile(file);
+  if (input.busy) return;
+  if (file.type.startsWith('image/')) void loadReferenceFile(file);
+  else void openProjectFile(file);
 });
 
 function openOutput(mode: OutputMode): void {
@@ -475,6 +523,7 @@ onLanguageChange(() => {
   toolbar.refreshLanguage();
   brushPanel.update();
   eraserPanel.update();
+  referencePanel.update();
   updatePanel();
   schedulePrefsSave();
 });
@@ -655,6 +704,8 @@ async function restore(): Promise<void> {
   }
   syncOnboarding();
   autosave.start();
+  await referenceStore.load();
+  referenceStore.start();
 }
 
 selectTool('brush');
