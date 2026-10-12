@@ -3,6 +3,7 @@ import type { Paper } from '../engine/paper';
 import type { PerspectiveScene } from '../perspective/scene';
 import { newestDrawing, parseSavedDrawing, type SavedDrawing } from './format';
 import { idbGet, idbPut } from './idb';
+import { buildSavedDrawing } from './project';
 
 const KEY = 'current';
 /** IndexedDB yoksa ya da yazma başarısızsa yedek. */
@@ -103,21 +104,7 @@ export class Autosave {
   }
 
   private snapshot(): SavedDrawing {
-    const { doc, scene, paper } = this.sources;
-    return {
-      version: 1,
-      savedAt: Date.now(),
-      paper: { kind: paper.kind, width: paper.width, height: paper.height, orientation: paper.orientation },
-      scene: {
-        mode: scene.mode,
-        horizonLocked: scene.horizonLocked,
-        horizonAngle: scene.horizonAngle,
-        rayCount: scene.rayCount,
-        points: scene.points.map((p) => ({ ...p })),
-      },
-      // Belgedeki stroke'lar değiştirilmez; yapılandırılmış kopya için doğrudan verilebilir
-      strokes: [...doc.strokes],
-    };
+    return buildSavedDrawing(this.sources);
   }
 
   private async write(data: SavedDrawing): Promise<void> {

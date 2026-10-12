@@ -1,0 +1,139 @@
+import type { Point } from './geometry';
+import { PX_PER_MM } from './paper';
+import type { InkId, Stroke } from './stroke';
+import { rayAngles } from '../perspective/rays';
+import type { PerspectiveScene } from '../perspective/scene';
+
+/** SVG için gereken renkler (CanvasTheme'in alt kümesi; DOM'suz test edilebilsin diye). */
+export interface SvgTheme {
+  inks: Record<InkId, string>;
+  printPaper: string;
+  vanishingPoints: string[];
+  horizon: string;
+  markerFill: string;
+  printGuideOpacity: number;
+}
+
+export interface SvgSources {
+  paper: { width: number; height: number };
+  strokes: readonly Stroke[];
+  scene: PerspectiveScene;
+  theme: SvgTheme;
+}
+
+/** Kılavuz çizgi kalınlıkları dünya biriminde (ekran/yazdırma çıktısıyla aynı). */
+const RAY_WIDTH = 1;
+const HORIZON_WIDTH = 1.25;
+const MARKER_RADIUS = 5.5;
+const MARKER_STROKE = 2;
+
+const num = (v: number): string => String(Math.round(v * 100) / 100);
+
+const esc = (s: string): string =>
+  s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+
+/**
+ * `rgba(r, g, b, a)` → ayrı renk + opaklık. Bazı vektör düzenleyiciler
+ * öznitelikte rgba tanımadığı için opaklık ayrı yazılır.
+ */
+export function splitAlpha(color: string): { color: string; alpha: number } {
+  const m = color.match(/^rgba\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*\)$/i);
+  if (!m) return { color, alpha: 1 };
+  return { color: `rgb(${m[1]}, ${m[2]}, ${m[3]})`, alpha: Number(m[4]) };
+}
+
+/** drawStroke ile aynı geometri: orta noktalardan geçen ikinci derece eğriler. */
+export function strokePathData(points: readonly number[]): string {
+  const n = points.length / 2;
+  const parts = [`M${num(points[0])} ${num(points[1])}`];
+  for (let i = 1; i < n - 1; i++) {
+    const x = points[i * 2];
+    const y = points[i * 2 + 1];
+    const mx = (x + points[i * 2 + 2]) / 2;
+    const my = (y + points[i * 2 + 3]) / 2;
+    parts.push(`Q${num(x)} ${num(y)} ${num(mx)} ${num(my)}`);
+  }
+  parts.push(`L${num(points[(n - 1) * 2])} ${num(points[(n - 1) * 2 + 1])}`);
+  return parts.join(' ');
+}
+
+function strokeElement(stroke: Stroke, color: string): string {
+  const { width, opacity } = stroke.style;
+  const op = opacity < 1 ? ` opacity="${num(opacity)}"` : '';
+  const p = stroke.points;
+  if (p.length === 2) {
+    return `<circle cx="${num(p[0])}" cy="${num(p[1])}" r="${num(width / 2)}" fill="${esc(color)}"${op}/>`;
+  }
+  // Stroke opaklığı tek path'e uygulanır: kendi üstüne binen yerler koyulaşmaz
+  return `<path d="${strokePathData(p)}" fill="none" stroke="${esc(color)}" stroke-width="${num(width)}" stroke-linecap="round" stroke-linejoin="round"${op}/>`;
+}
+
+/** Noktadan sayfanın en uzak köşesine uzaklık (+pay): ışınlar sayfayı baştan sona keser. */
+function reach(p: Point, w: number, h: number): number {
+  const dx = Math.max(Math.abs(p.x), Math.abs(w - p.x));
+  const dy = Math.max(Math.abs(p.y), Math.abs(h - p.y));
+  return Math.hypot(dx, dy) + 2;
+}
+
+function guideElements(src: SvgSources): string[] {
+  const { scene, theme } = src;
+  const { width: w, height: h } = src.paper;
+  const out: string[] = [];
+  const horizon = scene.horizon();
+  const angles = rayAngles(scene.rayCount, horizon?.angle ?? 0);
+
+  scene.points.forEach((p, i) => {
+    const r = reach(p, w, h);
+    const d = angles
+      .map((a) => `M${num(p.x)} ${num(p.y)}L${num(p.x + Math.cos(a) * r)} ${num(p.y + Math.sin(a) * r)}`)
+      .join('');
+    const color = theme.vanishingPoints[i % theme.vanishingPoints.length];
+    out.push(
+      `<path d="${d}" fill="none" stroke="${esc(color)}" stroke-width="${RAY_WIDTH}" opacity="${num(theme.printGuideOpacity)}"/>`,
+    );
+  });
+
+  if (horizon) {
+    const r = reach(horizon.origin, w, h);
+    const dx = Math.cos(horizon.angle) * r;
+    const dy = Math.sin(horizon.angle) * r;
+    const { color, alpha } = splitAlpha(theme.horizon);
+    const o = horizon.origin;
+    out.push(
+      `<line x1="${num(o.x - dx)}" y1="${num(o.y - dy)}" x2="${num(o.x + dx)}" y2="${num(o.y + dy)}" stroke="${esc(color)}" stroke-width="${HORIZON_WIDTH}" opacity="${num(alpha)}"/>`,
+    );
+  }
+
+  scene.points.forEach((p, i) => {
+    const color = theme.vanishingPoints[i % theme.vanishingPoints.length];
+    out.push(
+      `<circle cx="${num(p.x)}" cy="${num(p.y)}" r="${MARKER_RADIUS}" fill="${esc(theme.markerFill)}" stroke="${esc(color)}" stroke-width="${MARKER_STROKE}"/>`,
+    );
+  });
+  return out;
+}
+
+/**
+ * Kâğıt alanını SVG olarak üretir. Boyut mm cinsinden yazılır (gerçek ölçek),
+ * içerik dünya biriminde (`viewBox`). Kâğıt dışına taşanlar kırpılır.
+ * Kılavuzlar çizimin altındadır (PNG/yazdırma ile aynı).
+ */
+export function buildSvg(src: SvgSources, includeGuides: boolean): string {
+  const { width: w, height: h } = src.paper;
+  const body: string[] = [];
+  if (includeGuides) body.push(`<g id="guides">${guideElements(src).join('')}</g>`);
+  body.push(
+    `<g id="drawing">${src.strokes.map((s) => strokeElement(s, src.theme.inks[s.style.ink])).join('')}</g>`,
+  );
+
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${num(w / PX_PER_MM)}mm" height="${num(h / PX_PER_MM)}mm" viewBox="0 0 ${num(w)} ${num(h)}">`,
+    '<title>Perspektif</title>',
+    `<defs><clipPath id="page"><rect width="${num(w)}" height="${num(h)}"/></clipPath></defs>`,
+    `<rect width="${num(w)}" height="${num(h)}" fill="${esc(src.theme.printPaper)}"/>`,
+    `<g clip-path="url(#page)">${body.join('')}</g>`,
+    '</svg>',
+    '',
+  ].join('\n');
+}

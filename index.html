@@ -47,7 +47,10 @@
         </div>
 
         <div class="toolbar__group" role="group" data-i18n-aria-label="toolbar.output">
-          <button class="tool-btn" type="button" data-action="export-png" data-i18n-title="output.pngButton">
+          <button class="tool-btn" type="button" data-action="project" data-i18n-title="project.button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7.5A1.5 1.5 0 0 1 5 6h4.5l2 2H19a1.5 1.5 0 0 1 1.5 1.5v8A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5z"/></svg>
+          </button>
+          <button class="tool-btn" type="button" data-action="export" data-i18n-title="output.exportButton">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19.5h14"/></svg>
           </button>
           <button class="tool-btn" type="button" data-action="print" data-i18n-title="output.printButton">
@@ -194,6 +197,7 @@
             <dt><kbd>0</kbd> / <kbd>1</kbd></dt><dd data-i18n="help.fit"></dd>
             <dt><kbd>Ctrl</kbd>+<kbd>S</kbd></dt><dd data-i18n="help.save"></dd>
             <dt><kbd>Ctrl</kbd>+<kbd>P</kbd></dt><dd data-i18n="help.print"></dd>
+            <dt><kbd>Ctrl</kbd>+<kbd>O</kbd></dt><dd data-i18n="help.open"></dd>
             <dt data-i18n="help.mousePanKey"></dt><dd data-i18n="help.mousePan"></dd>
             <dt data-i18n="help.wheelKey"></dt><dd data-i18n="help.wheel"></dd>
             <dt><kbd>?</kbd></dt><dd data-i18n="help.help"></dd>
@@ -207,6 +211,12 @@
       <dialog class="dialog" id="output-dialog" aria-labelledby="output-title">
         <form method="dialog">
           <h2 class="dialog__title" id="output-title"></h2>
+
+          <fieldset class="choice" id="output-format">
+            <legend data-i18n="output.format">Biçim</legend>
+            <label><input type="radio" name="format" value="png" checked /> <span data-i18n="output.formatPng">PNG (görsel)</span></label>
+            <label><input type="radio" name="format" value="svg" /> <span data-i18n="output.formatSvg">SVG (vektör)</span></label>
+          </fieldset>
 
           <fieldset class="choice">
             <legend data-i18n="output.content">İçerik</legend>
@@ -230,6 +240,20 @@
         </form>
       </dialog>
     </div>
+
+    <dialog class="dialog" id="project-dialog" aria-labelledby="project-title">
+      <form method="dialog">
+        <h2 class="dialog__title" id="project-title" data-i18n="project.title">Proje dosyası</h2>
+        <p class="dialog__hint" data-i18n="project.hint"></p>
+        <p class="dialog__error" id="project-error" role="alert" hidden></p>
+        <div class="dialog__actions">
+          <button type="button" class="btn" id="project-close" data-i18n="project.close">Kapat</button>
+          <button type="button" class="btn" id="project-open" data-i18n="project.open">Aç…</button>
+          <button type="button" class="btn btn--primary" id="project-save" data-i18n="project.save">Kaydet</button>
+        </div>
+        <input type="file" id="project-file" accept=".json,application/json" hidden />
+      </form>
+    </dialog>
 
     <div id="print-root" aria-hidden="true"></div>
     <script type="module" src="/src/main.ts"></script>

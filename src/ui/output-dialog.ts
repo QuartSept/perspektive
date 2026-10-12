@@ -1,29 +1,32 @@
 import { t } from '../i18n';
 import type { PrintScale } from './output';
 
-export type OutputMode = 'png' | 'print';
+export type OutputMode = 'export' | 'print';
+export type ExportFormat = 'png' | 'svg';
 
 export interface OutputDialogHandlers {
-  onPng(includeGuides: boolean): Promise<void>;
+  onExport(format: ExportFormat, includeGuides: boolean): Promise<void>;
   onPrint(includeGuides: boolean, scale: PrintScale): void;
 }
 
 /**
  * Dışa aktarma / yazdırma diyaloğu (yerel <dialog>). İçerik seçimi her iki
- * modda ortak; ölçek seçimi yalnızca yazdırmada görünür.
+ * modda ortak; biçim yalnızca dışa aktarmada, ölçek yalnızca yazdırmada görünür.
  */
 export class OutputDialog {
   private readonly dialog: HTMLDialogElement;
   private readonly title: HTMLElement;
   private readonly scaleGroup: HTMLElement;
+  private readonly formatGroup: HTMLElement;
   private readonly confirmButton: HTMLButtonElement;
   private readonly error: HTMLElement;
-  private mode: OutputMode = 'png';
+  private mode: OutputMode = 'export';
 
   constructor(private readonly handlers: OutputDialogHandlers) {
     this.dialog = document.getElementById('output-dialog') as HTMLDialogElement;
     this.title = this.dialog.querySelector('#output-title')!;
     this.scaleGroup = this.dialog.querySelector('#output-scale')!;
+    this.formatGroup = this.dialog.querySelector('#output-format')!;
     this.confirmButton = this.dialog.querySelector('#output-confirm')!;
     this.error = this.dialog.querySelector('#output-error')!;
 
@@ -44,9 +47,10 @@ export class OutputDialog {
 
   open(mode: OutputMode, defaultScale: PrintScale): void {
     this.mode = mode;
-    this.title.textContent = t(mode === 'png' ? 'output.pngTitle' : 'output.printTitle');
-    this.confirmButton.textContent = t(mode === 'png' ? 'output.download' : 'output.print');
+    this.title.textContent = t(mode === 'export' ? 'output.exportTitle' : 'output.printTitle');
+    this.confirmButton.textContent = t(mode === 'export' ? 'output.download' : 'output.print');
     this.scaleGroup.hidden = mode !== 'print';
+    this.formatGroup.hidden = mode !== 'export';
     this.error.hidden = true;
     const scaleInput = this.dialog.querySelector<HTMLInputElement>(
       `input[name="scale"][value="${defaultScale}"]`,
@@ -69,10 +73,10 @@ export class OutputDialog {
     }
     this.confirmButton.disabled = true;
     try {
-      await this.handlers.onPng(includeGuides);
+      await this.handlers.onExport(this.value('format') as ExportFormat, includeGuides);
       this.dialog.close();
     } catch {
-      this.error.textContent = t('output.pngError');
+      this.error.textContent = t('output.exportError');
       this.error.hidden = false;
     } finally {
       this.confirmButton.disabled = false;

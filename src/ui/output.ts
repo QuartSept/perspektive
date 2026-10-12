@@ -1,5 +1,6 @@
 import { PX_PER_MM } from '../engine/paper';
 import { renderPage, type PageSources } from '../engine/page-render';
+import { buildSvg } from '../engine/svg-export';
 
 /** PNG: ≈192 DPI (A4 → 1587×2245 px). */
 const PNG_PIXELS_PER_UNIT = 2;
@@ -19,10 +20,22 @@ export interface PrintOptions extends OutputOptions {
   scale: PrintScale;
 }
 
-function timestamp(): string {
+export function timestamp(): string {
   const d = new Date();
   const p = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
+}
+
+/** Tarayıcıya dosya indirtir. */
+export function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 /** Kâğıt alanını PNG olarak indirir. */
@@ -33,14 +46,16 @@ export async function downloadPng(src: PageSources, options: OutputOptions): Pro
   });
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
   if (!blob) throw new Error('PNG encoding failed');
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `perspektif-${timestamp()}.png`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  downloadBlob(blob, `perspektif-${timestamp()}.png`);
+}
+
+/** Kâğıt alanını gerçek ölçekli SVG olarak indirir. */
+export function downloadSvg(src: PageSources, options: OutputOptions): void {
+  const svg = buildSvg(
+    { paper: src.paper, strokes: src.doc.strokes, scene: src.scene, theme: src.theme },
+    options.includeGuides,
+  );
+  downloadBlob(new Blob([svg], { type: 'image/svg+xml' }), `perspektif-${timestamp()}.svg`);
 }
 
 /** Gerçek boyutta kâğıda sığmayan çizim her durumda sayfaya sığdırılır. */

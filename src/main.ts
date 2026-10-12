@@ -21,11 +21,24 @@ import { BrushSettings } from './tools/brush-settings';
 import { StrokeEraserTool } from './tools/eraser';
 import { HandTool } from './tools/hand';
 import { Autosave } from './storage/autosave';
+import {
+  applySavedDrawing,
+  LoadDrawingCommand,
+  parseProject,
+  serializeProject,
+} from './storage/project';
 import { loadPrefs, savePrefs, type PrefsTargets } from './storage/prefs';
 import type { Tool } from './tools/tool';
 import { VanishingPointTool } from './tools/vanishing-point';
 import { BrushPanel } from './ui/brush-panel';
-import { defaultPrintScale, downloadPng, PrintView } from './ui/output';
+import {
+  defaultPrintScale,
+  downloadBlob,
+  downloadPng,
+  downloadSvg,
+  PrintView,
+  timestamp,
+} from './ui/output';
 import { OutputDialog, type OutputMode } from './ui/output-dialog';
 import { PerspectivePanel } from './ui/perspective-panel';
 import { Toolbar, type ToolbarAction } from './ui/toolbar';
@@ -140,7 +153,10 @@ function deleteSelectedPoint(): void {
 const pageSources = { paper, doc, scene, theme: renderer.theme };
 const printView = new PrintView(pageSources);
 const outputDialog = new OutputDialog({
-  onPng: (includeGuides) => downloadPng(pageSources, { includeGuides }),
+  onExport: async (format, includeGuides) => {
+    if (format === 'svg') downloadSvg(pageSources, { includeGuides });
+    else await downloadPng(pageSources, { includeGuides });
+  },
   onPrint: (includeGuides, scale) => printView.print({ includeGuides, scale }),
 });
 
@@ -157,6 +173,60 @@ function openHelp(): void {
 function dialogOpen(): boolean {
   return document.querySelector('dialog[open]') !== null;
 }
+
+// ---------- Proje dosyası ----------
+
+const projectDialog = document.getElementById('project-dialog') as HTMLDialogElement;
+const projectError = document.getElementById('project-error')!;
+const projectFile = document.getElementById('project-file') as HTMLInputElement;
+const drawingSources = { doc, scene, paper };
+
+projectDialog.addEventListener('click', (e) => {
+  if (e.target === projectDialog) projectDialog.close();
+});
+document.getElementById('project-close')!.addEventListener('click', () => projectDialog.close());
+document.getElementById('project-save')!.addEventListener('click', () => {
+  const blob = new Blob([serializeProject(drawingSources)], { type: 'application/json' });
+  downloadBlob(blob, `perspektif-${timestamp()}.json`);
+  projectDialog.close();
+});
+document.getElementById('project-open')!.addEventListener('click', () => projectFile.click());
+projectFile.addEventListener('change', () => {
+  const file = projectFile.files?.[0];
+  projectFile.value = '';
+  if (file) void openProjectFile(file);
+});
+
+function openProject(): void {
+  if (input.busy) return;
+  projectError.hidden = true;
+  if (!projectDialog.open) projectDialog.showModal();
+}
+
+/** Proje dosyasını açar; mevcut çizim varsa onay ister. Tek adımda geri alınır. */
+async function openProjectFile(file: File): Promise<void> {
+  const saved = parseProject(await file.text());
+  if (!saved) {
+    projectError.textContent = t('project.invalid');
+    projectError.hidden = false;
+    if (!projectDialog.open) projectDialog.showModal();
+    return;
+  }
+  if (doc.strokes.length > 0 && !window.confirm(t('project.replaceConfirm'))) return;
+  history.execute(new LoadDrawingCommand(drawingSources, saved, onPaperChanged));
+  if (projectDialog.open) projectDialog.close();
+}
+
+// Dosyayı tuvale sürükleyip bırakarak açma
+window.addEventListener('dragover', (e) => {
+  if (e.dataTransfer?.types.includes('Files')) e.preventDefault();
+});
+window.addEventListener('drop', (e) => {
+  const file = e.dataTransfer?.files[0];
+  if (!file) return;
+  e.preventDefault();
+  if (!input.busy) void openProjectFile(file);
+});
 
 function openOutput(mode: OutputMode): void {
   if (input.busy) return;
@@ -215,8 +285,11 @@ function runAction(action: ToolbarAction): void {
     case 'clear':
       clearDrawing();
       break;
-    case 'export-png':
-      openOutput('png');
+    case 'export':
+      openOutput('export');
+      break;
+    case 'project':
+      openProject();
       break;
     case 'print':
       openOutput('print');
@@ -383,6 +456,9 @@ window.addEventListener('keydown', (e) => {
     const key = e.key.toLowerCase();
     if (key === 's') void autosave.flush();
     else if (key === 'p') openOutput('print');
+    else if (key === 'o') {
+      if (!dialogOpen()) projectFile.click();
+    }
     else if (key === 'z' && !e.shiftKey) undo();
     else if ((key === 'z' && e.shiftKey) || key === 'y') redo();
     else return;
@@ -461,11 +537,8 @@ async function restore(): Promise<void> {
 
   const saved = await autosave.load();
   if (saved) {
-    paper.restore(saved.paper.kind, saved.paper.width, saved.paper.height, saved.paper.orientation);
+    applySavedDrawing(drawingSources, saved);
     toolbar.setPaper(paper.kind, paper.orientation);
-    scene.restore(saved.scene);
-    scene.setRayCount(saved.scene.rayCount);
-    doc.replaceAll(saved.strokes);
     history.clear();
     if (initialized) fitToPaper();
     renderer.requestRender();

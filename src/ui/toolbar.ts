@@ -14,7 +14,8 @@ export type ToolbarAction =
   | 'undo'
   | 'redo'
   | 'clear'
-  | 'export-png'
+  | 'export'
+  | 'project'
   | 'print'
   | 'help';
 
