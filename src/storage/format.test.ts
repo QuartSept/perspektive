@@ -4,10 +4,11 @@ import { newestDrawing, parseSavedDrawing, type SavedDrawing } from './format';
 const valid = {
   version: 1,
   savedAt: 123,
-  paper: { kind: 'a4', width: 793.7, height: 1122.5 },
+  paper: { kind: 'a4', width: 793.7, height: 1122.5, orientation: 'portrait' },
   scene: {
     mode: 2,
     horizonLocked: true,
+    horizonAngle: 0,
     rayCount: 24,
     points: [
       { id: 'p1', x: 10, y: 20 },
@@ -20,6 +21,21 @@ const valid = {
 describe('parseSavedDrawing', () => {
   it('geçerli veriyi aynen döndürür', () => {
     expect(parseSavedDrawing(valid)).toEqual(valid);
+  });
+
+  it('yönlendirmesi olmayan eski kaydı boyuttan çıkarır', () => {
+    const legacy = { ...valid, paper: { kind: 'a4', width: 1122.5, height: 793.7 } };
+    expect(parseSavedDrawing(legacy)?.paper.orientation).toBe('landscape');
+    const legacyPortrait = { ...valid, paper: { kind: 'a4', width: 793.7, height: 1122.5 } };
+    expect(parseSavedDrawing(legacyPortrait)?.paper.orientation).toBe('portrait');
+  });
+
+  it('ufuk açısı olmayan eski kayıtta 0, bozuk açıda 0, geniş açı normalize edilir', () => {
+    const { horizonAngle: _omit, ...legacyScene } = valid.scene;
+    void _omit;
+    expect(parseSavedDrawing({ ...valid, scene: legacyScene })?.scene.horizonAngle).toBe(0);
+    expect(parseSavedDrawing({ ...valid, scene: { ...valid.scene, horizonAngle: 'x' } })?.scene.horizonAngle).toBe(0);
+    expect(parseSavedDrawing({ ...valid, scene: { ...valid.scene, horizonAngle: Math.PI } })?.scene.horizonAngle).toBeCloseTo(0);
   });
 
   it('tanınmayan sürüm / bozuk kök için null', () => {

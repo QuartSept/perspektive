@@ -14,7 +14,7 @@ Hesap ve sunucu yoktur; her şey tarayıcınızda kalır.
 - Ufuk 2 noktada varsayılan olarak kilitli, istenirse serbest bırakılır
 - Mıknatıs: çizgi kaçış noktasına, dikeye (1 noktada yataya da) kilitlenir; `Space` ile geçici serbest çizim
 - Fırça (kalınlık, opaklık, yumuşatma, 8 renk), stroke silgisi, geri al / ileri al
-- A4, A5, kare ve ekran boyu kâğıt; sonsuz kaydırma ve yakınlaştırma
+- A4, A5, kare ve ekran boyu kâğıt (A4/A5 için dikey ya da yatay, varsayılan dikey; çizim varsa çizgiler ve kaçış noktaları kâğıtla birlikte döner); sonsuz kaydırma ve yakınlaştırma
 - Otomatik kayıt (IndexedDB), PNG dışa aktarma, A4 yazdırma (yalnızca çizim / kılavuzlarla)
 - Türkçe ve İngilizce arayüz
 

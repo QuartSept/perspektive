@@ -79,7 +79,11 @@ export class VanishingPointTool implements Tool {
       return;
     }
     if (drag?.kind === 'horizon') {
-      this.scene.translate(0, e.world.y - drag.lastWorld.y);
+      // Ufku kendine dik yönde taşı (döndürülmüş ufukta da doğru çalışır)
+      const angle = this.scene.horizon()?.angle ?? 0;
+      const n = { x: -Math.sin(angle), y: Math.cos(angle) };
+      const d = (e.world.x - drag.lastWorld.x) * n.x + (e.world.y - drag.lastWorld.y) * n.y;
+      this.scene.translate(n.x * d, n.y * d);
       drag.lastWorld = e.world;
       return;
     }

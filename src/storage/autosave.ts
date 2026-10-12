@@ -107,10 +107,11 @@ export class Autosave {
     return {
       version: 1,
       savedAt: Date.now(),
-      paper: { kind: paper.kind, width: paper.width, height: paper.height },
+      paper: { kind: paper.kind, width: paper.width, height: paper.height, orientation: paper.orientation },
       scene: {
         mode: scene.mode,
         horizonLocked: scene.horizonLocked,
+        horizonAngle: scene.horizonAngle,
         rayCount: scene.rayCount,
         points: scene.points.map((p) => ({ ...p })),
       },

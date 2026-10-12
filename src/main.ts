@@ -4,10 +4,11 @@ import './styles/main.css';
 import { applyTranslations, onLanguageChange, setLanguage, t } from './i18n';
 import { ReplaceStrokesCommand } from './engine/commands';
 import { DrawingDocument } from './engine/document';
+import { OrientationCommand } from './engine/orientation';
 import { History } from './engine/history';
 import { InputController } from './engine/input';
 import { LayerStack } from './engine/layers';
-import { Paper, type PaperKind } from './engine/paper';
+import { Paper, type Orientation, type PaperKind } from './engine/paper';
 import { Renderer } from './engine/renderer';
 import { EditorState } from './engine/state';
 import { readCanvasTheme } from './engine/theme';
@@ -91,6 +92,7 @@ const toolbar = new Toolbar(toolbarEl, {
   onTool: selectTool,
   onAction: runAction,
   onPaperChange: changePaper,
+  onOrientationChange: changeOrientation,
   onMagnetToggle: () => snapSettings.setEnabled(!snapSettings.enabled),
   onLanguageChange: setLanguage,
 });
@@ -247,7 +249,32 @@ function changePaper(kind: PaperKind): void {
   } else {
     paper.set(kind, viewport);
   }
-  toolbar.setPaper(kind);
+  toolbar.setPaper(paper.kind, paper.orientation);
+  fitToPaper();
+  renderer.requestRender();
+  autosave.markDirty();
+}
+
+/**
+ * Dikey ↔ yatay. Çizim başlamamışsa yalnızca kâğıt döner, kaçış noktaları
+ * yerinde kalır (kullanıcı isterse kendisi taşır). Çizim varsa stroke'lar ve
+ * kaçış noktaları kâğıtla birlikte 90° döner; tek adımda geri alınır.
+ */
+function changeOrientation(orientation: Orientation): void {
+  if (orientation === paper.orientation || input.busy) {
+    toolbar.setPaper(paper.kind, paper.orientation);
+    return;
+  }
+  if (doc.strokes.length > 0) {
+    history.execute(new OrientationCommand(paper, doc, scene, orientation, onPaperChanged));
+  } else {
+    paper.setOrientation(orientation);
+    onPaperChanged();
+  }
+}
+
+function onPaperChanged(): void {
+  toolbar.setPaper(paper.kind, paper.orientation);
   fitToPaper();
   renderer.requestRender();
   autosave.markDirty();
@@ -434,8 +461,8 @@ async function restore(): Promise<void> {
 
   const saved = await autosave.load();
   if (saved) {
-    paper.restore(saved.paper.kind, saved.paper.width, saved.paper.height);
-    toolbar.setPaper(paper.kind);
+    paper.restore(saved.paper.kind, saved.paper.width, saved.paper.height, saved.paper.orientation);
+    toolbar.setPaper(paper.kind, paper.orientation);
     scene.restore(saved.scene);
     scene.setRayCount(saved.scene.rayCount);
     doc.replaceAll(saved.strokes);

@@ -1,4 +1,10 @@
-import { PAPER_KINDS, type PaperKind } from '../engine/paper';
+import {
+  ORIENTATIONS,
+  PAPER_KINDS,
+  supportsOrientation,
+  type Orientation,
+  type PaperKind,
+} from '../engine/paper';
 import { formatPercent, getLanguage, isLang, t, type Lang, type MessageKey } from '../i18n';
 import type { SaveStatus } from '../storage/autosave';
 
@@ -16,6 +22,7 @@ export interface ToolbarHandlers {
   onTool(id: string): void;
   onAction(action: ToolbarAction): void;
   onPaperChange(kind: PaperKind): void;
+  onOrientationChange(orientation: Orientation): void;
   onMagnetToggle(): void;
   onLanguageChange(lang: Lang): void;
 }
@@ -25,6 +32,7 @@ export class Toolbar {
   private readonly toolButtons: HTMLButtonElement[];
   private readonly zoomReadout: HTMLElement;
   private readonly paperSelect: HTMLSelectElement;
+  private readonly orientationSelect: HTMLSelectElement;
   private readonly undoButton: HTMLButtonElement;
   private readonly redoButton: HTMLButtonElement;
   private readonly magnetButton: HTMLButtonElement;
@@ -38,6 +46,7 @@ export class Toolbar {
     this.toolButtons = [...root.querySelectorAll<HTMLButtonElement>('[data-tool]')];
     this.zoomReadout = root.querySelector('[data-action="zoom-reset"]')!;
     this.paperSelect = root.querySelector('#paper-select')!;
+    this.orientationSelect = root.querySelector('#orientation-select')!;
     this.undoButton = root.querySelector('[data-action="undo"]')!;
     this.redoButton = root.querySelector('[data-action="redo"]')!;
     this.magnetButton = root.querySelector('#magnet-toggle')!;
@@ -62,6 +71,11 @@ export class Toolbar {
       const kind = this.paperSelect.value as PaperKind;
       if (PAPER_KINDS.includes(kind)) handlers.onPaperChange(kind);
       this.paperSelect.blur();
+    });
+    this.orientationSelect.addEventListener('change', () => {
+      const value = this.orientationSelect.value as Orientation;
+      if (ORIENTATIONS.includes(value)) handlers.onOrientationChange(value);
+      this.orientationSelect.blur();
     });
   }
 
@@ -114,7 +128,10 @@ export class Toolbar {
     this.saveStatus.textContent = key ? t(key) : '';
   }
 
-  setPaper(kind: PaperKind): void {
+  setPaper(kind: PaperKind, orientation: Orientation): void {
     this.paperSelect.value = kind;
+    this.orientationSelect.value = orientation;
+    // Kare simetrik, ekran boyu pencere şeklini izler: seçim anlamsız
+    this.orientationSelect.disabled = !supportsOrientation(kind);
   }
 }

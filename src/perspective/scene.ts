@@ -10,13 +10,14 @@ export interface VanishingPoint {
 
 export interface Horizon {
   origin: Point;
-  /** Radyan; kilitli ufukta 0. */
+  /** Radyan; kilitli ufukta `horizonAngle` (normalde 0). */
   angle: number;
 }
 
 export interface SceneSnapshot {
   mode: PerspectiveMode;
   horizonLocked: boolean;
+  horizonAngle: number;
   points: VanishingPoint[];
 }
 
@@ -24,6 +25,7 @@ export function snapshotsEqual(a: SceneSnapshot, b: SceneSnapshot): boolean {
   return (
     a.mode === b.mode &&
     a.horizonLocked === b.horizonLocked &&
+    a.horizonAngle === b.horizonAngle &&
     a.points.length === b.points.length &&
     a.points.every((p, i) => {
       const q = b.points[i];
@@ -39,18 +41,30 @@ export const RAY_COUNT_DEFAULT = 24;
 
 const newId = (): string => `vp-${Math.random().toString(36).slice(2, 10)}`;
 
+/** Doğru açısını (-π/2, π/2] aralığına getirir; ufuk yönsüzdür. */
+export function normalizeLineAngle(angle: number): number {
+  let a = angle % Math.PI;
+  if (a > Math.PI / 2) a -= Math.PI;
+  else if (a <= -Math.PI / 2) a += Math.PI;
+  return a;
+}
+
 /**
  * Perspektif kurgusu: mod (1/2 nokta), kaçış noktaları, ufuk kilidi, ışın sayısı.
  * Koordinatlar dünya biriminde; noktalar kâğıt dışında da olabilir.
  *
- * Ufuk kilitliyken (2 nokta) tüm noktalar aynı y'yi paylaşır: bir noktayı
- * dikey taşımak ufku ve diğer noktayı da taşır. 1 noktada ufuk her zaman
- * noktadan geçen yatay çizgidir.
+ * Ufuk kilitliyken (2 nokta) tüm noktalar `horizonAngle` yönündeki aynı doğru
+ * üzerindedir: bir noktayı ufka dik taşımak ufku ve diğer noktayı da taşır.
+ * 1 noktada ufuk noktadan geçen, `horizonAngle` yönündeki doğrudur.
+ * `horizonAngle` normalde 0'dır (yatay); kâğıt çizimle birlikte 90° döndürülünce
+ * ufuk da döner.
  */
 export class PerspectiveScene {
   mode: PerspectiveMode = 2;
   points: VanishingPoint[] = [];
   horizonLocked = true;
+  /** Kilitli ufkun yönü, radyan. */
+  horizonAngle = 0;
   rayCount = RAY_COUNT_DEFAULT;
 
   private listeners = new Set<() => void>();
@@ -86,6 +100,7 @@ export class PerspectiveScene {
     const y = paper.y + paper.height * 0.4;
     this.mode = 2;
     this.horizonLocked = true;
+    this.horizonAngle = 0;
     this.rayCount = RAY_COUNT_DEFAULT;
     this.points = [
       { id: newId(), x: paper.x + paper.width * 0.06, y },
@@ -96,8 +111,9 @@ export class PerspectiveScene {
 
   addPoint(at: Point): VanishingPoint | null {
     if (!this.canAddPoint) return null;
-    const y = this.isHorizonLocked && this.points.length > 0 ? this.points[0].y : at.y;
-    const point = { id: newId(), x: at.x, y };
+    const pos =
+      this.isHorizonLocked && this.points.length > 0 ? this.ontoHorizon(at, this.points[0]) : at;
+    const point = { id: newId(), x: pos.x, y: pos.y };
     this.points.push(point);
     this.emit();
     return point;
@@ -109,7 +125,12 @@ export class PerspectiveScene {
     point.x = to.x;
     point.y = to.y;
     if (this.isHorizonLocked) {
-      for (const p of this.points) p.y = to.y;
+      for (const p of this.points) {
+        if (p === point) continue;
+        const q = this.ontoHorizon(p, to);
+        p.x = q.x;
+        p.y = q.y;
+      }
     }
     this.emit();
   }
@@ -141,13 +162,15 @@ export class PerspectiveScene {
       const keep = (keepId && this.getPoint(keepId)) || this.points[0];
       this.points = [keep];
     } else if (mode === 2 && this.points.length === 1) {
+      // Ufuk doğrusu üzerinde, kâğıt merkezine göre karşı tarafa yerleştir
       const p = this.points[0];
-      const centerX = paper.x + paper.width / 2;
-      let x = 2 * centerX - p.x;
-      if (Math.abs(x - p.x) < paper.width * 0.5) {
-        x = p.x <= centerX ? paper.x + paper.width * 0.94 : paper.x + paper.width * 0.06;
-      }
-      this.points.push({ id: newId(), x, y: p.y });
+      const d = this.horizonDirection();
+      const center = { x: paper.x + paper.width / 2, y: paper.y + paper.height / 2 };
+      const span = Math.abs(d.x) * paper.width + Math.abs(d.y) * paper.height;
+      const tp = (p.x - center.x) * d.x + (p.y - center.y) * d.y;
+      let t = -tp;
+      if (Math.abs(t - tp) < span * 0.5) t = tp <= 0 ? span * 0.44 : -span * 0.44;
+      this.points.push({ id: newId(), x: p.x + d.x * (t - tp), y: p.y + d.y * (t - tp) });
     }
     if (this.isHorizonLocked) this.levelPoints();
     this.emit();
@@ -171,12 +194,24 @@ export class PerspectiveScene {
   horizon(): Horizon | null {
     const [a, b] = this.points;
     if (!a) return null;
-    if (!b || this.isHorizonLocked) return { origin: { x: a.x, y: a.y }, angle: 0 };
-    let angle = Math.atan2(b.y - a.y, b.x - a.x);
+    if (!b || this.isHorizonLocked) return { origin: { x: a.x, y: a.y }, angle: this.horizonAngle };
     // Ufuk yönünü soldan sağa normalize et
-    if (angle > Math.PI / 2) angle -= Math.PI;
-    else if (angle < -Math.PI / 2) angle += Math.PI;
+    const angle = normalizeLineAngle(Math.atan2(b.y - a.y, b.x - a.x));
     return { origin: { x: a.x, y: a.y }, angle };
+  }
+
+  /**
+   * Kurguyu bir dönüşümle taşır (kâğıt çizimle birlikte döndürülünce):
+   * noktalar `map` ile, ufuk yönü `angleDelta` kadar döner.
+   */
+  transform(map: (p: Point) => Point, angleDelta: number): void {
+    for (const p of this.points) {
+      const q = map(p);
+      p.x = q.x;
+      p.y = q.y;
+    }
+    this.horizonAngle = normalizeLineAngle(this.horizonAngle + angleDelta);
+    this.emit();
   }
 
   /** Geri alınabilir kurgu durumu (ışın sayısı görünüm tercihi sayılır, dahil değil). */
@@ -184,6 +219,7 @@ export class PerspectiveScene {
     return {
       mode: this.mode,
       horizonLocked: this.horizonLocked,
+      horizonAngle: this.horizonAngle,
       points: this.points.map((p) => ({ ...p })),
     };
   }
@@ -191,14 +227,35 @@ export class PerspectiveScene {
   restore(snap: SceneSnapshot): void {
     this.mode = snap.mode;
     this.horizonLocked = snap.horizonLocked;
+    this.horizonAngle = snap.horizonAngle;
     this.points = snap.points.map((p) => ({ ...p }));
     this.emit();
   }
 
-  /** Kilitlenince noktaları ortalama y'de hizalar. */
+  /** Kilitli ufkun birim yön vektörü. */
+  horizonDirection(): Point {
+    return { x: Math.cos(this.horizonAngle), y: Math.sin(this.horizonAngle) };
+  }
+
+  /** `p`'nin, `through`'dan geçen kilitli ufuk doğrusu üzerindeki izdüşümü. */
+  private ontoHorizon(p: Point, through: Point): Point {
+    const d = this.horizonDirection();
+    const t = (p.x - through.x) * d.x + (p.y - through.y) * d.y;
+    return { x: through.x + d.x * t, y: through.y + d.y * t };
+  }
+
+  /** Kilitlenince noktaları ağırlık merkezlerinden geçen ufuk doğrusuna hizalar. */
   private levelPoints(): void {
     if (this.points.length < 2) return;
-    const y = this.points.reduce((s, p) => s + p.y, 0) / this.points.length;
-    for (const p of this.points) p.y = y;
+    const n = this.points.length;
+    const c = {
+      x: this.points.reduce((s, p) => s + p.x, 0) / n,
+      y: this.points.reduce((s, p) => s + p.y, 0) / n,
+    };
+    for (const p of this.points) {
+      const q = this.ontoHorizon(p, c);
+      p.x = q.x;
+      p.y = q.y;
+    }
   }
 }

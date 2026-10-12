@@ -1,6 +1,10 @@
-import { PAPER_KINDS, type PaperKind } from '../engine/paper';
+import { ORIENTATIONS, PAPER_KINDS, type Orientation, type PaperKind } from '../engine/paper';
 import { INK_IDS, type InkId, type Stroke } from '../engine/stroke';
-import type { PerspectiveMode, VanishingPoint } from '../perspective/scene';
+import {
+  normalizeLineAngle,
+  type PerspectiveMode,
+  type VanishingPoint,
+} from '../perspective/scene';
 
 /**
  * Kaydedilen çizim. Biçim değişirse `version` artırılır ve
@@ -9,10 +13,12 @@ import type { PerspectiveMode, VanishingPoint } from '../perspective/scene';
 export interface SavedDrawing {
   version: 1;
   savedAt: number;
-  paper: { kind: PaperKind; width: number; height: number };
+  paper: { kind: PaperKind; width: number; height: number; orientation: Orientation };
   scene: {
     mode: PerspectiveMode;
     horizonLocked: boolean;
+    /** Sonradan eklendi (içerik döndürme); eski kayıtlarda 0. */
+    horizonAngle: number;
     rayCount: number;
     points: VanishingPoint[];
   };
@@ -76,10 +82,21 @@ export function parseSavedDrawing(v: unknown): SavedDrawing | null {
   return {
     version: 1,
     savedAt: isFiniteNumber(v.savedAt) ? v.savedAt : 0,
-    paper: { kind: paper.kind as PaperKind, width: paper.width, height: paper.height },
+    paper: {
+      kind: paper.kind as PaperKind,
+      width: paper.width,
+      height: paper.height,
+      // Yönlendirme sonradan eklendi; eski kayıtlarda boyuttan çıkarılır
+      orientation: ORIENTATIONS.includes(paper.orientation as Orientation)
+        ? (paper.orientation as Orientation)
+        : paper.width > paper.height
+          ? 'landscape'
+          : 'portrait',
+    },
     scene: {
       mode: scene.mode,
       horizonLocked: scene.horizonLocked !== false,
+      horizonAngle: isFiniteNumber(scene.horizonAngle) ? normalizeLineAngle(scene.horizonAngle) : 0,
       rayCount: isFiniteNumber(scene.rayCount) ? scene.rayCount : 24,
       points: points.slice(0, scene.mode),
     },
