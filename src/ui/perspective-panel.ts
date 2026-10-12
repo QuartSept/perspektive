@@ -96,7 +96,9 @@ export class PerspectivePanel {
       ? 'perspective.hintOtherTool'
       : scene.canAddPoint
         ? 'perspective.hintAdd'
-        : 'perspective.hintEdit';
+        : scene.mode === 3
+          ? 'perspective.hintVertical'
+          : 'perspective.hintEdit';
     this.hint.textContent = t(hintKey);
   }
 }

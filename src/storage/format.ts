@@ -50,7 +50,7 @@ function parseStroke(v: unknown): Stroke | null {
 
 function parsePoint(v: unknown): VanishingPoint | null {
   if (!isObject(v) || !isString(v.id) || !isFiniteNumber(v.x) || !isFiniteNumber(v.y)) return null;
-  return { id: v.id, x: v.x, y: v.y };
+  return v.role === 'vertical' ? { id: v.id, x: v.x, y: v.y, role: 'vertical' } : { id: v.id, x: v.x, y: v.y };
 }
 
 /** Birden fazla kaynaktan okunan kayıtlar arasından en yenisi (savedAt). */
@@ -75,7 +75,7 @@ export function parseSavedDrawing(v: unknown): SavedDrawing | null {
   if (!isFiniteNumber(paper.width) || !isFiniteNumber(paper.height)) return null;
   if (paper.width <= 0 || paper.height <= 0) return null;
 
-  if (scene.mode !== 1 && scene.mode !== 2) return null;
+  if (scene.mode !== 1 && scene.mode !== 2 && scene.mode !== 3) return null;
   if (!Array.isArray(scene.points)) return null;
   const points = scene.points.map(parsePoint).filter((p): p is VanishingPoint => p !== null);
 

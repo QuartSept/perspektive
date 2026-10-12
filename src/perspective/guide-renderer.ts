@@ -65,7 +65,7 @@ export function drawGuides(view: GuideView): void {
       ctx.lineTo(s.x + Math.cos(a) * reach, s.y + Math.sin(a) * reach);
     }
     ctx.globalAlpha = opacities[i];
-    ctx.strokeStyle = vanishingPointColor(theme, i);
+    ctx.strokeStyle = vanishingPointColor(theme, scene.colorIndexOf(scene.points[i]));
     ctx.lineWidth = 1;
     ctx.stroke();
   });
@@ -109,9 +109,9 @@ export function drawMarkers(view: GuideView): void {
   const { ctx, dpr, viewport, scene, state, theme } = view;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  scene.points.forEach((p, i) => {
+  scene.points.forEach((p) => {
     const s = viewport.worldToScreen(p);
-    const color = vanishingPointColor(theme, i);
+    const color = vanishingPointColor(theme, scene.colorIndexOf(p));
     const selected = state.selectedPointId === p.id;
     const hot = selected || state.hoveredPointId === p.id || state.draggingPointId === p.id;
 

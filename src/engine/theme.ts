@@ -43,7 +43,7 @@ export function readCanvasTheme(el: Element = document.documentElement): CanvasT
     paper: v('--color-paper'),
     paperBorder: v('--color-paper-border'),
     paperShadow: v('--color-paper-shadow'),
-    vanishingPoints: [v('--color-vp-1'), v('--color-vp-2')],
+    vanishingPoints: [v('--color-vp-1'), v('--color-vp-2'), v('--color-vp-3')],
     horizon: v('--color-horizon'),
     horizonActive: v('--color-horizon-active'),
     guideOpacity: n('--guide-opacity', 0.2),

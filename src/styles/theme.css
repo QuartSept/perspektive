@@ -23,6 +23,7 @@
   /* Kılavuzlar: her kaçış noktasının kendi rengi, ışın opaklığı ayrı */
   --color-vp-1: #3a6fb0;
   --color-vp-2: #3f8a63;
+  --color-vp-3: #8a5aa8;
   --guide-opacity: 0.2;
   --guide-opacity-strong: 0.6;
   --guide-opacity-dim: 0.06;

@@ -102,7 +102,7 @@ export function gridHomography(
   const finiteAlpha = FAR_FRACTION / (1 - FAR_FRACTION) / cells;
 
   if (scene.mode === 1) {
-    const V = scene.points[0];
+    const V = scene.horizonPoints[0];
     // Yerleşim kâğıt merkezine göre: nokta kenarda olsa da ızgara kâğıtta kalır
     // 1 noktada görüş uzaklığı serbest; kâğıt boyutuna göre makul bir değer
     const d = Math.max(size.width, size.height) * 0.9;
@@ -128,8 +128,10 @@ export function gridHomography(
     };
   }
 
+  if (scene.mode === 3) return threePointHomography(scene, plane, at(tc, -below), finiteAlpha);
+
   // 2 nokta: izleyici, iki kaçış noktasına bakış açısı 90° olacak yerde
-  const [P1, P2] = scene.points;
+  const [P1, P2] = scene.horizonPoints;
   let [t1, t2] = [along(P1), along(P2)];
   let [V1, V2] = [P1, P2];
   if (t1 > t2) {
@@ -197,4 +199,65 @@ export function buildGrid(
     push(mapGrid(h, 0, i), mapGrid(h, cells, i));
   }
   return strokes;
+}
+
+/** Üçgenin diklik merkezi (yükseklerin kesişimi). */
+function orthocenter(a: Point, b: Point, c: Point): Point | null {
+  // (P − a)·(c − b) = 0 ve (P − b)·(c − a) = 0
+  const a1 = c.x - b.x;
+  const b1 = c.y - b.y;
+  const c1 = a.x * a1 + a.y * b1;
+  const a2 = c.x - a.x;
+  const b2 = c.y - a.y;
+  const c2 = b.x * a2 + b.y * b2;
+  const det = a1 * b2 - a2 * b1;
+  if (Math.abs(det) < 1e-9) return null;
+  return { x: (c1 * b2 - c2 * b1) / det, y: (a1 * c2 - a2 * c1) / det };
+}
+
+/**
+ * 3 nokta: üç kaçış noktası birbirine dik üç yöne aittir. Asıl nokta (P)
+ * üçgenin diklik merkezi, görüş uzaklığı f² = −(V1 − P)·(V2 − P). Bir düzlemin
+ * kare köşegenleri, iki eksen yönünün açıortayının kaçış noktasına gider.
+ * Üçgen dar açılı değilse (nokta yerleşimi fiziksel bir kameraya uymuyorsa) null.
+ */
+function threePointHomography(
+  scene: PerspectiveScene,
+  plane: GridPlane,
+  C: Point,
+  alpha: number,
+): GridHomography | null {
+  const [H1, H2] = scene.horizonPoints;
+  const V3 = scene.verticalPoint;
+  if (!H1 || !H2 || !V3) return null;
+  const P = orthocenter(H1, H2, V3);
+  if (!P) return null;
+  const f2 = -((H1.x - P.x) * (H2.x - P.x) + (H1.y - P.y) * (H2.y - P.y));
+  if (f2 <= 0) return null;
+  const f = Math.sqrt(f2);
+
+  const unitDir = (V: Point) => {
+    const d = { x: V.x - P.x, y: V.y - P.y, z: f };
+    const l = Math.hypot(d.x, d.y, d.z);
+    return { x: d.x / l, y: d.y / l, z: d.z / l };
+  };
+  // Sol/sağ ufuk noktası (ızgara yönü tutarlı olsun)
+  const [L, R] = H1.x <= H2.x ? [H1, H2] : [H2, H1];
+  const [Va, Vb] = plane === 'floor' ? [L, R] : plane === 'wall-left' ? [L, V3] : [R, V3];
+  const da = unitDir(Va);
+  const db = unitDir(Vb);
+  const s = { x: da.x + db.x, y: da.y + db.y, z: da.z + db.z };
+  if (Math.abs(s.z) < 1e-9) return null;
+  const D = { x: P.x + (f * s.x) / s.z, y: P.y + (f * s.y) / s.z };
+  // D = (α·Va + β·Vb)/(α + β) → t = β/(α + β)
+  const ab = { x: Vb.x - Va.x, y: Vb.y - Va.y };
+  const t = ((D.x - Va.x) * ab.x + (D.y - Va.y) * ab.y) / (ab.x * ab.x + ab.y * ab.y);
+  if (t <= 0 || t >= 1) return null;
+  return {
+    A: { x: Va.x, y: Va.y, w: 1 },
+    B: { x: Vb.x, y: Vb.y, w: 1 },
+    C,
+    alpha,
+    beta: (alpha * t) / (1 - t),
+  };
 }

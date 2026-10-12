@@ -27,7 +27,7 @@ const SAME_LINE_ANGLE = (1 * Math.PI) / 180;
  * Stroke başlangıcından geçen aday doğrular:
  *  - her kaçış noktasına giden ışın (başlangıç noktası → kaçış noktası);
  *    başlangıç noktaya `nearPointRadius` kadar yakınsa o noktadan çıkan serbest ışın
- *  - dikey (ufka dik)
+ *  - dikey (ufka dik); 3 noktada bunun yerine dikey kaçış noktasının ışını
  *  - yalnızca 1 noktada: yatay (ufka paralel)
  */
 export function candidateLines(
@@ -62,7 +62,10 @@ export function candidateLines(
   const horizon = scene.horizon();
   if (horizon) {
     const h = { x: Math.cos(horizon.angle), y: Math.sin(horizon.angle) };
-    lines.push({ origin: start, direction: { x: -h.y, y: h.x }, kind: 'vertical' });
+    // 3 noktada dikeyler paralel değil: dikey kaçış noktasının ışını zaten aday
+    if (!scene.verticalPoint) {
+      lines.push({ origin: start, direction: { x: -h.y, y: h.x }, kind: 'vertical' });
+    }
     if (scene.mode === 1) lines.push({ origin: start, direction: h, kind: 'horizontal' });
   }
   return lines;

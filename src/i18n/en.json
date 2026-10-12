@@ -150,7 +150,7 @@
   "grid.wallRight": "Right wall",
   "grid.cells": "Cells",
   "grid.add": "Add",
-  "grid.needPoints": "The grid needs all vanishing points of the setup (two for 2-point).",
+  "grid.needPoints": "The grid needs all vanishing points of the setup. In 3-point, the three points must form an acute triangle (vertical point far enough from the horizon).",
   "reference.title": "Reference image",
   "reference.load": "Load image…",
   "reference.hint": "Load a photo to draw over, or drop it onto the canvas. It isn't included in exports or the project file.",
@@ -161,5 +161,7 @@
   "reference.visible": "Show",
   "reference.replace": "Replace…",
   "reference.remove": "Remove",
-  "reference.invalid": "Couldn't open the image."
+  "reference.invalid": "Couldn't open the image.",
+  "perspective.threePoint": "3-point",
+  "perspective.hintVertical": "Drag the vertical vanishing point below the horizon (bird's-eye) or above it (worm's-eye); vertical lines converge there."
 }

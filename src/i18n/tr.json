@@ -150,7 +150,7 @@
   "grid.wallRight": "Sağ duvar",
   "grid.cells": "Hücre sayısı",
   "grid.add": "Ekle",
-  "grid.needPoints": "Izgara için kurgudaki tüm kaçış noktaları gerekli (2 noktada iki nokta).",
+  "grid.needPoints": "Izgara için kurgudaki tüm kaçış noktaları gerekli. 3 noktada üç nokta dar açılı bir üçgen oluşturmalı (dikey nokta ufuktan yeterince uzakta).",
   "reference.title": "Referans görsel",
   "reference.load": "Görsel yükle…",
   "reference.hint": "Üzerinden çizmek için bir fotoğraf yükleyin ya da tuvale sürükleyip bırakın. Çıktılara ve proje dosyasına girmez.",
@@ -161,5 +161,7 @@
   "reference.visible": "Göster",
   "reference.replace": "Değiştir…",
   "reference.remove": "Kaldır",
-  "reference.invalid": "Görsel açılamadı."
+  "reference.invalid": "Görsel açılamadı.",
+  "perspective.threePoint": "3 nokta",
+  "perspective.hintVertical": "Dikey kaçış noktasını ufkun altına (kuşbakışı) ya da üstüne (solucan bakışı) sürükleyin; dikey çizgiler oraya kaçar."
 }

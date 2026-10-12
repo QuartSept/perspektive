@@ -1,12 +1,19 @@
 import { clamp, type Point, type Rect } from '../engine/geometry';
 
-export type PerspectiveMode = 1 | 2;
+export type PerspectiveMode = 1 | 2 | 3;
 
 export interface VanishingPoint {
   id: string;
   x: number;
   y: number;
+  /**
+   * 3 noktada dikey kaçış noktası (dikey çizgilerin birleştiği yer; ufka
+   * bağlı değildir). Yoksa nokta ufuk üzerindedir.
+   */
+  role?: 'vertical';
 }
+
+export const isVerticalPoint = (p: VanishingPoint): boolean => p.role === 'vertical';
 
 export interface Horizon {
   origin: Point;
@@ -29,7 +36,7 @@ export function snapshotsEqual(a: SceneSnapshot, b: SceneSnapshot): boolean {
     a.points.length === b.points.length &&
     a.points.every((p, i) => {
       const q = b.points[i];
-      return p.id === q.id && p.x === q.x && p.y === q.y;
+      return p.id === q.id && p.x === q.x && p.y === q.y && p.role === q.role;
     })
   );
 }
@@ -50,7 +57,9 @@ export function normalizeLineAngle(angle: number): number {
 }
 
 /**
- * Perspektif kurgusu: mod (1/2 nokta), kaçış noktaları, ufuk kilidi, ışın sayısı.
+ * Perspektif kurgusu: mod (1/2/3 nokta), kaçış noktaları, ufuk kilidi, ışın sayısı.
+ * 3 noktada ufuk üzerindeki iki noktaya ek olarak dikey kaçış noktası vardır;
+ * ufuk kilidi ve ufuk sürükleme yalnızca ufuk noktalarını etkiler.
  * Koordinatlar dünya biriminde; noktalar kâğıt dışında da olabilir.
  *
  * Ufuk kilitliyken (2 nokta) tüm noktalar `horizonAngle` yönündeki aynı doğru
@@ -95,6 +104,21 @@ export class PerspectiveScene {
     return this.points.find((p) => p.id === id);
   }
 
+  /** Ufuk üzerindeki noktalar (eklenme sırasıyla). */
+  get horizonPoints(): VanishingPoint[] {
+    return this.points.filter((p) => !isVerticalPoint(p));
+  }
+
+  /** 3 noktada dikey kaçış noktası. */
+  get verticalPoint(): VanishingPoint | undefined {
+    return this.points.find(isVerticalPoint);
+  }
+
+  /** Renk sırası: ufuk noktaları 0, 1; dikey nokta 2 (silme/ekleme sırasından bağımsız). */
+  colorIndexOf(p: VanishingPoint): number {
+    return isVerticalPoint(p) ? 2 : Math.max(0, this.horizonPoints.indexOf(p));
+  }
+
   /** Varsayılan kurgu: 2 nokta, ufuk kâğıdın %40 yüksekliğinde. */
   reset(paper: Rect): void {
     const y = paper.y + paper.height * 0.4;
@@ -111,8 +135,16 @@ export class PerspectiveScene {
 
   addPoint(at: Point): VanishingPoint | null {
     if (!this.canAddPoint) return null;
+    const horizonPoints = this.horizonPoints;
+    // 3 noktada ufuk dolunca eklenen nokta dikey kaçış noktasıdır (serbest)
+    if (this.mode === 3 && horizonPoints.length >= 2 && !this.verticalPoint) {
+      const point: VanishingPoint = { id: newId(), x: at.x, y: at.y, role: 'vertical' };
+      this.points.push(point);
+      this.emit();
+      return point;
+    }
     const pos =
-      this.isHorizonLocked && this.points.length > 0 ? this.ontoHorizon(at, this.points[0]) : at;
+      this.isHorizonLocked && horizonPoints.length > 0 ? this.ontoHorizon(at, horizonPoints[0]) : at;
     const point = { id: newId(), x: pos.x, y: pos.y };
     this.points.push(point);
     this.emit();
@@ -124,8 +156,8 @@ export class PerspectiveScene {
     if (!point) return;
     point.x = to.x;
     point.y = to.y;
-    if (this.isHorizonLocked) {
-      for (const p of this.points) {
+    if (this.isHorizonLocked && !isVerticalPoint(point)) {
+      for (const p of this.horizonPoints) {
         if (p === point) continue;
         const q = this.ontoHorizon(p, to);
         p.x = q.x;
@@ -135,10 +167,10 @@ export class PerspectiveScene {
     this.emit();
   }
 
-  /** Tüm noktaları (dolayısıyla ufku) kaydırır. */
+  /** Ufku (ufuk noktalarını) kaydırır; dikey kaçış noktası yerinde kalır. */
   translate(dx: number, dy: number): void {
     if (dx === 0 && dy === 0) return;
-    for (const p of this.points) {
+    for (const p of this.horizonPoints) {
       p.x += dx;
       p.y += dy;
     }
@@ -152,16 +184,19 @@ export class PerspectiveScene {
   }
 
   /**
-   * Mod değiştirir. 1 → 2 geçişinde ikinci nokta aynı ufukta, kâğıt merkezine
-   * göre karşı tarafa otomatik eklenir. 2 → 1'de `keepId` (yoksa ilk nokta) korunur.
+   * Mod değiştirir. Ufuk noktası eksikse ikincisi aynı ufukta, kâğıt merkezine
+   * göre karşı tarafa otomatik eklenir. 3 noktaya geçişte dikey kaçış noktası
+   * ufkun altına (kuşbakışı) eklenir; 3'ten çıkışta kaldırılır. 1'e geçişte
+   * `keepId` (yoksa ilk ufuk noktası) korunur.
    */
   setMode(mode: PerspectiveMode, paper: Rect, keepId?: string | null): void {
     if (mode === this.mode) return;
     this.mode = mode;
+    if (mode < 3) this.points = this.horizonPoints;
     if (mode === 1 && this.points.length > 1) {
       const keep = (keepId && this.getPoint(keepId)) || this.points[0];
       this.points = [keep];
-    } else if (mode === 2 && this.points.length === 1) {
+    } else if (mode >= 2 && this.horizonPoints.length === 1) {
       // Ufuk doğrusu üzerinde, kâğıt merkezine göre karşı tarafa yerleştir
       const p = this.points[0];
       const d = this.horizonDirection();
@@ -173,7 +208,37 @@ export class PerspectiveScene {
       this.points.push({ id: newId(), x: p.x + d.x * (t - tp), y: p.y + d.y * (t - tp) });
     }
     if (this.isHorizonLocked) this.levelPoints();
+    if (mode === 3 && !this.verticalPoint && this.horizonPoints.length > 0) {
+      this.points.push({ id: newId(), ...this.defaultVerticalPosition(paper), role: 'vertical' });
+    }
     this.emit();
+  }
+
+  /**
+   * Ufuk noktalarının ortasından ufka dik, aşağıda (kuşbakışı). Kâğıdın alt
+   * kenarının hemen içine konur ki sığdırılmış görünümde görünsün ve
+   * sürüklenebilsin; ufuk kâğıt dışındaysa kâğıt boyunun biraz altına.
+   */
+  private defaultVerticalPosition(paper: Rect): Point {
+    const hp = this.horizonPoints;
+    const m = {
+      x: hp.reduce((s, p) => s + p.x, 0) / hp.length,
+      y: hp.reduce((s, p) => s + p.y, 0) / hp.length,
+    };
+    const angle = this.horizon()?.angle ?? this.horizonAngle;
+    const down = { x: -Math.sin(angle), y: Math.cos(angle) };
+    const inside =
+      m.x >= paper.x && m.x <= paper.x + paper.width && m.y >= paper.y && m.y <= paper.y + paper.height;
+    let dist = (Math.abs(down.x) * paper.width + Math.abs(down.y) * paper.height) * 1.1;
+    if (inside) {
+      let t = Infinity;
+      if (down.x > 1e-9) t = Math.min(t, (paper.x + paper.width - m.x) / down.x);
+      if (down.x < -1e-9) t = Math.min(t, (paper.x - m.x) / down.x);
+      if (down.y > 1e-9) t = Math.min(t, (paper.y + paper.height - m.y) / down.y);
+      if (down.y < -1e-9) t = Math.min(t, (paper.y - m.y) / down.y);
+      dist = t * 0.92;
+    }
+    return { x: m.x + down.x * dist, y: m.y + down.y * dist };
   }
 
   setHorizonLocked(locked: boolean): void {
@@ -192,7 +257,7 @@ export class PerspectiveScene {
   }
 
   horizon(): Horizon | null {
-    const [a, b] = this.points;
+    const [a, b] = this.horizonPoints;
     if (!a) return null;
     if (!b || this.isHorizonLocked) return { origin: { x: a.x, y: a.y }, angle: this.horizonAngle };
     // Ufuk yönünü soldan sağa normalize et
@@ -244,15 +309,16 @@ export class PerspectiveScene {
     return { x: through.x + d.x * t, y: through.y + d.y * t };
   }
 
-  /** Kilitlenince noktaları ağırlık merkezlerinden geçen ufuk doğrusuna hizalar. */
+  /** Kilitlenince ufuk noktalarını ağırlık merkezlerinden geçen ufuk doğrusuna hizalar. */
   private levelPoints(): void {
-    if (this.points.length < 2) return;
-    const n = this.points.length;
+    const hp = this.horizonPoints;
+    if (hp.length < 2) return;
+    const n = hp.length;
     const c = {
-      x: this.points.reduce((s, p) => s + p.x, 0) / n,
-      y: this.points.reduce((s, p) => s + p.y, 0) / n,
+      x: hp.reduce((s, p) => s + p.x, 0) / n,
+      y: hp.reduce((s, p) => s + p.y, 0) / n,
     };
-    for (const p of this.points) {
+    for (const p of hp) {
       const q = this.ontoHorizon(p, c);
       p.x = q.x;
       p.y = q.y;
