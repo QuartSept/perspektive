@@ -1,7 +1,8 @@
 import './styles/theme.css';
 import './styles/main.css';
 
-import { applyTranslations, onLanguageChange, setLanguage, t } from './i18n';
+import { applyTranslations, onLanguageChange, setLanguage, t, type MessageKey } from './i18n';
+import { ThemeController } from './ui/theme';
 import { ReplaceStrokesCommand } from './engine/commands';
 import { DrawingDocument } from './engine/document';
 import { OrientationCommand } from './engine/orientation';
@@ -57,6 +58,8 @@ import { Toolbar, type ToolbarAction } from './ui/toolbar';
 const ZOOM_STEP = 1.25;
 const FIT_MARGIN = 32;
 
+// Tema, canvas renkleri okunmadan önce uygulanmalı
+const themeController = new ThemeController();
 applyTranslations();
 
 const stage = document.getElementById('stage')!;
@@ -164,7 +167,15 @@ function deleteSelectedPoint(): void {
   editScene(history, scene, () => scene.removePoint(id));
 }
 
-const pageSources = { paper, doc, scene, theme: renderer.theme };
+// Tema değişince renderer.theme yenilenir; çıktılar her zaman güncelini alsın
+const pageSources = {
+  paper,
+  doc,
+  scene,
+  get theme() {
+    return renderer.theme;
+  },
+};
 const printView = new PrintView(pageSources);
 const outputDialog = new OutputDialog({
   onExport: async (format, includeGuides) => {
@@ -274,7 +285,11 @@ const templatesDialog = new TemplatesDialog({
     const d = new DrawingDocument();
     d.replaceAll(saved.strokes);
     // Küçük önizlemede açık gri kılavuz çizgileri görünsün diye koyulaştır
-    const theme = { ...renderer.theme, inks: { ...renderer.theme.inks, 'gray-light': renderer.theme.inks['gray-dark'] } };
+    const base = renderer.theme;
+    const theme = {
+      ...base,
+      printInks: { ...base.printInks, 'gray-light': base.printInks['gray-dark'] },
+    };
     return renderPage(
       { paper: p, doc: d, scene: s, theme },
       { pixelsPerUnit: maxSizePx / Math.max(p.width, p.height), includeGuides: true },
@@ -441,6 +456,9 @@ function runAction(action: ToolbarAction): void {
     case 'help':
       openHelp();
       break;
+    case 'theme':
+      themeController.cycle();
+      break;
     case 'zoom-in':
       viewport.zoomAt({ x: viewport.width / 2, y: viewport.height / 2 }, ZOOM_STEP);
       break;
@@ -508,6 +526,7 @@ const prefsTargets: PrefsTargets = {
   brush: brushSettings,
   snap: snapSettings,
   eraser: eraserSettings,
+  theme: themeController,
   getGuidesVisible: () => state.guidesVisible,
   setGuidesVisible,
   getOnboardingDismissed: () => onboardingDismissed,
@@ -524,10 +543,25 @@ onLanguageChange(() => {
   brushPanel.update();
   eraserPanel.update();
   referencePanel.update();
+  syncThemeButton();
   updatePanel();
   schedulePrefsSave();
 });
 snapSettings.onChange(schedulePrefsSave);
+
+const themeButton = document.getElementById('theme-toggle')!;
+function syncThemeButton(): void {
+  const label = t('theme.button', { mode: t(`theme.${themeController.preference}` as MessageKey) });
+  themeButton.title = label;
+  themeButton.setAttribute('aria-label', label);
+}
+themeController.onChange(() => {
+  renderer.theme = readCanvasTheme();
+  renderer.requestRender();
+  syncThemeButton();
+  schedulePrefsSave();
+});
+syncThemeButton();
 eraserSettings.onChange(() => {
   schedulePrefsSave();
   renderer.requestRender('interaction');
@@ -664,6 +698,10 @@ window.addEventListener('keydown', (e) => {
       break;
     case '?':
       openHelp();
+      break;
+    case 't':
+    case 'T':
+      themeController.cycle();
       break;
     case 'm':
     case 'M':

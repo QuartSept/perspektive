@@ -48,52 +48,66 @@ export function eraseFromStroke(stroke: Stroke, a: Point, b: Point, radius: numb
 
   if (n === 1) return inside(at(0)) ? [] : null;
 
-  /** İçeride/dışarıda geçişinin olduğu nokta (ikiye bölerek). */
-  const boundary = (from: Point, to: Point, fromInside: boolean): Point => {
-    let lo = 0;
-    let hi = 1;
+  const pr = stroke.pressures;
+  /** Parça noktaları ve (varsa) basınçları birlikte tutulur. */
+  type Piece = { pts: number[]; prs: number[] };
+  const pressureAt = (i: number, t: number) => (pr ? pr[i] + (pr[i + 1] - pr[i]) * t : 0);
+
+  /** P→Q üzerinde içeride/dışarıda geçişinin parametresi (ikiye bölerek). */
+  const boundary = (P: Point, Q: Point, lo: number, hi: number, loInside: boolean): number => {
     for (let k = 0; k < BISECT_STEPS; k++) {
       const mid = (lo + hi) / 2;
-      if (inside(lerp(from, to, mid)) === fromInside) lo = mid;
+      if (inside(lerp(P, Q, mid)) === loInside) lo = mid;
       else hi = mid;
     }
-    return lerp(from, to, (lo + hi) / 2);
+    return (lo + hi) / 2;
   };
 
-  const pieces: number[][] = [];
-  let current: number[] | null = inside(at(0)) ? null : [p[0], p[1]];
+  const pieces: Piece[] = [];
+  const startPiece = (x: number, y: number, pressure: number): Piece => ({
+    pts: [x, y],
+    prs: pr ? [pressure] : [],
+  });
+  const extend = (piece: Piece, x: number, y: number, pressure: number) => {
+    piece.pts.push(x, y);
+    if (pr) piece.prs.push(pressure);
+  };
+
+  let current: Piece | null = inside(at(0)) ? null : startPiece(p[0], p[1], pr?.[0] ?? 0);
   let cut = current === null;
   const step = Math.max(reach / 4, 1e-6);
 
   for (let i = 0; i < n - 1; i++) {
     const P = at(i);
     const Q = at(i + 1);
+    const prQ = pr?.[i + 1] ?? 0;
     // Kapsülden uzak parça: olduğu gibi kalır
     if (segmentDistance(P, Q, a, b) > reach) {
-      if (current) current.push(Q.x, Q.y);
-      else current = [Q.x, Q.y];
+      if (current) extend(current, Q.x, Q.y, prQ);
+      else current = startPiece(Q.x, Q.y, prQ);
       continue;
     }
     // Yakın parça: sınırları bulmak için örnekle
     const steps = Math.max(1, Math.ceil(Math.hypot(Q.x - P.x, Q.y - P.y) / step));
-    let prev = P;
+    let prevT = 0;
     let prevIn = inside(P);
     for (let k = 1; k <= steps; k++) {
-      const pt = k === steps ? Q : lerp(P, Q, k / steps);
-      const ptIn = inside(pt);
+      const t = k / steps;
+      const ptIn = inside(k === steps ? Q : lerp(P, Q, t));
       if (ptIn !== prevIn) {
         cut = true;
-        const edge = boundary(prev, pt, prevIn);
+        const tb = boundary(P, Q, prevT, t, prevIn);
+        const edge = lerp(P, Q, tb);
         if (prevIn) {
-          current = [edge.x, edge.y];
+          current = startPiece(edge.x, edge.y, pressureAt(i, tb));
         } else {
-          current!.push(edge.x, edge.y);
+          extend(current!, edge.x, edge.y, pressureAt(i, tb));
           pieces.push(current!);
           current = null;
         }
       }
-      if (k === steps && !ptIn) current!.push(Q.x, Q.y);
-      prev = pt;
+      if (k === steps && !ptIn) extend(current!, Q.x, Q.y, prQ);
+      prevT = t;
       prevIn = ptIn;
     }
   }
@@ -101,6 +115,10 @@ export function eraseFromStroke(stroke: Stroke, a: Point, b: Point, radius: numb
   if (!cut) return null;
 
   return pieces
-    .filter((pts) => pts.length >= 4 && pieceLength(pts) >= MIN_PIECE_LENGTH)
-    .map((pts) => ({ id: newStrokeId(), points: pts, style: { ...stroke.style } }));
+    .filter((pc) => pc.pts.length >= 4 && pieceLength(pc.pts) >= MIN_PIECE_LENGTH)
+    .map((pc) => {
+      const piece: Stroke = { id: newStrokeId(), points: pc.pts, style: { ...stroke.style } };
+      if (pr) piece.pressures = pc.prs;
+      return piece;
+    });
 }

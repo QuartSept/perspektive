@@ -163,5 +163,13 @@
   "reference.remove": "Kaldır",
   "reference.invalid": "Görsel açılamadı.",
   "perspective.threePoint": "3 nokta",
-  "perspective.hintVertical": "Dikey kaçış noktasını ufkun altına (kuşbakışı) ya da üstüne (solucan bakışı) sürükleyin; dikey çizgiler oraya kaçar."
+  "perspective.hintVertical": "Dikey kaçış noktasını ufkun altına (kuşbakışı) ya da üstüne (solucan bakışı) sürükleyin; dikey çizgiler oraya kaçar.",
+  "theme.button": "Tema: {mode} (T)",
+  "theme.system": "Sistem",
+  "theme.light": "Açık",
+  "theme.dark": "Koyu",
+  "help.theme": "Temayı değiştir (sistem / açık / koyu)",
+  "brush.pressure": "Kalem basıncı",
+  "help.touchKey": "Dokunmatik",
+  "help.touch": "Tek parmak çizer (kalem kullanıldıktan sonra kaydırır); iki parmak kaydırır ve yakınlaştırır"
 }

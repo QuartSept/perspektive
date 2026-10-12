@@ -99,3 +99,18 @@ describe('döndürülmüş ufukta kilit', () => {
     expect(added.y).toBeCloseTo(100);
   });
 });
+
+describe('3 nokta döndürme', () => {
+  it('dikey kaçış noktasının rolü korunur', () => {
+    const { paper, doc, scene, history } = setup();
+    scene.setMode(3, paper.rect);
+    doc.replaceAll([stroke('a', [1, 1, 5, 5])]);
+    history.execute(new OrientationCommand(paper, doc, scene, 'landscape', () => {}));
+    expect(scene.points.filter((p) => p.role === 'vertical')).toHaveLength(1);
+  });
+
+  it('basınç bilgisi döndürmede korunur', () => {
+    const s: Stroke = { ...stroke('p', [0, 0, 10, 0]), pressures: [0.2, 0.9] };
+    expect(rotateStroke(s, contentRotation('landscape', 200, 300)).pressures).toEqual([0.2, 0.9]);
+  });
+});

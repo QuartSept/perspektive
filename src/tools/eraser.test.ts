@@ -22,7 +22,9 @@ const line = (id: string, y: number): Stroke => ({
 const ev = (p: Point): ToolPointerEvent => ({
   screen: viewport.worldToScreen(p),
   world: p,
-  samples: [p],
+  samples: [{ ...p, pressure: 0.5 }],
+  pointerType: 'mouse',
+  pressure: 0.5,
   native: {} as PointerEvent,
 });
 

@@ -23,9 +23,24 @@ export interface CanvasTheme {
   /** Silgi gibi daire imleçler. */
   cursor: string;
   cursorHalo: string;
-  /** PNG / yazdırma kâğıt rengi ve kılavuz opaklığı. */
+  /** PNG / SVG / yazdırma: temadan bağımsız renkler. */
   printPaper: string;
   printGuideOpacity: number;
+  printInks: Record<InkId, string>;
+  printVanishingPoints: string[];
+  printHorizon: string;
+  printMarkerFill: string;
+}
+
+/** Çıktı için tema: ekran renklerinin yerine temadan bağımsız --print-* renkleri. */
+export function toPrintTheme(theme: CanvasTheme): CanvasTheme {
+  return {
+    ...theme,
+    inks: theme.printInks,
+    vanishingPoints: theme.printVanishingPoints,
+    horizon: theme.printHorizon,
+    markerFill: theme.printMarkerFill,
+  };
 }
 
 export function readCanvasTheme(el: Element = document.documentElement): CanvasTheme {
@@ -36,7 +51,11 @@ export function readCanvasTheme(el: Element = document.documentElement): CanvasT
     return Number.isFinite(parsed) ? parsed : fallback;
   };
   const inks = {} as Record<InkId, string>;
-  for (const id of INK_IDS) inks[id] = v(`--ink-${id}`);
+  const printInks = {} as Record<InkId, string>;
+  for (const id of INK_IDS) {
+    inks[id] = v(`--ink-${id}`);
+    printInks[id] = v(`--print-ink-${id}`);
+  }
   return {
     inks,
     desk: v('--color-desk'),
@@ -57,5 +76,9 @@ export function readCanvasTheme(el: Element = document.documentElement): CanvasT
     cursorHalo: v('--color-cursor-halo'),
     printPaper: v('--color-print-paper'),
     printGuideOpacity: n('--print-guide-opacity', 0.35),
+    printInks,
+    printVanishingPoints: [v('--print-vp-1'), v('--print-vp-2'), v('--print-vp-3')],
+    printHorizon: v('--print-horizon'),
+    printMarkerFill: v('--print-marker-fill'),
   };
 }

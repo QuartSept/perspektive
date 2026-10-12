@@ -41,11 +41,17 @@ function parseStroke(v: unknown): Stroke | null {
   const { width, opacity, ink } = v.style;
   if (!isFiniteNumber(width) || width <= 0 || !isFiniteNumber(opacity)) return null;
   if (!INK_IDS.includes(ink as InkId)) return null;
-  return {
+  const stroke: Stroke = {
     id: v.id,
     points: [...points],
     style: { width, opacity: Math.min(1, Math.max(0, opacity)), ink: ink as InkId },
   };
+  // Basınç isteğe bağlı; nokta sayısıyla uyuşmuyorsa yok sayılır
+  const pr = v.pressures;
+  if (Array.isArray(pr) && pr.length === points.length / 2 && pr.every(isFiniteNumber)) {
+    stroke.pressures = pr.map((x) => Math.min(1, Math.max(0, x)));
+  }
+  return stroke;
 }
 
 function parsePoint(v: unknown): VanishingPoint | null {

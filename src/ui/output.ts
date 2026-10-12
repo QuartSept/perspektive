@@ -1,6 +1,7 @@
 import { PX_PER_MM } from '../engine/paper';
 import { renderPage, type PageSources } from '../engine/page-render';
 import { buildSvg } from '../engine/svg-export';
+import { toPrintTheme } from '../engine/theme';
 
 /** PNG: ≈192 DPI (A4 → 1587×2245 px). */
 const PNG_PIXELS_PER_UNIT = 2;
@@ -52,7 +53,7 @@ export async function downloadPng(src: PageSources, options: OutputOptions): Pro
 /** Kâğıt alanını gerçek ölçekli SVG olarak indirir. */
 export function downloadSvg(src: PageSources, options: OutputOptions): void {
   const svg = buildSvg(
-    { paper: src.paper, strokes: src.doc.strokes, scene: src.scene, theme: src.theme },
+    { paper: src.paper, strokes: src.doc.strokes, scene: src.scene, theme: toPrintTheme(src.theme) },
     options.includeGuides,
   );
   downloadBlob(new Blob([svg], { type: 'image/svg+xml' }), `perspektif-${timestamp()}.svg`);

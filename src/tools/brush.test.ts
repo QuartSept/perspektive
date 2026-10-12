@@ -40,7 +40,14 @@ beforeEach(() => {
 
 function ev(screen: Point): ToolPointerEvent {
   const world = viewport.screenToWorld(screen);
-  return { screen, world, samples: [world], native: {} as PointerEvent };
+  return {
+    screen,
+    world,
+    samples: [{ ...world, pressure: 0.5 }],
+    pointerType: 'mouse',
+    pressure: 0.5,
+    native: {} as PointerEvent,
+  };
 }
 
 /** Ekran noktaları boyunca stroke çizer; son stroke'u döndürür. */

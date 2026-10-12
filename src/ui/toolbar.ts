@@ -18,6 +18,7 @@ export type ToolbarAction =
   | 'templates'
   | 'project'
   | 'print'
+  | 'theme'
   | 'help';
 
 export interface ToolbarHandlers {

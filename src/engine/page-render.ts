@@ -2,7 +2,7 @@ import type { DrawingDocument } from './document';
 import type { Paper } from './paper';
 import { EditorState } from './state';
 import { drawStroke } from './stroke';
-import type { CanvasTheme } from './theme';
+import { toPrintTheme, type CanvasTheme } from './theme';
 import { Viewport } from './viewport';
 import { drawGuides, drawMarkers } from '../perspective/guide-renderer';
 import type { PerspectiveScene } from '../perspective/scene';
@@ -29,7 +29,9 @@ export interface PageRenderOptions {
  * mürekkep üstte okunsun; imleç vurgusu olmadan temel opaklıkla çizilir.
  */
 export function renderPage(src: PageSources, options: PageRenderOptions): HTMLCanvasElement {
-  const { paper, doc, scene, theme } = src;
+  const { paper, doc, scene } = src;
+  // Çıktı ekran temasından bağımsız: beyaz kâğıt, özgün mürekkepler
+  const theme = toPrintTheme(src.theme);
   let k = options.pixelsPerUnit;
   const pixels = paper.width * paper.height * k * k;
   if (pixels > MAX_PIXELS) k *= Math.sqrt(MAX_PIXELS / pixels);

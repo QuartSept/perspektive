@@ -65,3 +65,21 @@ describe('eraseFromStroke', () => {
     expect(pieces).toHaveLength(2);
   });
 });
+
+describe('basınçlı stroke bölme', () => {
+  it('parçalar basınç dizisini taşır; sınırda basınç ara değer', () => {
+    const s: Stroke = { ...line([0, 0, 100, 0]), pressures: [0, 1] };
+    const [l, r] = eraseFromStroke(s, { x: 50, y: -20 }, { x: 50, y: 20 }, 5)!;
+    expect(l.pressures).toHaveLength(l.points.length / 2);
+    expect(r.pressures).toHaveLength(r.points.length / 2);
+    expect(l.pressures![0]).toBe(0);
+    expect(l.pressures![1]).toBeCloseTo(0.44, 2); // x = 44
+    expect(r.pressures![0]).toBeCloseTo(0.56, 2);
+    expect(r.pressures![1]).toBe(1);
+  });
+
+  it('basınçsız stroke parçalarında basınç yok', () => {
+    const [l] = eraseFromStroke(line([0, 0, 100, 0]), { x: 50, y: -20 }, { x: 50, y: 20 }, 5)!;
+    expect(l.pressures).toBeUndefined();
+  });
+});

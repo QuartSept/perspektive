@@ -13,7 +13,7 @@ import {
   type SnapLine,
 } from '../perspective/snapping';
 import type { BrushSettings } from './brush-settings';
-import type { Tool, ToolOverlay, ToolPointerEvent } from './tool';
+import type { Sample, Tool, ToolOverlay, ToolPointerEvent } from './tool';
 
 /** Ardışık örnekler arasında en az bu kadar ekran pikseli olmalı. */
 const MIN_SAMPLE_DISTANCE_PX = 0.75;
@@ -60,6 +60,8 @@ export class BrushTool implements Tool, ToolOverlay {
   private phase: Phase = { kind: 'free' };
   /** Yumuşatılmış fırça ucu (ipin ucundaki nokta). */
   private tip: Point | null = null;
+  /** Bu stroke basınç kaydediyor mu (kalem + ayar açık). */
+  private withPressure = false;
 
   constructor(
     private readonly viewport: Viewport,
@@ -91,7 +93,9 @@ export class BrushTool implements Tool, ToolOverlay {
 
   onPointerDown(e: ToolPointerEvent): void {
     const start = e.world;
+    this.withPressure = this.settings.pressure && e.pointerType === 'pen';
     this.stroke = { id: newStrokeId(), points: [start.x, start.y], style: this.settings.toStyle() };
+    if (this.withPressure) this.stroke.pressures = [e.pressure];
     this.tip = start;
     const candidates = this.magnet.isActive()
       ? candidateLines(this.scene, start, NEAR_POINT_PX / this.viewport.scale)
@@ -111,9 +115,10 @@ export class BrushTool implements Tool, ToolOverlay {
   onPointerUp(e: ToolPointerEvent): void {
     const stroke = this.stroke;
     if (!stroke) return;
-    this.handleSample(e.world);
+    const end: Sample = { ...e.world, pressure: e.pressure };
+    this.handleSample(end);
     // İp gecikmesini kapat: serbest stroke imlecin bırakıldığı yerde biter
-    if (this.phase.kind !== 'locked') this.pushPoint(e.world);
+    if (this.phase.kind !== 'locked') this.pushPoint(end);
     this.stroke = null;
     this.tip = null;
     this.phase = { kind: 'free' };
@@ -129,7 +134,7 @@ export class BrushTool implements Tool, ToolOverlay {
     this.onPreviewChange();
   }
 
-  private handleSample(p: Point): void {
+  private handleSample(p: Sample): void {
     const phase = this.phase;
     const scale = this.viewport.scale;
 
@@ -161,6 +166,7 @@ export class BrushTool implements Tool, ToolOverlay {
         // Kilit bırakılır; stroke son izdüşüm noktasından serbest devam eder
         this.phase = { kind: 'free' };
         this.tip = lastPoint(this.stroke!);
+        if (this.withPressure) this.stroke!.pressures = [p.pressure, p.pressure];
         this.addFreeSample(p);
       } else {
         this.setLockedEnd(phase.line, phase.start, p);
@@ -181,24 +187,27 @@ export class BrushTool implements Tool, ToolOverlay {
     const end = projectOnLine(line, p);
     stroke.points.length = 0;
     stroke.points.push(s.x, s.y, end.x, end.y);
+    // Kilitli düz çizgi tek kalınlıkta
+    delete stroke.pressures;
   }
 
   /** Ham örneği ipten geçirip stroke'a ekler. */
-  private addFreeSample(p: Point): void {
+  private addFreeSample(p: Sample): void {
     const rope = (this.settings.smoothing * SMOOTHING_MAX_PX) / this.viewport.scale;
     const tip = this.tip ?? p;
     const d = Math.hypot(p.x - tip.x, p.y - tip.y);
     if (d <= rope) return;
     const k = (d - rope) / d;
     this.tip = { x: tip.x + (p.x - tip.x) * k, y: tip.y + (p.y - tip.y) * k };
-    this.pushPoint(this.tip);
+    this.pushPoint({ ...this.tip, pressure: p.pressure });
   }
 
-  private pushPoint(p: Point): void {
+  private pushPoint(p: Sample): void {
     const stroke = this.stroke!;
     const last = lastPoint(stroke)!;
     const minDist = MIN_SAMPLE_DISTANCE_PX / this.viewport.scale;
     if (Math.hypot(p.x - last.x, p.y - last.y) < minDist) return;
     stroke.points.push(p.x, p.y);
+    if (stroke.pressures) stroke.pressures.push(p.pressure);
   }
 }

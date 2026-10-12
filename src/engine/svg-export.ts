@@ -1,6 +1,6 @@
 import type { Point } from './geometry';
 import { PX_PER_MM } from './paper';
-import type { InkId, Stroke } from './stroke';
+import { strokeOutline, type InkId, type Stroke } from './stroke';
 import { rayAngles } from '../perspective/rays';
 import type { PerspectiveScene } from '../perspective/scene';
 
@@ -61,6 +61,12 @@ function strokeElement(stroke: Stroke, color: string): string {
   const { width, opacity } = stroke.style;
   const op = opacity < 1 ? ` opacity="${num(opacity)}"` : '';
   const p = stroke.points;
+  if (stroke.pressures) {
+    // Değişken kalınlık: dış hat doldurulur
+    const o = strokeOutline(p, stroke.pressures, width);
+    const d = `M${o.map((q) => `${num(q.x)} ${num(q.y)}`).join('L')}Z`;
+    return `<path d="${d}" fill="${esc(color)}"${op}/>`;
+  }
   if (p.length === 2) {
     return `<circle cx="${num(p[0])}" cy="${num(p[1])}" r="${num(width / 2)}" fill="${esc(color)}"${op}/>`;
   }

@@ -2,6 +2,11 @@ import type { Point } from '../engine/geometry';
 import type { Stroke } from '../engine/stroke';
 import type { SnapLine } from '../perspective/snapping';
 
+/** Basınçlı örnek (dünya koordinatı). Fare ve dokunmada basınç anlamsızdır. */
+export interface Sample extends Point {
+  pressure: number;
+}
+
 export interface ToolPointerEvent {
   /** Tuval öğesine göre CSS piksel. */
   screen: Point;
@@ -11,7 +16,10 @@ export interface ToolPointerEvent {
    * Son olaydan bu yana tarayıcının birleştirdiği ara örnekler (dünya koordinatı),
    * `world` dahil, zaman sırasıyla. Akıcı stroke için kullanılır.
    */
-  samples: Point[];
+  samples: Sample[];
+  /** 'mouse' | 'pen' | 'touch' */
+  pointerType: string;
+  pressure: number;
   native: PointerEvent;
 }
 

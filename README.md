@@ -21,7 +21,8 @@ Hesap ve sunucu yoktur; her şey tarayıcınızda kalır.
 - İlk kullanımda boş tuvalde tek satırlık ipucu
 - Perspektif ızgarası: kaçış noktalarına göre zemin, sol duvar ya da sağ duvar (kareler perspektifte doğru kısalır)
 - Referans görsel altlığı: fotoğraf yükle ya da sürükle-bırak; opaklık, sığdır/kapla (çıktılara girmez)
-- Türkçe ve İngilizce arayüz
+- Türkçe ve İngilizce arayüz; açık, koyu ya da sistem teması (çıktılar her zaman beyaz kâğıtta)
+- Kalem basıncı (değişken kalınlık), dokunmatik: tek parmak çizer, iki parmak kaydırır ve yakınlaştırır; kalem kullanılınca avuç içi koruması
 
 Klavye kısayolları uygulama içinde `?` ile açılır.
 
@@ -61,6 +62,6 @@ Ayrıntılı kapsam ve aşamalar için [PROJECT.md](PROJECT.md).
 
 ## Tarayıcı desteği
 
-Hedef: güncel Chrome, Edge, Firefox ve Safari (masaüstü, fare). Şu ana kadar Chromium tabanlı
-tarayıcıda test edildi; Firefox ve Safari'de elle denenmesi gerekiyor. Dokunmatik/kalem desteği sonraki
-sürümlerde; girdi katmanı Pointer Events ile yazıldığı için hazırlık mevcuttur.
+Hedef: güncel Chrome, Edge, Firefox ve Safari; masaüstünde fare, tablette dokunma ve kalem
+(Pointer Events). Şu ana kadar Chromium tabanlı tarayıcıda test edildi (dokunma ve kalem sentetik
+olaylarla); Firefox, Safari ve gerçek bir kalem/tablette elle denenmesi gerekiyor.

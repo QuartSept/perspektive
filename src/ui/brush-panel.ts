@@ -23,6 +23,7 @@ export class BrushPanel {
   private readonly opacityValue: HTMLOutputElement;
   private readonly smoothing: HTMLInputElement;
   private readonly smoothingValue: HTMLOutputElement;
+  private readonly pressure: HTMLInputElement;
   private readonly snapRadius: HTMLInputElement;
   private readonly snapRadiusValue: HTMLOutputElement;
 
@@ -74,6 +75,9 @@ export class BrushPanel {
       settings.setSmoothing(Number(this.smoothing.value) / 100);
     });
 
+    this.pressure = root.querySelector('#brush-pressure')!;
+    this.pressure.addEventListener('change', () => settings.setPressure(this.pressure.checked));
+
     this.snapRadius = root.querySelector('#snap-radius')!;
     this.snapRadiusValue = root.querySelector('#snap-radius-value')!;
     this.snapRadius.min = String(SNAP_RADIUS_MIN);
@@ -104,6 +108,7 @@ export class BrushPanel {
     const smoothPct = Math.round(s.smoothing * 100);
     if (Number(this.smoothing.value) !== smoothPct) this.smoothing.value = String(smoothPct);
     this.smoothingValue.textContent = formatPercent(s.smoothing);
+    this.pressure.checked = s.pressure;
 
     const radius = this.snap.radius;
     if (Number(this.snapRadius.value) !== radius) this.snapRadius.value = String(radius);

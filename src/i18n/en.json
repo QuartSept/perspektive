@@ -163,5 +163,13 @@
   "reference.remove": "Remove",
   "reference.invalid": "Couldn't open the image.",
   "perspective.threePoint": "3-point",
-  "perspective.hintVertical": "Drag the vertical vanishing point below the horizon (bird's-eye) or above it (worm's-eye); vertical lines converge there."
+  "perspective.hintVertical": "Drag the vertical vanishing point below the horizon (bird's-eye) or above it (worm's-eye); vertical lines converge there.",
+  "theme.button": "Theme: {mode} (T)",
+  "theme.system": "System",
+  "theme.light": "Light",
+  "theme.dark": "Dark",
+  "help.theme": "Switch theme (system / light / dark)",
+  "brush.pressure": "Pen pressure",
+  "help.touchKey": "Touch",
+  "help.touch": "One finger draws (pans once a pen has been used); two fingers pan and zoom"
 }

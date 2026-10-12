@@ -14,6 +14,8 @@ export class BrushSettings implements StrokeStyle {
   ink: InkId = 'black';
   /** Serbest çizim yumuşatması, 0..1 (stroke'a kaydedilmez). */
   smoothing = 0.35;
+  /** Kalemle çizerken basınç kalınlığı etkilesin mi. */
+  pressure = true;
 
   private listeners = new Set<() => void>();
 
@@ -54,6 +56,12 @@ export class BrushSettings implements StrokeStyle {
     const next = clamp(Math.round(smoothing * 100) / 100, 0, 1);
     if (next === this.smoothing) return;
     this.smoothing = next;
+    this.emit();
+  }
+
+  setPressure(enabled: boolean): void {
+    if (enabled === this.pressure) return;
+    this.pressure = enabled;
     this.emit();
   }
 

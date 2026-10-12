@@ -3,23 +3,26 @@ import { getLanguage, isLang, setLanguage } from '../i18n';
 import type { SnapSettings } from '../perspective/snap-settings';
 import type { BrushSettings } from '../tools/brush-settings';
 import { ERASER_KINDS, type EraserKind, type EraserSettings } from '../tools/eraser';
+import { THEME_PREFERENCES, type ThemeController, type ThemePreference } from '../ui/theme';
 
 const KEY = 'perspektif.prefs.v1';
 
 /** Çizimden bağımsız kullanıcı tercihleri (localStorage). */
 interface Prefs {
-  brush?: { width?: number; opacity?: number; ink?: string; smoothing?: number };
+  brush?: { width?: number; opacity?: number; ink?: string; smoothing?: number; pressure?: boolean };
   snap?: { enabled?: boolean; radius?: number };
   eraser?: { kind?: string; radius?: number };
   guidesVisible?: boolean;
   language?: string;
   onboardingDismissed?: boolean;
+  theme?: string;
 }
 
 export interface PrefsTargets {
   brush: BrushSettings;
   snap: SnapSettings;
   eraser: EraserSettings;
+  theme: ThemeController;
   getGuidesVisible(): boolean;
   setGuidesVisible(visible: boolean): void;
   getOnboardingDismissed(): boolean;
@@ -40,6 +43,7 @@ export function loadPrefs(t: PrefsTargets): void {
   if (num(b.width)) t.brush.setWidth(b.width);
   if (num(b.opacity)) t.brush.setOpacity(b.opacity);
   if (num(b.smoothing)) t.brush.setSmoothing(b.smoothing);
+  if (typeof b.pressure === 'boolean') t.brush.setPressure(b.pressure);
   if (INK_IDS.includes(b.ink as InkId)) t.brush.setInk(b.ink as InkId);
   const s = prefs.snap ?? {};
   if (typeof s.enabled === 'boolean') t.snap.setEnabled(s.enabled);
@@ -50,6 +54,9 @@ export function loadPrefs(t: PrefsTargets): void {
   if (typeof prefs.guidesVisible === 'boolean') t.setGuidesVisible(prefs.guidesVisible);
   if (isLang(prefs.language)) setLanguage(prefs.language);
   if (prefs.onboardingDismissed === true) t.setOnboardingDismissed(true);
+  if (THEME_PREFERENCES.includes(prefs.theme as ThemePreference)) {
+    t.theme.set(prefs.theme as ThemePreference);
+  }
 }
 
 export function savePrefs(t: PrefsTargets): void {
@@ -59,12 +66,14 @@ export function savePrefs(t: PrefsTargets): void {
       opacity: t.brush.opacity,
       ink: t.brush.ink,
       smoothing: t.brush.smoothing,
+      pressure: t.brush.pressure,
     },
     snap: { enabled: t.snap.enabled, radius: t.snap.radius },
     eraser: { kind: t.eraser.kind, radius: t.eraser.radius },
     guidesVisible: t.getGuidesVisible(),
     language: getLanguage(),
     onboardingDismissed: t.getOnboardingDismissed(),
+    theme: t.theme.preference,
   };
   try {
     localStorage.setItem(KEY, JSON.stringify(prefs));

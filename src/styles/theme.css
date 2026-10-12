@@ -1,9 +1,14 @@
 /*
  * Tema değişkenleri. Uygulamadaki tüm renkler buradan gelir;
  * canvas çizimleri de bu değişkenleri okur (engine/theme.ts).
- * Koyu tema ileride ayrı bir değişken setiyle eklenecek.
+ * Koyu tema `:root[data-theme="dark"]` altında aynı değişkenleri ezer
+ * (data-theme'i ui/theme.ts sistem tercihine ya da kullanıcı seçimine göre koyar).
+ * `--print-*` değişkenleri temadan bağımsızdır: PNG/SVG/yazdırma her zaman
+ * beyaz kâğıt ve özgün mürekkep renkleriyle çıkar.
  */
 :root {
+  color-scheme: light;
+
   /* Tuval */
   --color-desk: #e7e3da;
   --color-paper: #fdfcf8;
@@ -36,9 +41,22 @@
   --color-cursor: rgba(43, 42, 39, 0.85);
   --color-cursor-halo: rgba(253, 252, 248, 0.9);
 
-  /* Çıktı (PNG / yazdırma) */
+  /* Çıktı (PNG / SVG / yazdırma) — temadan bağımsız */
   --color-print-paper: #ffffff;
   --print-guide-opacity: 0.35;
+  --print-vp-1: #3a6fb0;
+  --print-vp-2: #3f8a63;
+  --print-vp-3: #8a5aa8;
+  --print-horizon: rgba(194, 85, 61, 0.5);
+  --print-marker-fill: #fdfcf8;
+  --print-ink-black: #1f1e1c;
+  --print-ink-gray-dark: #55524c;
+  --print-ink-gray: #8c887f;
+  --print-ink-gray-light: #bdb9b0;
+  --print-ink-red: #b8432f;
+  --print-ink-blue: #2f5f9e;
+  --print-ink-green: #3f7a4a;
+  --print-ink-ochre: #c08a2b;
 
   /* Mürekkep paleti */
   --ink-black: #1f1e1c;
@@ -55,4 +73,52 @@
   --radius-sm: 7px;
   --shadow-ui: 0 1px 2px rgba(60, 50, 30, 0.08), 0 6px 20px rgba(60, 50, 30, 0.08);
   --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/*
+ * Koyu tema. Kâğıt koyu griye döner; mürekkepler ekranda okunur kalsın diye
+ * açık tonlara eşlenir (siyah → kırık beyaz; "açık gri" kılavuz çizgileri
+ * koyu zeminde silik kalsın diye koyu gri). Çıktılar etkilenmez (--print-*).
+ */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-desk: #1b1a18;
+  --color-paper: #2a2926;
+  --color-paper-border: rgba(255, 255, 255, 0.1);
+  --color-paper-shadow: rgba(0, 0, 0, 0.5);
+
+  --color-ui-bg: rgba(36, 35, 32, 0.94);
+  --color-ui-border: rgba(255, 255, 255, 0.1);
+  --color-ui-hover: rgba(255, 255, 255, 0.06);
+  --color-ui-active: rgba(255, 255, 255, 0.12);
+  --color-text: #ebe8e1;
+  --color-text-muted: #a8a399;
+  --color-accent: #e8866b;
+  --color-focus: #7fa9e3;
+
+  --color-vp-1: #72a2e3;
+  --color-vp-2: #6fbe8c;
+  --color-vp-3: #b68fd8;
+  --guide-opacity: 0.24;
+  --guide-opacity-strong: 0.7;
+  --guide-opacity-dim: 0.07;
+  --color-horizon: rgba(232, 134, 107, 0.55);
+  --color-horizon-active: rgba(232, 134, 107, 0.95);
+  --color-marker-fill: #2a2926;
+  --color-marker-halo: rgba(255, 255, 255, 0.12);
+  --color-snap: #ff9147;
+  --color-cursor: rgba(240, 238, 233, 0.9);
+  --color-cursor-halo: rgba(20, 19, 17, 0.9);
+
+  --ink-black: #f0eee8;
+  --ink-gray-dark: #c8c4bb;
+  --ink-gray: #9a958c;
+  --ink-gray-light: #6a665e;
+  --ink-red: #f0806a;
+  --ink-blue: #82abe9;
+  --ink-green: #80c695;
+  --ink-ochre: #e6b65c;
+
+  --shadow-ui: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.35);
 }

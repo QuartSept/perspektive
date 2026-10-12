@@ -31,14 +31,17 @@ export function rotateStroke(stroke: Stroke, rotation: ContentRotation): Stroke 
     points[i] = q.x;
     points[i + 1] = q.y;
   }
-  return { id: stroke.id, points, style: stroke.style };
+  return stroke.pressures
+    ? { id: stroke.id, points, style: stroke.style, pressures: [...stroke.pressures] }
+    : { id: stroke.id, points, style: stroke.style };
 }
 
 function rotateSnapshot(snap: SceneSnapshot, rotation: ContentRotation): SceneSnapshot {
   return {
     ...snap,
     horizonAngle: normalizeLineAngle(snap.horizonAngle + rotation.angle),
-    points: snap.points.map((p) => ({ id: p.id, ...rotation.map(p) })),
+    // Rol (3 noktada dikey nokta) korunur
+    points: snap.points.map((p) => ({ ...p, ...rotation.map(p) })),
   };
 }
 
