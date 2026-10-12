@@ -47,6 +47,9 @@
         </div>
 
         <div class="toolbar__group" role="group" data-i18n-aria-label="toolbar.output">
+          <button class="tool-btn" type="button" data-action="templates" data-i18n-title="templates.button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 4.5h6v6h-6zM13.5 4.5h6v6h-6zM4.5 13.5h6v6h-6zM13.5 13.5h6v6h-6z"/></svg>
+          </button>
           <button class="tool-btn" type="button" data-action="project" data-i18n-title="project.button">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7.5A1.5 1.5 0 0 1 5 6h4.5l2 2H19a1.5 1.5 0 0 1 1.5 1.5v8A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5z"/></svg>
           </button>
@@ -178,6 +181,28 @@
       <main id="stage" class="stage" data-i18n-aria-label="stage.label" aria-describedby="stage-description"></main>
       <p id="stage-description" class="visually-hidden" data-i18n="stage.description"></p>
 
+      <div class="onboarding" id="onboarding" hidden>
+        <div class="onboarding__box" role="note">
+          <span class="onboarding__text" data-i18n="onboarding.text"></span>
+          <button type="button" class="btn btn--small" id="onboarding-templates" data-i18n="onboarding.templates">Şablon seç</button>
+          <button type="button" class="btn btn--small" id="onboarding-help" data-i18n="onboarding.help">Kısayollar</button>
+          <button type="button" class="onboarding__close" id="onboarding-close" data-i18n-title="onboarding.close">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <dialog class="dialog dialog--templates" id="templates-dialog" aria-labelledby="templates-title">
+        <form method="dialog">
+          <h2 class="dialog__title" id="templates-title" data-i18n="templates.title">Şablonlar</h2>
+          <p class="dialog__hint" data-i18n="templates.hint"></p>
+          <div class="template-grid" id="templates-grid"></div>
+          <div class="dialog__actions">
+            <button type="button" class="btn" id="templates-close" data-i18n="templates.close">Kapat</button>
+          </div>
+        </form>
+      </dialog>
+
       <dialog class="dialog dialog--wide" id="help-dialog" aria-labelledby="help-title">
         <form method="dialog">
           <h2 class="dialog__title" id="help-title" data-i18n="help.title">Klavye kısayolları</h2>
@@ -252,6 +277,16 @@
           <button type="button" class="btn btn--primary" id="project-save" data-i18n="project.save">Kaydet</button>
         </div>
         <input type="file" id="project-file" accept=".json,application/json" hidden />
+      </form>
+    </dialog>
+
+    <dialog class="dialog" id="confirm-dialog" aria-describedby="confirm-message">
+      <form method="dialog">
+        <p class="dialog__message" id="confirm-message"></p>
+        <div class="dialog__actions">
+          <button type="button" class="btn" id="confirm-cancel" data-i18n="confirm.cancel">Vazgeç</button>
+          <button type="button" class="btn btn--primary" id="confirm-ok"></button>
+        </div>
       </form>
     </dialog>
 

@@ -15,6 +15,7 @@ export type ToolbarAction =
   | 'redo'
   | 'clear'
   | 'export'
+  | 'templates'
   | 'project'
   | 'print'
   | 'help';

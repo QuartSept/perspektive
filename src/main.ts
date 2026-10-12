@@ -8,6 +8,7 @@ import { OrientationCommand } from './engine/orientation';
 import { History } from './engine/history';
 import { InputController } from './engine/input';
 import { LayerStack } from './engine/layers';
+import { renderPage } from './engine/page-render';
 import { Paper, type Orientation, type PaperKind } from './engine/paper';
 import { Renderer } from './engine/renderer';
 import { EditorState } from './engine/state';
@@ -15,6 +16,7 @@ import { readCanvasTheme } from './engine/theme';
 import { Viewport, type Padding } from './engine/viewport';
 import { editScene } from './perspective/commands';
 import { PerspectiveScene, type PerspectiveMode } from './perspective/scene';
+import { buildTemplate, type TemplateId } from './perspective/templates';
 import { SnapSettings } from './perspective/snap-settings';
 import { BrushTool } from './tools/brush';
 import { BrushSettings } from './tools/brush-settings';
@@ -23,10 +25,13 @@ import { HandTool } from './tools/hand';
 import { Autosave } from './storage/autosave';
 import {
   applySavedDrawing,
+  buildSavedDrawing,
   LoadDrawingCommand,
   parseProject,
   serializeProject,
 } from './storage/project';
+import { TemplatesDialog } from './ui/templates-dialog';
+import { ConfirmDialog } from './ui/confirm-dialog';
 import { loadPrefs, savePrefs, type PrefsTargets } from './storage/prefs';
 import type { Tool } from './tools/tool';
 import { VanishingPointTool } from './tools/vanishing-point';
@@ -174,6 +179,16 @@ function dialogOpen(): boolean {
   return document.querySelector('dialog[open]') !== null;
 }
 
+// ---------- Onay ----------
+
+const confirmDialog = new ConfirmDialog();
+
+/** Mevcut çizimin yerine geçecek işlemler için onay (boş tuvalde sorulmaz). */
+async function confirmReplace(message: string): Promise<boolean> {
+  if (doc.strokes.length === 0) return true;
+  return confirmDialog.ask({ message, confirmLabel: t('confirm.continue') });
+}
+
 // ---------- Proje dosyası ----------
 
 const projectDialog = document.getElementById('project-dialog') as HTMLDialogElement;
@@ -212,10 +227,78 @@ async function openProjectFile(file: File): Promise<void> {
     if (!projectDialog.open) projectDialog.showModal();
     return;
   }
-  if (doc.strokes.length > 0 && !window.confirm(t('project.replaceConfirm'))) return;
+  if (!(await confirmReplace(t('project.replaceConfirm')))) return;
   history.execute(new LoadDrawingCommand(drawingSources, saved, onPaperChanged));
   if (projectDialog.open) projectDialog.close();
 }
+
+// ---------- Şablonlar ----------
+
+/** Şablonun kâğıt/kurgu/çizimi (o anki kâğıt boyutu ve yönüyle). */
+function templateDrawing(id: TemplateId) {
+  const tpl = buildTemplate(id, paper);
+  return {
+    ...buildSavedDrawing(drawingSources),
+    scene: {
+      mode: tpl.mode,
+      horizonLocked: true,
+      horizonAngle: 0,
+      rayCount: scene.rayCount,
+      points: tpl.points,
+    },
+    strokes: tpl.strokes,
+  };
+}
+
+const templatesDialog = new TemplatesDialog({
+  async onPick(id) {
+    if (!(await confirmReplace(t('templates.replaceConfirm')))) return;
+    history.execute(new LoadDrawingCommand(drawingSources, templateDrawing(id), onPaperChanged));
+  },
+  renderPreview(id, maxSizePx) {
+    const saved = templateDrawing(id);
+    const p = new Paper(paper.kind, paper);
+    p.restore(paper.kind, paper.width, paper.height, paper.orientation);
+    const s = new PerspectiveScene();
+    s.restore(saved.scene);
+    s.setRayCount(16);
+    const d = new DrawingDocument();
+    d.replaceAll(saved.strokes);
+    // Küçük önizlemede açık gri kılavuz çizgileri görünsün diye koyulaştır
+    const theme = { ...renderer.theme, inks: { ...renderer.theme.inks, 'gray-light': renderer.theme.inks['gray-dark'] } };
+    return renderPage(
+      { paper: p, doc: d, scene: s, theme },
+      { pixelsPerUnit: maxSizePx / Math.max(p.width, p.height), includeGuides: true },
+    );
+  },
+});
+
+function openTemplates(): void {
+  if (input.busy || dialogOpen()) return;
+  templatesDialog.open();
+}
+
+// ---------- İlk kullanım ipucu ----------
+
+const onboardingEl = document.getElementById('onboarding')!;
+let onboardingDismissed = false;
+
+/** Boş tuvalde, kapatılmadıysa görünür. */
+function syncOnboarding(): void {
+  onboardingEl.hidden = onboardingDismissed || doc.strokes.length > 0;
+}
+
+function setOnboardingDismissed(dismissed: boolean): void {
+  onboardingDismissed = dismissed;
+  syncOnboarding();
+}
+
+document.getElementById('onboarding-templates')!.addEventListener('click', openTemplates);
+document.getElementById('onboarding-help')!.addEventListener('click', () => openHelp());
+document.getElementById('onboarding-close')!.addEventListener('click', () => {
+  setOnboardingDismissed(true);
+  schedulePrefsSave();
+});
 
 // Dosyayı tuvale sürükleyip bırakarak açma
 window.addEventListener('dragover', (e) => {
@@ -234,9 +317,15 @@ function openOutput(mode: OutputMode): void {
 }
 
 /** Tüm stroke'ları siler (geri alınabilir); kaçış noktaları korunur. */
-function clearDrawing(): void {
-  if (input.busy || doc.strokes.length === 0) return;
-  if (!window.confirm(t('document.clearConfirm'))) return;
+async function clearDrawing(): Promise<void> {
+  if (input.busy || doc.strokes.length === 0 || dialogOpen()) return;
+  const ok = await confirmDialog.ask({
+    message: t('document.clearConfirm'),
+    confirmLabel: t('confirm.clear'),
+    destructive: true,
+  });
+  // Onay beklenirken durum değişmiş olabilir
+  if (!ok || input.busy || doc.strokes.length === 0) return;
   history.execute(new ReplaceStrokesCommand(doc, doc.strokes.map((s) => s.id), []));
 }
 
@@ -283,13 +372,16 @@ function runAction(action: ToolbarAction): void {
       redo();
       break;
     case 'clear':
-      clearDrawing();
+      void clearDrawing();
       break;
     case 'export':
       openOutput('export');
       break;
     case 'project':
       openProject();
+      break;
+    case 'templates':
+      openTemplates();
       break;
     case 'print':
       openOutput('print');
@@ -365,6 +457,8 @@ const prefsTargets: PrefsTargets = {
   snap: snapSettings,
   getGuidesVisible: () => state.guidesVisible,
   setGuidesVisible,
+  getOnboardingDismissed: () => onboardingDismissed,
+  setOnboardingDismissed,
 };
 let prefsTimer = 0;
 function schedulePrefsSave(): void {
@@ -404,6 +498,7 @@ state.onChange((changed) => {
 });
 
 doc.onChange(() => {
+  syncOnboarding();
   renderer.requestRender('drawing');
   toolbar.setCanClear(doc.strokes.length > 0);
   autosave.markDirty();
@@ -518,8 +613,10 @@ window.addEventListener('keydown', (e) => {
       break;
     case 'Delete':
     case 'Backspace':
-      if (!state.selectedPointId) return;
-      deleteSelectedPoint();
+      if (state.selectedPointId) deleteSelectedPoint();
+      // Seçili nokta yoksa Delete çizimi temizler (onaylı); Backspace yanlışlıkla basılmaya açık, temizlemez
+      else if (e.key === 'Delete' && doc.strokes.length > 0) void clearDrawing();
+      else return;
       break;
     case 'Escape':
       state.update({ selectedPointId: null });
@@ -543,6 +640,7 @@ async function restore(): Promise<void> {
     if (initialized) fitToPaper();
     renderer.requestRender();
   }
+  syncOnboarding();
   autosave.start();
 }
 

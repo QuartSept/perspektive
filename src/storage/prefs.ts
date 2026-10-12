@@ -11,6 +11,7 @@ interface Prefs {
   snap?: { enabled?: boolean; radius?: number };
   guidesVisible?: boolean;
   language?: string;
+  onboardingDismissed?: boolean;
 }
 
 export interface PrefsTargets {
@@ -18,6 +19,8 @@ export interface PrefsTargets {
   snap: SnapSettings;
   getGuidesVisible(): boolean;
   setGuidesVisible(visible: boolean): void;
+  getOnboardingDismissed(): boolean;
+  setOnboardingDismissed(dismissed: boolean): void;
 }
 
 const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
@@ -40,6 +43,7 @@ export function loadPrefs(t: PrefsTargets): void {
   if (num(s.radius)) t.snap.setRadius(s.radius);
   if (typeof prefs.guidesVisible === 'boolean') t.setGuidesVisible(prefs.guidesVisible);
   if (isLang(prefs.language)) setLanguage(prefs.language);
+  if (prefs.onboardingDismissed === true) t.setOnboardingDismissed(true);
 }
 
 export function savePrefs(t: PrefsTargets): void {
@@ -53,6 +57,7 @@ export function savePrefs(t: PrefsTargets): void {
     snap: { enabled: t.snap.enabled, radius: t.snap.radius },
     guidesVisible: t.getGuidesVisible(),
     language: getLanguage(),
+    onboardingDismissed: t.getOnboardingDismissed(),
   };
   try {
     localStorage.setItem(KEY, JSON.stringify(prefs));

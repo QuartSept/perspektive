@@ -17,6 +17,8 @@ Hesap ve sunucu yoktur; her şey tarayıcınızda kalır.
 - A4, A5, kare ve ekran boyu kâğıt (A4/A5 için dikey ya da yatay, varsayılan dikey; çizim varsa çizgiler ve kaçış noktaları kâğıtla birlikte döner); sonsuz kaydırma ve yakınlaştırma
 - Otomatik kayıt (IndexedDB), PNG ve SVG (gerçek ölçek) dışa aktarma, A4 yazdırma (yalnızca çizim / kılavuzlarla)
 - Proje dosyası (.json) kaydet / aç; dosyayı tuvale sürükleyip bırakarak da açılır
+- Şablonlar: küp, yol, oda, oda köşesi (üzerinden geçilecek açık gri kılavuzlarla) ve boş 1/2 nokta
+- İlk kullanımda boş tuvalde tek satırlık ipucu
 - Türkçe ve İngilizce arayüz
 
 Klavye kısayolları uygulama içinde `?` ile açılır.
