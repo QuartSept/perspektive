@@ -74,7 +74,7 @@
   "help.button": "Keyboard shortcuts (?)",
   "help.title": "Keyboard shortcuts",
   "help.brush": "Brush",
-  "help.eraser": "Stroke eraser",
+  "help.eraser": "Eraser; when active, switches type (whole line / partial)",
   "help.point": "Vanishing point tool",
   "help.hand": "Pan tool",
   "help.keySpace": "Space",
@@ -133,5 +133,12 @@
   "onboarding.close": "Close tip",
   "confirm.cancel": "Cancel",
   "confirm.clear": "Clear",
-  "confirm.continue": "Continue"
+  "confirm.continue": "Continue",
+  "eraser.title": "Eraser",
+  "eraser.kind": "Eraser type",
+  "eraser.stroke": "Whole line",
+  "eraser.pixel": "Partial",
+  "eraser.size": "Size ([ ])",
+  "eraser.hintStroke": "Any line you touch is removed entirely. Press E again to switch type.",
+  "eraser.hintPixel": "Only the part under the eraser is removed; the line is split into pieces. Press E again to switch type."
 }

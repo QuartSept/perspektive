@@ -13,7 +13,7 @@ Hesap ve sunucu yoktur; her şey tarayıcınızda kalır.
 - Hayalet ışınlar (12–72), imleç yaklaştıkça ilgili noktanın ışınları belirginleşir
 - Ufuk 2 noktada varsayılan olarak kilitli, istenirse serbest bırakılır
 - Mıknatıs: çizgi kaçış noktasına, dikeye (1 noktada yataya da) kilitlenir; `Space` ile geçici serbest çizim
-- Fırça (kalınlık, opaklık, yumuşatma, 8 renk), stroke silgisi, geri al / ileri al
+- Fırça (kalınlık, opaklık, yumuşatma, 8 renk), silgi (bütün çizgi ya da kısmi/piksel), geri al / ileri al
 - A4, A5, kare ve ekran boyu kâğıt (A4/A5 için dikey ya da yatay, varsayılan dikey; çizim varsa çizgiler ve kaçış noktaları kâğıtla birlikte döner); sonsuz kaydırma ve yakınlaştırma
 - Otomatik kayıt (IndexedDB), PNG ve SVG (gerçek ölçek) dışa aktarma, A4 yazdırma (yalnızca çizim / kılavuzlarla)
 - Proje dosyası (.json) kaydet / aç; dosyayı tuvale sürükleyip bırakarak da açılır

@@ -20,7 +20,8 @@ import { buildTemplate, type TemplateId } from './perspective/templates';
 import { SnapSettings } from './perspective/snap-settings';
 import { BrushTool } from './tools/brush';
 import { BrushSettings } from './tools/brush-settings';
-import { StrokeEraserTool } from './tools/eraser';
+import { EraserSettings, EraserTool } from './tools/eraser';
+import { EraserPanel } from './ui/eraser-panel';
 import { HandTool } from './tools/hand';
 import { Autosave } from './storage/autosave';
 import {
@@ -84,7 +85,8 @@ const brush = new BrushTool(
   },
   () => renderer.requestRender('interaction'),
 );
-const eraser = new StrokeEraserTool(viewport, doc, history, (strokesChanged) => {
+const eraserSettings = new EraserSettings();
+const eraser = new EraserTool(viewport, doc, history, eraserSettings, (strokesChanged) => {
   if (strokesChanged) renderer.requestRender('drawing', 'interaction');
   else renderer.requestRender('interaction');
 });
@@ -115,6 +117,7 @@ const toolbar = new Toolbar(toolbarEl, {
   onLanguageChange: setLanguage,
 });
 
+const eraserPanel = new EraserPanel(document.getElementById('eraser-panel')!, eraserSettings);
 const brushPanel = new BrushPanel(document.getElementById('brush-panel')!, brushSettings, snapSettings);
 
 const panel = new PerspectivePanel(panelEl, {
@@ -129,6 +132,7 @@ function selectTool(id: string): void {
   const tool = tools[id];
   if (!tool || input.busy) return;
   input.setTool(tool);
+  eraserPanel.setVisible(tool === eraser);
   renderer.requestRender('drawing', 'interaction');
   toolbar.setActiveTool(id);
   syncMarkers();
@@ -455,6 +459,7 @@ const autosave = new Autosave({ doc, scene, paper }, (status) => toolbar.setSave
 const prefsTargets: PrefsTargets = {
   brush: brushSettings,
   snap: snapSettings,
+  eraser: eraserSettings,
   getGuidesVisible: () => state.guidesVisible,
   setGuidesVisible,
   getOnboardingDismissed: () => onboardingDismissed,
@@ -469,10 +474,15 @@ brushSettings.onChange(schedulePrefsSave);
 onLanguageChange(() => {
   toolbar.refreshLanguage();
   brushPanel.update();
+  eraserPanel.update();
   updatePanel();
   schedulePrefsSave();
 });
 snapSettings.onChange(schedulePrefsSave);
+eraserSettings.onChange(() => {
+  schedulePrefsSave();
+  renderer.requestRender('interaction');
+});
 
 scene.onChange(() => {
   autosave.markDirty();
@@ -584,13 +594,16 @@ window.addEventListener('keydown', (e) => {
     case ']': {
       // Etkin aracın boyutu: silgide yarıçap, diğerlerinde fırça kalınlığı
       const dir = e.key === ']' ? 1 : -1;
-      if (input.activeTool === eraser) eraser.stepRadius(dir);
+      if (input.activeTool === eraser) eraserSettings.stepRadius(dir);
       else brushSettings.stepWidth(dir);
       break;
     }
     case 'e':
     case 'E':
-      selectTool('eraser');
+      // Silgi zaten etkinse tür değiştirir (bütün çizgi ↔ kısmi)
+      if (input.activeTool === eraser) {
+        eraserSettings.setKind(eraserSettings.kind === 'stroke' ? 'pixel' : 'stroke');
+      } else selectTool('eraser');
       break;
     case 'h':
     case 'H':

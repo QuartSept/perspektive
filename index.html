@@ -106,6 +106,25 @@
       </header>
 
       <div class="sidebar" id="sidebar">
+      <section class="panel" id="eraser-panel" data-i18n-aria-label="eraser.title" hidden>
+        <h2 class="panel__title" data-i18n="eraser.title">Silgi</h2>
+
+        <div class="segmented" role="radiogroup" data-i18n-aria-label="eraser.kind">
+          <button type="button" role="radio" data-eraser-kind="stroke" data-i18n="eraser.stroke">Bütün çizgi</button>
+          <button type="button" role="radio" data-eraser-kind="pixel" data-i18n="eraser.pixel">Kısmi</button>
+        </div>
+
+        <div class="field">
+          <div class="field__row">
+            <label for="eraser-radius" data-i18n="eraser.size">Boyut ([ ])</label>
+            <output id="eraser-radius-value" for="eraser-radius"></output>
+          </div>
+          <input type="range" id="eraser-radius" class="range" />
+        </div>
+
+        <p class="panel__hint" id="eraser-hint"></p>
+      </section>
+
       <section class="panel" id="brush-panel" data-i18n-aria-label="brush.title">
         <h2 class="panel__title" data-i18n="brush.title">Fırça</h2>
 

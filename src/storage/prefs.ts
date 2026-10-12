@@ -2,6 +2,7 @@ import { INK_IDS, type InkId } from '../engine/stroke';
 import { getLanguage, isLang, setLanguage } from '../i18n';
 import type { SnapSettings } from '../perspective/snap-settings';
 import type { BrushSettings } from '../tools/brush-settings';
+import { ERASER_KINDS, type EraserKind, type EraserSettings } from '../tools/eraser';
 
 const KEY = 'perspektif.prefs.v1';
 
@@ -9,6 +10,7 @@ const KEY = 'perspektif.prefs.v1';
 interface Prefs {
   brush?: { width?: number; opacity?: number; ink?: string; smoothing?: number };
   snap?: { enabled?: boolean; radius?: number };
+  eraser?: { kind?: string; radius?: number };
   guidesVisible?: boolean;
   language?: string;
   onboardingDismissed?: boolean;
@@ -17,6 +19,7 @@ interface Prefs {
 export interface PrefsTargets {
   brush: BrushSettings;
   snap: SnapSettings;
+  eraser: EraserSettings;
   getGuidesVisible(): boolean;
   setGuidesVisible(visible: boolean): void;
   getOnboardingDismissed(): boolean;
@@ -41,6 +44,9 @@ export function loadPrefs(t: PrefsTargets): void {
   const s = prefs.snap ?? {};
   if (typeof s.enabled === 'boolean') t.snap.setEnabled(s.enabled);
   if (num(s.radius)) t.snap.setRadius(s.radius);
+  const er = prefs.eraser ?? {};
+  if (ERASER_KINDS.includes(er.kind as EraserKind)) t.eraser.setKind(er.kind as EraserKind);
+  if (num(er.radius)) t.eraser.setRadius(er.radius);
   if (typeof prefs.guidesVisible === 'boolean') t.setGuidesVisible(prefs.guidesVisible);
   if (isLang(prefs.language)) setLanguage(prefs.language);
   if (prefs.onboardingDismissed === true) t.setOnboardingDismissed(true);
@@ -55,6 +61,7 @@ export function savePrefs(t: PrefsTargets): void {
       smoothing: t.brush.smoothing,
     },
     snap: { enabled: t.snap.enabled, radius: t.snap.radius },
+    eraser: { kind: t.eraser.kind, radius: t.eraser.radius },
     guidesVisible: t.getGuidesVisible(),
     language: getLanguage(),
     onboardingDismissed: t.getOnboardingDismissed(),

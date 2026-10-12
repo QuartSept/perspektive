@@ -23,6 +23,10 @@ export interface ToolOverlay {
   readonly snapLine?: SnapLine | null;
   /** Silinmek üzere işaretlenen stroke'lar (soluk çizilir). */
   readonly fadedStrokeIds?: ReadonlySet<string>;
+  /** Geçici olarak çizilmeyen stroke'lar (yerlerine `previewStrokes` gösterilir). */
+  readonly hiddenStrokeIds?: ReadonlySet<string>;
+  /** Etkileşim katmanında gösterilen geçici stroke'lar (ör. piksel silgisinin kalan parçaları). */
+  readonly previewStrokes?: readonly Stroke[];
   /** İmleç yerine çizilen daire yarıçapı, CSS piksel (ör. silgi). */
   readonly cursorRadius?: number | null;
 }

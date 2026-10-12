@@ -92,9 +92,12 @@ export class Renderer {
   private drawDrawing(): void {
     const ctx = this.layers.clear('drawing');
     this.viewport.applyTo(ctx, this.layers.dpr);
-    const faded = this.getOverlay()?.fadedStrokeIds;
+    const overlay = this.getOverlay();
+    const faded = overlay?.fadedStrokeIds;
+    const hidden = overlay?.hiddenStrokeIds;
     const view = this.viewport.visibleWorldRect();
     for (const stroke of this.doc.strokes) {
+      if (hidden?.has(stroke.id)) continue;
       // Görünür alanın dışındaki stroke'ları atla (yakınlaştırılmış büyük çizimlerde kazanç)
       if (!rectsOverlap(strokeBounds(stroke), view, stroke.style.width / 2)) continue;
       const alpha = faded?.has(stroke.id) ? FADED_ALPHA : 1;
@@ -111,9 +114,10 @@ export class Renderer {
     const ctx = this.layers.clear('interaction');
     const overlay = this.getOverlay();
     if (overlay?.snapLine) drawSnapLine(this.guideView(ctx), overlay.snapLine);
-    if (overlay?.preview) {
+    if (overlay?.preview || overlay?.previewStrokes?.length) {
       this.viewport.applyTo(ctx, this.layers.dpr);
-      drawStroke(ctx, overlay.preview, this.theme.inks[overlay.preview.style.ink]);
+      for (const s of overlay.previewStrokes ?? []) drawStroke(ctx, s, this.theme.inks[s.style.ink]);
+      if (overlay.preview) drawStroke(ctx, overlay.preview, this.theme.inks[overlay.preview.style.ink]);
     }
     if (this.state.markersVisible) drawMarkers(this.guideView(ctx));
     if (overlay?.cursorRadius && this.state.pointer) {

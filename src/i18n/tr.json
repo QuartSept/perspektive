@@ -74,7 +74,7 @@
   "help.button": "Klavye kısayolları (?)",
   "help.title": "Klavye kısayolları",
   "help.brush": "Fırça",
-  "help.eraser": "Stroke silgisi",
+  "help.eraser": "Silgi; silgi etkinken türü değiştirir (bütün çizgi / kısmi)",
   "help.point": "Kaçış noktası aracı",
   "help.hand": "Kaydırma aracı",
   "help.keySpace": "Boşluk",
@@ -133,5 +133,12 @@
   "onboarding.close": "İpucunu kapat",
   "confirm.cancel": "Vazgeç",
   "confirm.clear": "Temizle",
-  "confirm.continue": "Devam et"
+  "confirm.continue": "Devam et",
+  "eraser.title": "Silgi",
+  "eraser.kind": "Silgi türü",
+  "eraser.stroke": "Bütün çizgi",
+  "eraser.pixel": "Kısmi",
+  "eraser.size": "Boyut ([ ])",
+  "eraser.hintStroke": "Dokunduğunuz çizgi tamamen silinir. Türü değiştirmek için E'ye tekrar basın.",
+  "eraser.hintPixel": "Yalnızca silginin geçtiği kısım silinir; çizgi parçalara ayrılır. Türü değiştirmek için E'ye tekrar basın."
 }
