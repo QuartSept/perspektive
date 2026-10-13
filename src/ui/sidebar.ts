@@ -1,5 +1,7 @@
 /** Fare kenar çubuğundan çıkınca kapanmadan önceki bekleme (paneller arası boşluğu geçebilsin). */
 const CLOSE_DELAY_MS = 350;
+/** Araç değişince panelin kendiliğinden açık kaldığı süre. */
+const PEEK_MS = 1800;
 
 /**
  * Sol kenar çubuğu (paneller). Sabitlenmemişken daraltılmış durur, solda
@@ -14,6 +16,8 @@ export class SidebarDock {
   private closeTimer = 0;
   /** Kenar çubuğu içinde basılı bir tuş var (kaydırıcı sürükleme): kapanmasın. */
   private pressing = false;
+  /** Kendiliğinden (araç değişimiyle) açıldı; kullanıcı henüz dokunmadı. */
+  private peeking = false;
   private listeners = new Set<() => void>();
 
   constructor(
@@ -28,6 +32,7 @@ export class SidebarDock {
     for (const el of [rail, sidebar]) {
       el.addEventListener('pointerenter', (e) => {
         if (!hoverable(e)) return;
+        this.peeking = false;
         window.clearTimeout(this.closeTimer);
         if (el === rail) this.setOpen(true);
       });
@@ -49,6 +54,7 @@ export class SidebarDock {
 
     sidebar.addEventListener('pointerdown', () => {
       this.pressing = true;
+      this.peeking = false;
     });
     window.addEventListener('pointerup', () => {
       if (!this.pressing) return;
@@ -62,7 +68,10 @@ export class SidebarDock {
       'pointerdown',
       (e) => {
         if (!this.open || this.pinned || hoverable(e)) return;
+        // Kendiliğinden açılmışsa kapanır ama dokunuş çizmeye devam eder
+        const peeked = this.peeking;
         this.setOpen(false);
+        if (peeked) return;
         e.preventDefault();
         e.stopImmediatePropagation();
       },
@@ -97,6 +106,29 @@ export class SidebarDock {
     for (const fn of this.listeners) fn();
   }
 
+  /**
+   * Paneli kısa süre gösterir (araç ya da tür değişimi) ve `target`'ı görünür
+   * kılar. Zaten açıksa (üstüne gelinmiş / dokunulmuş) yalnızca kaydırır;
+   * süre dolmadan üstüne gelinirse açık kalır.
+   */
+  peek(target?: HTMLElement): void {
+    const wasOpen = this.isOpen;
+    if (!wasOpen) {
+      this.setOpen(true);
+      this.peeking = true;
+    }
+    if (target) {
+      // Panel başa alınmış olur: kenar çubuğu en üste kaydırılır
+      this.sidebar.scrollTop = 0;
+      target.scrollIntoView({ block: 'nearest' });
+    }
+    if (wasOpen) return;
+    this.closeTimer = window.setTimeout(() => {
+      if (this.pressing || this.sidebar.matches(':hover') || this.rail.matches(':hover')) return;
+      this.setOpen(false);
+    }, PEEK_MS);
+  }
+
   /** Sabitlenmemişse kapatır (Esc). Kapandıysa true. */
   close(): boolean {
     if (this.pinned || !this.open) return false;
@@ -117,6 +149,7 @@ export class SidebarDock {
     window.clearTimeout(this.closeTimer);
     if (open === this.open) return;
     this.open = open;
+    if (!open) this.peeking = false;
     // Kapanırken odak içerideyse bırakılır: tuval kısayolları yeniden çalışsın
     if (!open && this.sidebar.contains(document.activeElement)) {
       (document.activeElement as HTMLElement).blur();

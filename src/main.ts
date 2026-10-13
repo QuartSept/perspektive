@@ -246,13 +246,49 @@ const panel = new PerspectivePanel(panelEl, {
   onCornerPointChange: (id) => corners.setPoint(id),
 });
 
+const panelById = (id: string) => document.getElementById(id)!;
+/** Kenar çubuğundaki panellerin varsayılan sırası (başlığın altında). */
+const defaultPanelOrder = [
+  'select-panel',
+  'shape-panel',
+  'eraser-panel',
+  'brush-panel',
+  'perspective-panel',
+  'paper-grid-panel',
+  'reference-panel',
+].map(panelById);
+/** Paneli olan araçlar: seçilince paneli en üste gelir ve kısa süre görünür. */
+const toolPanels = new Map<Tool, HTMLElement>([
+  [selectionTool, panelById('select-panel')],
+  [shapeTool, panelById('shape-panel')],
+  [eraser, panelById('eraser-panel')],
+  [brush, panelById('brush-panel')],
+  [tools.point, panelById('perspective-panel')],
+]);
+
+/** Etkin aracın panelini başa alır; diğerleri varsayılan sırada kalır. */
+function arrangePanels(first: HTMLElement | undefined): void {
+  const order = first ? [first, ...defaultPanelOrder.filter((p) => p !== first)] : defaultPanelOrder;
+  // appendChild taşır: başlık yerinde kalır, paneller ardına dizilir
+  for (const panel of order) sidebarEl.appendChild(panel);
+}
+
+/** Açılışta fırça seçilirken panel kendiliğinden açılmasın. */
+let starting = true;
+
 function selectTool(id: string): void {
   const tool = tools[id];
   if (!tool || input.busy) return;
+  const changed = tool !== input.activeTool;
   input.setTool(tool);
   eraserPanel.setVisible(tool === eraser);
   shapePanel.setVisible(tool === shapeTool);
   selectPanelEl.hidden = tool !== selectionTool;
+  const toolPanel = toolPanels.get(tool);
+  if (changed) {
+    arrangePanels(toolPanel);
+    if (toolPanel && !starting) sidebarDock.peek(toolPanel);
+  }
   renderer.requestRender('drawing', 'interaction');
   toolbar.setActiveTool(id);
   syncMarkers();
@@ -698,6 +734,7 @@ snapSettings.onChange(schedulePrefsSave);
 shapeSettings.onChange(() => {
   // Tür değişince süren çizim (ör. yarım çokgen) bırakılır
   shapeTool.cancel();
+  if (input.activeTool === shapeTool) sidebarDock.peek(panelById('shape-panel'));
   schedulePrefsSave();
 });
 
@@ -714,7 +751,13 @@ themeController.onChange(() => {
   schedulePrefsSave();
 });
 syncThemeButton();
+let lastEraserKind = eraserSettings.kind;
 eraserSettings.onChange(() => {
+  // Tür değişimi (E'ye tekrar basma) paneli kısa süre gösterir; boyut değişimi göstermez
+  if (eraserSettings.kind !== lastEraserKind && input.activeTool === eraser) {
+    sidebarDock.peek(panelById('eraser-panel'));
+  }
+  lastEraserKind = eraserSettings.kind;
   schedulePrefsSave();
   renderer.requestRender('interaction');
 });
@@ -939,6 +982,7 @@ async function restore(): Promise<void> {
 }
 
 selectTool('brush');
+starting = false;
 syncMagnetButton();
 layers.syncSize();
 void restore();
