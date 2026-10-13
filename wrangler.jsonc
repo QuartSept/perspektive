@@ -1,0 +1,10 @@
+// Cloudflare Workers yayını: yalnızca statik dosyalar (sunucu kodu yok).
+// `npm run build` çıktısı (dist/) olduğu gibi sunulur.
+{
+  // Cloudflare panelindeki proje adıyla aynı olmalı
+  "name": "perspective",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./dist"
+  }
+}

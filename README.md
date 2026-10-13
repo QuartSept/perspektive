@@ -48,8 +48,12 @@ npm run preview    # derlenmiş sürümü yerelde aç
 
 ## Yayınlama
 
-`npm run build` çıktısı (`dist/`) tamamen statiktir; Vercel, Netlify veya GitHub Pages'e olduğu gibi
-yüklenebilir. `vite.config.ts` içindeki `base: './'` sayesinde alt dizinde (ör. `kullanici.github.io/perspektive/`)
+`npm run build` çıktısı (`dist/`) tamamen statiktir; Cloudflare, Vercel, Netlify veya GitHub Pages'e olduğu gibi
+yüklenebilir.
+
+Cloudflare Workers (Git bağlantılı): `wrangler.jsonc` `dist/` klasörünü statik dosya olarak sunar.
+Build command `npm run build`, deploy command `npx wrangler deploy`; Node sürümü `.node-version` ile 22'ye sabitlidir.
+Paneldeki proje adı `wrangler.jsonc` içindeki `name` ile aynı olmalı. `vite.config.ts` içindeki `base: './'` sayesinde alt dizinde (ör. `kullanici.github.io/perspektive/`)
 de çalışır.
 
 ## Yapı
