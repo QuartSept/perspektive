@@ -136,6 +136,10 @@
 
       <section class="panel" id="select-panel" data-i18n-aria-label="select.title" hidden>
         <h2 class="panel__title" data-i18n="select.title">Seç / düzenle</h2>
+        <label class="switch" id="shape-corner-lines-row" hidden>
+          <input type="checkbox" id="shape-corner-lines" />
+          <span data-i18n="select.cornerLines">Köşe çizgileri</span>
+        </label>
         <button type="button" class="btn" id="delete-shape" data-i18n="select.delete" disabled>Seçili şekli sil</button>
         <p class="panel__hint" id="select-hint"></p>
       </section>
@@ -237,6 +241,15 @@
           <input type="checkbox" id="guides-visible" checked />
           <span data-i18n="perspective.showGuides">Kılavuzlar (G)</span>
         </label>
+
+        <div class="panel__stack" id="corner-line-options" hidden>
+          <div class="field__label" id="corner-target-label" data-i18n="corners.label">Köşe çizgileri</div>
+          <div class="segmented" id="corner-target" role="radiogroup" aria-labelledby="corner-target-label">
+            <button type="button" role="radio" data-corner-target="all" data-i18n="corners.all" data-i18n-title="corners.allTitle">Hepsi</button>
+            <button type="button" role="radio" data-corner-target="one" data-i18n="corners.one" data-i18n-title="corners.oneTitle">Seçili</button>
+          </div>
+          <div class="segmented" id="corner-point" role="radiogroup" data-i18n-aria-label="corners.point" hidden></div>
+        </div>
 
         <button type="button" class="btn" id="delete-point" data-i18n="perspective.deletePoint">Seçili noktayı sil</button>
         <button type="button" class="btn" id="open-grid" data-i18n="grid.open">Izgara ekle…</button>

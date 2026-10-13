@@ -4,6 +4,7 @@ import type { Point } from '../engine/geometry';
 import { gridSource, PaperGrid } from '../engine/grid';
 import { History } from '../engine/history';
 import { Viewport } from '../engine/viewport';
+import { cornerLines, cornerLineSource, preferCornerLines } from '../perspective/corner-lines';
 import { PerspectiveScene } from '../perspective/scene';
 import { combineSources, distanceToLine, perspectiveSource } from '../perspective/snapping';
 import { BrushTool } from './brush';
@@ -275,5 +276,42 @@ describe('ızgaraya yapış', () => {
     const s = draw(wobblyPath(start, { x: 300, y: 500 }, 10, 15, 4));
     expect(s.points[0]).toBeCloseTo(start.x);
     expect(s.points[1]).toBeCloseTo(start.y);
+  });
+});
+
+describe('köşe kaçış çizgisine kilit', () => {
+  it('köşe çizgisinin biraz yanından başlayan stroke tam çizgiye oturur', () => {
+    const shape = {
+      id: 'r',
+      kind: 'rect' as const,
+      vertices: [400, 600, 600, 600, 600, 800, 400, 800],
+      style: { width: 2, opacity: 1, ink: 'black' as const },
+      cornerLines: true,
+    };
+    const lines = cornerLines([shape], scene.activePoints, { x: 0, y: 0, width: 1000, height: 1000 });
+    const settings = new BrushSettings();
+    settings.setSmoothing(0);
+    brush = new BrushTool(
+      viewport,
+      doc,
+      new History(),
+      settings,
+      preferCornerLines(perspectiveSource(scene), cornerLineSource(() => lines)),
+      { isActive: () => true, radius: 20 },
+      { isActive: () => false, axisSnap: () => false },
+      { isActive: () => false, spacing: 10 },
+      () => {},
+    );
+    // (600,600) köşesinden sağ kaçış noktasına (940,400) giden çizginin 3 px altından başla
+    const target = vp(1);
+    const d = { x: target.x - 600, y: target.y - 600 };
+    const len = Math.hypot(d.x, d.y);
+    const u = { x: d.x / len, y: d.y / len };
+    const start = { x: 600 + u.x * 40 - u.y * 3, y: 600 + u.y * 40 + u.x * 3 };
+    const s = draw(wobblyPath(start, { x: start.x + u.x * 200, y: start.y + u.y * 200 }, 15, 12, 2));
+    expect(s.points).toHaveLength(4);
+    const line = { origin: { x: 600, y: 600 }, direction: u, kind: 'vanishing-point' as const };
+    expect(distanceToLine(line, { x: s.points[0], y: s.points[1] })).toBeCloseTo(0);
+    expect(distanceToLine(line, { x: s.points[2], y: s.points[3] })).toBeCloseTo(0);
   });
 });

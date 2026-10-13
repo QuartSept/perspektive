@@ -19,6 +19,12 @@ import { readCanvasTheme } from './engine/theme';
 import { Viewport, type Padding } from './engine/viewport';
 import { editScene } from './perspective/commands';
 import { PerspectiveScene, type PerspectiveMode } from './perspective/scene';
+import {
+  CornerLineSettings,
+  cornerLineSource,
+  cornerTargets,
+  preferCornerLines,
+} from './perspective/corner-lines';
 import { axisSource, combineSources, perspectiveSource, type SnapLine } from './perspective/snapping';
 import { buildTemplate, type TemplateId } from './perspective/templates';
 import { buildGrid } from './perspective/grid';
@@ -84,6 +90,7 @@ const history = new History();
 const brushSettings = new BrushSettings();
 const snapSettings = new SnapSettings();
 const paperGrid = new PaperGrid();
+const corners = new CornerLineSettings();
 const input = new InputController(stage, viewport);
 
 const gridLineSource = gridSource(paperGrid);
@@ -100,8 +107,13 @@ const brush = new BrushTool(
   brushSettings,
   // Aday kaynakları: sonraki aşamalarda şekil köşe çizgileri eklenir. Perspektif
   // kapalıyken ızgara yalnızca düz çizgilere uygulanır; serbest çizim kilitlenmez.
-  combineSources(perspectiveSource(scene), (start, near) =>
-    scene.mode === 0 ? [] : gridLineSource(start, near),
+  // Köşe kaçış çizgisine yakın başlayan stroke tam o çizgiye oturur
+  combineSources(
+    preferCornerLines(
+      perspectiveSource(scene),
+      cornerLineSource(() => renderer.visibleCornerLines()),
+    ),
+    (start, near) => (scene.mode === 0 ? [] : gridLineSource(start, near)),
   ),
   {
     isActive: () => snapSettings.enabled && !state.temporaryFree,
@@ -143,13 +155,16 @@ const shapeTool = new ShapeTool(
   shapeSettings,
   () => brushSettings.toStyle(),
   shapeSnapping,
-  () => renderer.requestRender('interaction'),
+  // Çizilen şeklin köşe çizgileri de önizlenir (kılavuz katmanı)
+  () => renderer.requestRender('guides', 'interaction'),
 );
 let selectionDragging = false;
 const selectionTool = new SelectTool(viewport, doc, history, shapeSnapping, () => {
   // Çizim katmanı yalnızca sürükleme başlarken / biterken (özgün şekil gizlenir) yenilenir
   const dragging = selectionTool.previewShape !== null;
   if (dragging !== selectionDragging) renderer.requestRender('drawing');
+  // Köşe çizgileri düzenlenen köşeyi izler
+  if (dragging || dragging !== selectionDragging) renderer.requestRender('guides');
   selectionDragging = dragging;
   renderer.requestRender('interaction');
   input.updateCursor();
@@ -194,11 +209,17 @@ const shapePanel = new ShapePanel(document.getElementById('shape-panel')!, shape
 const selectPanelEl = document.getElementById('select-panel')!;
 const deleteShapeButton = document.getElementById('delete-shape') as HTMLButtonElement;
 const selectHint = document.getElementById('select-hint')!;
+const shapeCornerRow = document.getElementById('shape-corner-lines-row')!;
+const shapeCornerLines = document.getElementById('shape-corner-lines') as HTMLInputElement;
 deleteShapeButton.addEventListener('click', () => selectionTool.deleteSelected());
+shapeCornerLines.addEventListener('change', () => selectionTool.setCornerLines(shapeCornerLines.checked));
 
 function updateSelectPanel(): void {
-  const has = selectionTool.selected !== null;
+  const selected = selectionTool.selected;
+  const has = selected !== null;
   deleteShapeButton.disabled = !has;
+  shapeCornerRow.hidden = !has;
+  shapeCornerLines.checked = selected?.cornerLines ?? false;
   selectHint.textContent = t(has ? 'select.hintSelected' : 'select.hintEmpty');
 }
 const brushPanel = new BrushPanel(document.getElementById('brush-panel')!, brushSettings, snapSettings);
@@ -211,6 +232,8 @@ const panel = new PerspectivePanel(panelEl, {
   onRayCountChange: (count) => scene.setRayCount(count),
   onGuidesVisibleChange: setGuidesVisible,
   onDeletePoint: deleteSelectedPoint,
+  onCornerTargetChange: (target) => corners.setTarget(target),
+  onCornerPointChange: (id) => corners.setPoint(id),
 });
 
 function selectTool(id: string): void {
@@ -252,6 +275,7 @@ const pageSources = {
   doc,
   scene,
   grid: paperGrid,
+  corners,
   get theme() {
     return renderer.theme;
   },
@@ -294,7 +318,7 @@ async function confirmReplace(message: string): Promise<boolean> {
 const projectDialog = document.getElementById('project-dialog') as HTMLDialogElement;
 const projectError = document.getElementById('project-error')!;
 const projectFile = document.getElementById('project-file') as HTMLInputElement;
-const drawingSources = { doc, scene, paper, grid: paperGrid };
+const drawingSources = { doc, scene, paper, grid: paperGrid, corners };
 
 projectDialog.addEventListener('click', (e) => {
   if (e.target === projectDialog) projectDialog.close();
@@ -431,6 +455,7 @@ document.getElementById('open-grid')!.addEventListener('click', () => {
 const reference = new ReferenceImage();
 renderer.reference = reference;
 renderer.grid = paperGrid;
+renderer.corners = corners;
 reference.onChange(() => renderer.requestRender('paper'));
 const referenceStore = new ReferenceStore(reference);
 
@@ -499,6 +524,8 @@ function updatePanel(): void {
     guidesVisible: state.guidesVisible,
     hasSelection: state.selectedPointId !== null,
     pointToolActive: input.activeTool === tools.point,
+    cornerTarget: corners.target,
+    cornerPointId: corners.target === 'one' ? (cornerTargets(scene, corners)[0]?.id ?? null) : null,
   });
 }
 
@@ -617,6 +644,11 @@ paperGrid.onChange(() => {
   renderer.requestRender('paper');
   autosave.markDirty();
 });
+corners.onChange(() => {
+  renderer.requestRender('guides');
+  autosave.markDirty();
+  updatePanel();
+});
 
 const prefsTargets: PrefsTargets = {
   brush: brushSettings,
@@ -697,8 +729,8 @@ state.onChange((changed) => {
 
 doc.onChange(() => {
   syncOnboarding();
-  // Seçili şeklin tutamaçları geri al / ileri al ile yer değiştirebilir
-  renderer.requestRender('drawing', 'interaction');
+  // Seçili şeklin tutamaçları ve köşe çizgileri geri al / ileri al ile yer değiştirebilir
+  renderer.requestRender('drawing', 'guides', 'interaction');
   updateSelectPanel();
   toolbar.setCanClear(!doc.isEmpty);
   autosave.markDirty();

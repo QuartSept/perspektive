@@ -4,6 +4,7 @@ import type { CanvasTheme } from '../engine/theme';
 import type { Viewport } from '../engine/viewport';
 import { proximityWeight, rayAngles, rayOpacities } from './rays';
 import type { PerspectiveScene } from './scene';
+import type { CornerLine } from './corner-lines';
 import type { SnapLine } from './snapping';
 
 export const MARKER_RADIUS = 5.5;
@@ -85,6 +86,38 @@ export function drawGuides(view: GuideView): void {
     ctx.lineWidth = active ? 2 : 1.25;
     ctx.stroke();
   }
+}
+
+/** Köşe çizgisi kesik deseni, CSS piksel. */
+export const CORNER_LINE_DASH = [5, 4];
+
+/** Köşe kaçış çizgileri: kaçış noktası renginde, kesikli (hayalet ışınlardan ayrışsın). */
+export function drawCornerLines(view: GuideView, lines: readonly CornerLine[]): void {
+  if (!lines.length) return;
+  const { ctx, dpr, viewport, scene, theme } = view;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.save();
+  ctx.setLineDash(CORNER_LINE_DASH);
+  ctx.lineWidth = 1;
+  ctx.globalAlpha = theme.cornerLineOpacity;
+  // Renge göre tek path: çok şekilde de hızlı
+  const byColor = new Map<number, CornerLine[]>();
+  for (const l of lines) {
+    const i = scene.colorIndexOf(l.point);
+    byColor.set(i, [...(byColor.get(i) ?? []), l]);
+  }
+  for (const [index, group] of byColor) {
+    ctx.beginPath();
+    for (const l of group) {
+      const a = viewport.worldToScreen(l.from);
+      const b = viewport.worldToScreen(l.to);
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+    }
+    ctx.strokeStyle = vanishingPointColor(theme, index);
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 /** Kilitli perspektif doğrusu: kalın, vurgu renginde, ekran boyunca. */

@@ -25,6 +25,8 @@ export interface CanvasTheme {
   cursorHalo: string;
   /** Kâğıt ızgarası (opaklık renkte). */
   grid: string;
+  /** Köşe kaçış çizgileri: nokta renginde, kesikli, bu opaklıkta. */
+  cornerLineOpacity: number;
   /** PNG / SVG / yazdırma: temadan bağımsız renkler. */
   printPaper: string;
   printGuideOpacity: number;
@@ -33,6 +35,7 @@ export interface CanvasTheme {
   printHorizon: string;
   printMarkerFill: string;
   printGrid: string;
+  printCornerLineOpacity: number;
 }
 
 /** Çıktı için tema: ekran renklerinin yerine temadan bağımsız --print-* renkleri. */
@@ -44,6 +47,7 @@ export function toPrintTheme(theme: CanvasTheme): CanvasTheme {
     horizon: theme.printHorizon,
     markerFill: theme.printMarkerFill,
     grid: theme.printGrid,
+    cornerLineOpacity: theme.printCornerLineOpacity,
   };
 }
 
@@ -79,6 +83,7 @@ export function readCanvasTheme(el: Element = document.documentElement): CanvasT
     cursor: v('--color-cursor'),
     cursorHalo: v('--color-cursor-halo'),
     grid: v('--color-grid'),
+    cornerLineOpacity: n('--corner-line-opacity', 0.55),
     printPaper: v('--color-print-paper'),
     printGuideOpacity: n('--print-guide-opacity', 0.35),
     printInks,
@@ -86,5 +91,6 @@ export function readCanvasTheme(el: Element = document.documentElement): CanvasT
     printHorizon: v('--print-horizon'),
     printMarkerFill: v('--print-marker-fill'),
     printGrid: v('--print-grid'),
+    printCornerLineOpacity: n('--print-corner-line-opacity', 0.6),
   };
 }

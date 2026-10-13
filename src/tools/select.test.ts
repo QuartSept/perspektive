@@ -195,3 +195,14 @@ function unit(x: number, y: number): Point {
   const len = Math.hypot(x, y);
   return { x: x / len, y: y / len };
 }
+
+describe('köşe çizgisi geçişi', () => {
+  it('seçili şeklin köşe çizgileri kapatılır ve geri alınır', () => {
+    tool.select('r');
+    tool.setCornerLines(false);
+    expect(doc.getShape('r')!.cornerLines).toBe(false);
+    expect(doc.shapeIndexOf('r')).toBe(0);
+    history.undo();
+    expect(doc.getShape('r')!.cornerLines).toBe(true);
+  });
+});

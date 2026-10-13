@@ -10,7 +10,9 @@ import { strokeBounds } from './stroke-geometry';
 import { rectsOverlap } from './geometry';
 import type { CanvasTheme } from './theme';
 import type { Viewport } from './viewport';
+import { cornerLines, cornerTargets, type CornerLineSettings } from '../perspective/corner-lines';
 import {
+  drawCornerLines,
   drawGuides,
   drawMarkers,
   drawSnapLine,
@@ -32,6 +34,8 @@ export class Renderer {
   reference: ReferenceImage | null = null;
   /** Kâğıt katmanında, referans görselin üstünde çizilen kâğıt ızgarası. */
   grid: PaperGrid | null = null;
+  /** Köşe kaçış çizgisi ayarı (yoksa çizilmez). */
+  corners: CornerLineSettings | null = null;
 
   constructor(
     private readonly layers: LayerStack,
@@ -152,7 +156,23 @@ export class Renderer {
 
   private drawGuides(): void {
     const ctx = this.layers.clear('guides');
-    if (this.state.guidesVisible) drawGuides(this.guideView(ctx));
+    if (!this.state.guidesVisible) return;
+    const view = this.guideView(ctx);
+    drawGuides(view);
+    drawCornerLines(view, this.visibleCornerLines());
+  }
+
+  /**
+   * Belgedeki şekillerin köşe çizgileri; düzenlenen / çizilen şeklin yerine
+   * önizlemesi kullanılır (çizgiler sürüklerken köşeyi izler).
+   */
+  visibleCornerLines() {
+    if (!this.corners) return [];
+    const overlay = this.getOverlay();
+    const hidden = overlay?.hiddenShapeIds;
+    const shapes = this.doc.shapes.filter((s) => !hidden?.has(s.id));
+    if (overlay?.previewShape) shapes.push(overlay.previewShape);
+    return cornerLines(shapes, cornerTargets(this.scene, this.corners), this.paper.rect);
   }
 
   private drawInteraction(): void {

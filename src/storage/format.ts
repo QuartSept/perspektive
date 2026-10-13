@@ -2,6 +2,12 @@ import { ORIENTATIONS, PAPER_KINDS, type Orientation, type PaperKind } from '../
 import { SHAPE_KINDS, vertexCountRange, type Shape, type ShapeKind } from '../engine/shapes';
 import { INK_IDS, type InkId, type Stroke, type StrokeStyle } from '../engine/stroke';
 import {
+  CORNER_TARGETS,
+  DEFAULT_CORNER_LINES,
+  type CornerTarget,
+  type SavedCornerLines,
+} from '../perspective/corner-lines';
+import {
   normalizeLineAngle,
   PERSPECTIVE_MODES,
   type PerspectiveMode,
@@ -43,6 +49,8 @@ export interface SavedDrawing {
   strokes: Stroke[];
   grid: SavedGrid;
   shapes: Shape[];
+  /** Köşe kaçış çizgilerinin hedefi (sonradan eklendi; yoksa varsayılan). */
+  cornerLines: SavedCornerLines;
 }
 
 type Raw = Record<string, unknown>;
@@ -132,6 +140,16 @@ function parseGrid(v: unknown): SavedGrid {
   };
 }
 
+function parseCornerLines(v: unknown): SavedCornerLines {
+  if (!isObject(v)) return { ...DEFAULT_CORNER_LINES };
+  return {
+    target: CORNER_TARGETS.includes(v.target as CornerTarget)
+      ? (v.target as CornerTarget)
+      : DEFAULT_CORNER_LINES.target,
+    pointId: isString(v.pointId) ? v.pointId : null,
+  };
+}
+
 /** Birden fazla kaynaktan okunan kayıtlar arasından en yenisi (savedAt). */
 export function newestDrawing(...candidates: (SavedDrawing | null)[]): SavedDrawing | null {
   let best: SavedDrawing | null = null;
@@ -189,5 +207,6 @@ export function parseSavedDrawing(input: unknown): SavedDrawing | null {
     shapes: Array.isArray(v.shapes)
       ? v.shapes.map(parseShape).filter((s): s is Shape => s !== null)
       : [],
+    cornerLines: parseCornerLines(v.cornerLines),
   };
 }

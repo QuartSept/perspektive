@@ -32,6 +32,7 @@ describe('parseSavedDrawing', () => {
       version: SAVE_VERSION,
       grid: DEFAULT_GRID,
       shapes: [],
+      cornerLines: { target: 'all', pointId: null },
     });
   });
 
@@ -108,10 +109,20 @@ describe('sürüm 2', () => {
         cornerLines: false,
       },
     ],
+    cornerLines: { target: 'one', pointId: 'p2' },
   };
 
   it('geçerli sürüm 2 kaydı aynen döner', () => {
     expect(parseSavedDrawing(v2)).toEqual(v2);
+  });
+
+  it('köşe çizgisi ayarı yoksa ya da bozuksa varsayılan', () => {
+    const { cornerLines: _omit, ...without } = v2;
+    expect(parseSavedDrawing(without)!.cornerLines).toEqual({ target: 'all', pointId: null });
+    expect(parseSavedDrawing({ ...v2, cornerLines: { target: 'x', pointId: 3 } })!.cornerLines).toEqual({
+      target: 'all',
+      pointId: null,
+    });
   });
 
   it('daha yeni ya da tanınmayan sürüm reddedilir', () => {

@@ -114,6 +114,17 @@ export class SelectTool implements Tool, ToolOverlay {
     return true;
   }
 
+  /** Seçili şeklin köşe çizgilerini açar / kapatır (geri alınabilir). */
+  setCornerLines(enabled: boolean): void {
+    const shape = this.selected;
+    if (!shape || shape.cornerLines === enabled || this.drag) return;
+    const index = this.doc.shapeIndexOf(shape.id);
+    this.history.execute(
+      new ReplaceShapesCommand(this.doc, [shape.id], [{ index, shape: { ...shape, cornerLines: enabled } }]),
+    );
+    this.onChange();
+  }
+
   onPointerDown(e: ToolPointerEvent): void {
     const selected = this.selected;
     const handle = selected ? this.hitHandle(selected, e.screen) : null;

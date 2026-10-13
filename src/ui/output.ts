@@ -1,6 +1,7 @@
 import { PX_PER_MM } from '../engine/paper';
 import { renderPage, type PageSources } from '../engine/page-render';
 import { buildSvg } from '../engine/svg-export';
+import { cornerLines, cornerTargets } from '../perspective/corner-lines';
 import { toPrintTheme } from '../engine/theme';
 
 /** PNG: ≈192 DPI (A4 → 1587×2245 px). */
@@ -60,6 +61,9 @@ export function downloadSvg(src: PageSources, options: OutputOptions): void {
       scene: src.scene,
       theme: toPrintTheme(src.theme),
       gridSpacing: src.grid?.visible ? src.grid.spacing : null,
+      cornerLines: src.corners
+        ? cornerLines(src.doc.shapes, cornerTargets(src.scene, src.corners), src.paper.rect)
+        : [],
     },
     options.includeGuides,
   );

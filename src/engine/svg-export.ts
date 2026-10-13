@@ -3,6 +3,7 @@ import { gridLines } from './grid';
 import { PX_PER_MM } from './paper';
 import { isClosed, type Shape } from './shapes';
 import { strokeOutline, type InkId, type Stroke } from './stroke';
+import type { CornerLine } from '../perspective/corner-lines';
 import { rayAngles } from '../perspective/rays';
 import type { PerspectiveScene } from '../perspective/scene';
 
@@ -16,6 +17,7 @@ export interface SvgTheme {
   printGuideOpacity: number;
   /** Kâğıt ızgarası rengi (opaklık renkte olabilir). */
   grid: string;
+  cornerLineOpacity?: number;
 }
 
 export interface SvgSources {
@@ -27,6 +29,8 @@ export interface SvgSources {
   theme: SvgTheme;
   /** Görünür kâğıt ızgarasının aralığı (dünya birimi); yoksa ızgara yazılmaz. */
   gridSpacing?: number | null;
+  /** Köşe kaçış çizgileri (kırpılmış); kılavuzlu çıktıda kesikli yazılır. */
+  cornerLines?: readonly CornerLine[];
 }
 
 /** Kılavuz çizgi kalınlıkları dünya biriminde (ekran/yazdırma çıktısıyla aynı). */
@@ -35,6 +39,7 @@ const HORIZON_WIDTH = 1.25;
 const MARKER_RADIUS = 5.5;
 const MARKER_STROKE = 2;
 const GRID_WIDTH = 0.75;
+const CORNER_DASH = '5 4';
 
 const num = (v: number): string => String(Math.round(v * 100) / 100);
 
@@ -133,6 +138,20 @@ function guideElements(src: SvgSources): string[] {
       `<path d="${d}" fill="none" stroke="${esc(color)}" stroke-width="${RAY_WIDTH}" opacity="${num(theme.printGuideOpacity)}"/>`,
     );
   });
+
+  const corners = src.cornerLines ?? [];
+  const byColor = new Map<number, CornerLine[]>();
+  for (const l of corners) {
+    const i = scene.colorIndexOf(l.point);
+    byColor.set(i, [...(byColor.get(i) ?? []), l]);
+  }
+  for (const [i, group] of byColor) {
+    const d = group.map((l) => `M${num(l.from.x)} ${num(l.from.y)}L${num(l.to.x)} ${num(l.to.y)}`).join('');
+    const color = theme.vanishingPoints[i % theme.vanishingPoints.length];
+    out.push(
+      `<path class="corner-lines" d="${d}" fill="none" stroke="${esc(color)}" stroke-width="${RAY_WIDTH}" stroke-dasharray="${CORNER_DASH}" opacity="${num(theme.cornerLineOpacity ?? theme.printGuideOpacity)}"/>`,
+    );
+  }
 
   if (horizon) {
     const r = reach(horizon.origin, w, h);

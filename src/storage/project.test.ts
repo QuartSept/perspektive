@@ -3,6 +3,7 @@ import { DrawingDocument } from '../engine/document';
 import { PaperGrid } from '../engine/grid';
 import { History } from '../engine/history';
 import { Paper } from '../engine/paper';
+import { CornerLineSettings } from '../perspective/corner-lines';
 import { PerspectiveScene } from '../perspective/scene';
 import { LoadDrawingCommand, parseProject, serializeProject } from './project';
 
@@ -12,7 +13,8 @@ function sources() {
   scene.reset(paper.rect);
   const doc = new DrawingDocument();
   const grid = new PaperGrid();
-  return { paper, scene, doc, grid };
+  const corners = new CornerLineSettings();
+  return { paper, scene, doc, grid, corners };
 }
 
 describe('proje dosyası', () => {
@@ -36,6 +38,8 @@ describe('proje dosyası', () => {
     a.grid.setVisible(true);
     a.grid.setSnap(true);
     a.grid.setSpacing(5);
+    a.corners.setTarget('one');
+    a.corners.setPoint(a.scene.points[1].id);
     const text = serializeProject(a);
     expect(JSON.parse(text).app).toBe('perspektif');
 
@@ -46,6 +50,7 @@ describe('proje dosyası', () => {
     expect(parsed.strokes).toEqual(a.doc.strokes);
     expect(parsed.shapes).toEqual(a.doc.shapes);
     expect(parsed.grid).toEqual({ visible: true, snap: true, spacingMm: 5 });
+    expect(parsed.cornerLines).toEqual({ target: 'one', pointId: a.scene.points[1].id });
   });
 
   it('JSON olmayan, başka uygulamaya ait ya da bozuk dosyayı reddeder', () => {

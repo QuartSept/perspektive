@@ -2,6 +2,7 @@ import type { DrawingDocument } from '../engine/document';
 import type { PaperGrid } from '../engine/grid';
 import type { Command } from '../engine/history';
 import type { Paper } from '../engine/paper';
+import type { CornerLineSettings } from '../perspective/corner-lines';
 import type { PerspectiveScene } from '../perspective/scene';
 import { parseSavedDrawing, SAVE_VERSION, type SavedDrawing } from './format';
 
@@ -13,10 +14,17 @@ export interface DrawingSources {
   scene: PerspectiveScene;
   paper: Paper;
   grid: PaperGrid;
+  corners: CornerLineSettings;
 }
 
 /** Çizimin kaydedilebilir anlık görüntüsü (otomatik kayıt ve proje dosyası ortak). */
-export function buildSavedDrawing({ doc, scene, paper, grid }: DrawingSources): SavedDrawing {
+export function buildSavedDrawing({
+  doc,
+  scene,
+  paper,
+  grid,
+  corners,
+}: DrawingSources): SavedDrawing {
   return {
     version: SAVE_VERSION,
     savedAt: Date.now(),
@@ -37,12 +45,13 @@ export function buildSavedDrawing({ doc, scene, paper, grid }: DrawingSources): 
     strokes: [...doc.strokes],
     grid: grid.toSaved(),
     shapes: [...doc.shapes],
+    cornerLines: corners.toSaved(),
   };
 }
 
 /** Kayıtlı çizimi uygular (yükleme, proje dosyası açma, geri al). */
 export function applySavedDrawing(
-  { doc, scene, paper, grid }: DrawingSources,
+  { doc, scene, paper, grid, corners }: DrawingSources,
   saved: SavedDrawing,
 ): void {
   paper.restore(saved.paper.kind, saved.paper.width, saved.paper.height, saved.paper.orientation);
@@ -50,6 +59,7 @@ export function applySavedDrawing(
   scene.setRayCount(saved.scene.rayCount);
   doc.replaceAll(saved.strokes, saved.shapes);
   grid.restore(saved.grid);
+  corners.restore(saved.cornerLines);
 }
 
 export function serializeProject(sources: DrawingSources): string {

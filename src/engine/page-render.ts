@@ -6,7 +6,8 @@ import { drawShape } from './shapes';
 import { drawStroke } from './stroke';
 import { toPrintTheme, type CanvasTheme } from './theme';
 import { Viewport } from './viewport';
-import { drawGuides, drawMarkers } from '../perspective/guide-renderer';
+import { cornerLines, cornerTargets, type CornerLineSettings } from '../perspective/corner-lines';
+import { drawCornerLines, drawGuides, drawMarkers } from '../perspective/guide-renderer';
 import type { PerspectiveScene } from '../perspective/scene';
 
 /** Çıktıda ızgara çizgi kalınlığı, dünya birimi (≈0,2 mm). */
@@ -22,6 +23,8 @@ export interface PageSources {
   theme: CanvasTheme;
   /** Kâğıt ızgarası; görünürse "kılavuzlarla" çıktıya girer. */
   grid?: { visible: boolean; spacing: number } | null;
+  /** Köşe kaçış çizgisi ayarı; "kılavuzlarla" çıktıya girer. */
+  corners?: CornerLineSettings | null;
 }
 
 export interface PageRenderOptions {
@@ -75,6 +78,9 @@ export function renderPage(src: PageSources, options: PageRenderOptions): HTMLCa
       theme: { ...theme, guideOpacity: theme.printGuideOpacity },
     };
     drawGuides(view);
+    if (src.corners) {
+      drawCornerLines(view, cornerLines(doc.shapes, cornerTargets(scene, src.corners), paper.rect));
+    }
     drawMarkers(view);
   }
 

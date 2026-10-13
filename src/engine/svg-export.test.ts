@@ -119,3 +119,14 @@ describe('şekiller', () => {
     expect(svg.indexOf('M0 0L10 0')).toBeLessThan(svg.indexOf('M10 10 Q'));
   });
 });
+
+describe('köşe çizgileri', () => {
+  it('kılavuzlu çıktıda nokta rengiyle kesikli path; kılavuzsuzda yok', () => {
+    const s = scene();
+    const p = s.points[0];
+    const lines = [{ corner: { x: 100, y: 100 }, point: p, from: { x: 100, y: 100 }, to: { x: p.x, y: p.y } }];
+    const svg = buildSvg({ paper, strokes, scene: s, theme, cornerLines: lines }, true);
+    expect(svg).toMatch(/<path class="corner-lines" d="M100 100L[^"]+" fill="none" stroke="#3a6fb0" stroke-width="1" stroke-dasharray="5 4"/);
+    expect(buildSvg({ paper, strokes, scene: s, theme, cornerLines: lines }, false)).not.toContain('corner-lines');
+  });
+});
