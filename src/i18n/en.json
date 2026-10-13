@@ -178,5 +178,7 @@
   "perspective.oneShort": "1",
   "perspective.twoShort": "2",
   "perspective.threeShort": "3",
-  "perspective.hintOff": "Perspective is off: no vanishing points or rays. Your setup is kept and comes back when you switch to 1, 2 or 3."
+  "perspective.hintOff": "Perspective is off: draw in any direction. With straight lines on, each line runs straight from start to end; snap to axes levels it horizontally/vertically (hold Space to skip). Your setup is kept and comes back when you switch to 1, 2 or 3.",
+  "freeLine.straight": "Straight lines",
+  "freeLine.axisSnap": "Snap to axes"
 }

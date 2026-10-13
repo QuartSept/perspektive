@@ -16,6 +16,10 @@ export class BrushSettings implements StrokeStyle {
   smoothing = 0.35;
   /** Kalemle çizerken basınç kalınlığı etkilesin mi. */
   pressure = true;
+  /** Perspektif kapalıyken çizgi başlangıç → bitiş düz çizgiye indirgensin mi. */
+  straightLines = true;
+  /** Perspektifsiz düz çizgi yataya/dikeye yapışsın mı. */
+  axisSnap = true;
 
   private listeners = new Set<() => void>();
 
@@ -56,6 +60,18 @@ export class BrushSettings implements StrokeStyle {
     const next = clamp(Math.round(smoothing * 100) / 100, 0, 1);
     if (next === this.smoothing) return;
     this.smoothing = next;
+    this.emit();
+  }
+
+  setStraightLines(enabled: boolean): void {
+    if (enabled === this.straightLines) return;
+    this.straightLines = enabled;
+    this.emit();
+  }
+
+  setAxisSnap(enabled: boolean): void {
+    if (enabled === this.axisSnap) return;
+    this.axisSnap = enabled;
     this.emit();
   }
 

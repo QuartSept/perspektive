@@ -5,9 +5,14 @@ import type { History } from '../engine/history';
 import { lastPoint, newStrokeId, type Stroke } from '../engine/stroke';
 import type { Viewport } from '../engine/viewport';
 import {
+  AXIS_RELEASE_ANGLE,
+  AXIS_SNAP_ANGLE,
+  axisSource,
+  chooseLine,
   decideLine,
   distanceToLine,
   projectOnLine,
+  undirectedAngle,
   type SnapLine,
   type SnapSource,
 } from '../perspective/snapping';
@@ -25,6 +30,16 @@ const NEAR_POINT_PX = 10;
 /** Yumuşatma %100'deyken "ip" uzunluğu, ekran pikseli. */
 const SMOOTHING_MAX_PX = 14;
 
+/** Perspektifsiz modda düz çizgi davranışı. */
+export interface StraightLineSource {
+  /** Stroke başlangıcında: düz çizgi modu etkin mi (perspektif kapalı + ayar açık). */
+  isActive(): boolean;
+  /** Şu an eksene yapışma etkin mi (ayar açık, Space basılı değil). */
+  axisSnap(): boolean;
+}
+
+const axes = axisSource();
+
 export interface MagnetSource {
   /** Mıknatıs şu an etkin mi (kalıcı ayar + Space ile geçici serbest mod). */
   isActive(): boolean;
@@ -36,11 +51,13 @@ export interface MagnetSource {
  * Stroke aşamaları:
  *  deciding  ilk birkaç pikselde hareket yönü toplanır
  *  locked    stroke, seçilen perspektif doğrusuna izdüşürülür (düz çizgi)
+ *  straight  perspektifsiz düz çizgi: başlangıç → imleç; yataya/dikeye yapışabilir
  *  free      serbest çizim (mıknatıs kapalı, aday yok ya da yarıçap aşıldı)
  */
 type Phase =
   | { kind: 'deciding'; start: Point; candidates: SnapLine[] }
   | { kind: 'locked'; line: SnapLine; start: Point }
+  | { kind: 'straight'; start: Point; axis: SnapLine | null }
   | { kind: 'free' };
 
 /**
@@ -70,6 +87,7 @@ export class BrushTool implements Tool, ToolOverlay {
     /** Mıknatıs adayları (perspektif + ileride eksen, ızgara, şekil köşeleri). */
     private readonly snapSource: SnapSource,
     private readonly magnet: MagnetSource,
+    private readonly straight: StraightLineSource,
     private readonly onPreviewChange: () => void,
   ) {}
 
@@ -82,9 +100,11 @@ export class BrushTool implements Tool, ToolOverlay {
     return this.stroke;
   }
 
-  /** Kilitli olunan perspektif doğrusu (görsel geri bildirim için). */
+  /** Kilitli olunan perspektif doğrusu ya da yapışılan eksen (görsel geri bildirim için). */
   get snapLine(): SnapLine | null {
-    return this.phase.kind === 'locked' ? this.phase.line : null;
+    if (this.phase.kind === 'locked') return this.phase.line;
+    if (this.phase.kind === 'straight') return this.phase.axis;
+    return null;
   }
 
   deactivate(): void {
@@ -97,6 +117,13 @@ export class BrushTool implements Tool, ToolOverlay {
     this.stroke = { id: newStrokeId(), points: [start.x, start.y], style: this.settings.toStyle() };
     if (this.withPressure) this.stroke.pressures = [e.pressure];
     this.tip = start;
+    if (this.straight.isActive()) {
+      // Düz çizgi tek kalınlıkta: basınç kaydedilmez
+      delete this.stroke.pressures;
+      this.phase = { kind: 'straight', start, axis: null };
+      this.onPreviewChange();
+      return;
+    }
     const candidates = this.magnet.isActive()
       ? this.snapSource(start, NEAR_POINT_PX / this.viewport.scale)
       : [];
@@ -118,7 +145,7 @@ export class BrushTool implements Tool, ToolOverlay {
     const end: Sample = { ...e.world, pressure: e.pressure };
     this.handleSample(end);
     // İp gecikmesini kapat: serbest stroke imlecin bırakıldığı yerde biter
-    if (this.phase.kind !== 'locked') this.pushPoint(end);
+    if (this.phase.kind !== 'locked' && this.phase.kind !== 'straight') this.pushPoint(end);
     this.stroke = null;
     this.tip = null;
     this.phase = { kind: 'free' };
@@ -137,6 +164,11 @@ export class BrushTool implements Tool, ToolOverlay {
   private handleSample(p: Sample): void {
     const phase = this.phase;
     const scale = this.viewport.scale;
+
+    if (phase.kind === 'straight') {
+      this.setStraightEnd(phase, p);
+      return;
+    }
 
     if (phase.kind === 'deciding') {
       // Karar verilene dek ham örnekler önizlenir; kilitlenince düz çizgiyle değişir
@@ -189,6 +221,29 @@ export class BrushTool implements Tool, ToolOverlay {
     stroke.points.push(s.x, s.y, end.x, end.y);
     // Kilitli düz çizgi tek kalınlıkta
     delete stroke.pressures;
+  }
+
+  /**
+   * Perspektifsiz düz çizgi: stroke başlangıç ve imleçten oluşur. Eksene
+   * yapışma açıkken yataya/dikeye 4° içinde yaklaşınca tam eksene oturur;
+   * titremesin diye ancak 6°'yi aşınca bırakır.
+   */
+  private setStraightEnd(phase: { start: Point; axis: SnapLine | null }, p: Point): void {
+    const { start } = phase;
+    const dx = p.x - start.x;
+    const dy = p.y - start.y;
+    const len = Math.hypot(dx, dy);
+    if (!this.straight.axisSnap() || len < 1e-9) {
+      phase.axis = null;
+    } else {
+      const move = { x: dx / len, y: dy / len };
+      const keep = phase.axis && undirectedAngle(move, phase.axis.direction) <= AXIS_RELEASE_ANGLE;
+      if (!keep) phase.axis = chooseLine(axes(start, 0), start, p, AXIS_SNAP_ANGLE);
+    }
+    const end = phase.axis ? projectOnLine(phase.axis, p) : p;
+    const stroke = this.stroke!;
+    stroke.points.length = 0;
+    stroke.points.push(start.x, start.y, end.x, end.y);
   }
 
   /** Ham örneği ipten geçirip stroke'a ekler. */

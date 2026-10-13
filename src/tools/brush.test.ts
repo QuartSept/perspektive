@@ -17,6 +17,8 @@ let viewport: Viewport;
 let doc: DrawingDocument;
 let scene: PerspectiveScene;
 let magnetActive: boolean;
+let straightActive: boolean;
+let axisSnapOn: boolean;
 let brush: BrushTool;
 
 beforeEach(() => {
@@ -27,6 +29,8 @@ beforeEach(() => {
   const settings = new BrushSettings();
   settings.setSmoothing(0);
   magnetActive = true;
+  straightActive = false;
+  axisSnapOn = true;
   brush = new BrushTool(
     viewport,
     doc,
@@ -34,6 +38,7 @@ beforeEach(() => {
     settings,
     perspectiveSource(scene),
     { isActive: () => magnetActive, radius: 20 },
+    { isActive: () => straightActive, axisSnap: () => axisSnapOn },
     () => {},
   );
 });
@@ -135,5 +140,63 @@ describe('BrushTool snapping', () => {
     brush.onPointerMove(ev({ x: 545, y: 405 }));
     expect(brush.snapLine).not.toBeNull();
     brush.onPointerUp(ev({ x: 545, y: 405 }));
+  });
+});
+
+describe('perspektifsiz düz çizgi', () => {
+  beforeEach(() => {
+    straightActive = true;
+  });
+
+  const angled = (deg: number, len = 200): Point[] => {
+    const a = (deg * Math.PI) / 180;
+    // Titrek yol: sonuç yalnızca başlangıç ve bitişe bağlı olmalı
+    return Array.from({ length: 21 }, (_, i) => ({
+      x: 300 + Math.cos(a) * len * (i / 20) + (i % 2 ? 4 : -4) * (i > 0 && i < 20 ? 1 : 0),
+      y: 300 + Math.sin(a) * len * (i / 20) + (i % 3 ? 3 : -3) * (i > 0 && i < 20 ? 1 : 0),
+    }));
+  };
+
+  it('fare yolundan bağımsız: başlangıç → bitiş düz, iki nokta', () => {
+    const s = draw(angled(30));
+    expect(s.points).toHaveLength(4);
+    expect(s.points[0]).toBe(300);
+    expect(s.points[1]).toBe(300);
+    expect(s.points[2]).toBeCloseTo(300 + Math.cos(Math.PI / 6) * 200);
+    expect(s.points[3]).toBeCloseTo(300 + Math.sin(Math.PI / 6) * 200);
+  });
+
+  it('yataya 3° yakın çizgi tam yatay, dikeye 3° yakın tam dikey olur', () => {
+    const h = draw(angled(3));
+    expect(h.points[3]).toBe(h.points[1]);
+    const v = draw(angled(87));
+    expect(v.points[2]).toBe(v.points[0]);
+  });
+
+  it('8° eğik çizgi eksene yapışmaz; eksene yapış kapalıyken 3° da yapışmaz', () => {
+    const s = draw(angled(8));
+    expect(s.points[3]).not.toBeCloseTo(s.points[1], 3);
+    axisSnapOn = false;
+    const t = draw(angled(3));
+    expect(t.points[3]).not.toBeCloseTo(t.points[1], 3);
+  });
+
+  it('yapıştıktan sonra 5°’ye kadar bırakmaz (titreşme yok), 7°’de bırakır', () => {
+    brush.onPointerDown(ev({ x: 0, y: 0 }));
+    brush.onPointerMove(ev({ x: 100, y: 3 })); // ~1.7°: yapışır
+    expect(brush.snapLine?.kind).toBe('horizontal');
+    const at = (deg: number) => ({ x: 100, y: 100 * Math.tan((deg * Math.PI) / 180) });
+    brush.onPointerMove(ev(at(5)));
+    expect(brush.snapLine?.kind).toBe('horizontal');
+    brush.onPointerMove(ev(at(7)));
+    expect(brush.snapLine).toBeNull();
+    brush.onPointerUp(ev(at(7)));
+  });
+
+  it('düz çizgi kapalıyken (ya da perspektifli modda) eski davranış: serbest çizim', () => {
+    straightActive = false;
+    magnetActive = false;
+    const s = draw(angled(30));
+    expect(s.points.length).toBeGreaterThan(4);
   });
 });

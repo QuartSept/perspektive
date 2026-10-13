@@ -10,6 +10,7 @@ Hesap ve sunucu yoktur; her şey tarayıcınızda kalır.
 ## Özellikler
 
 - 1, 2 ve 3 nokta perspektif (3 noktada dikey kaçış noktası: kuşbakışı / solucan bakışı); kaçış noktaları kâğıt dışına da konabilir
+- Perspektif kapatılabilir: her yöne düz çizgi (başlangıç → bitiş), yatay/dikeye yapışma; kurgu saklanır
 - Hayalet ışınlar (12–72), imleç yaklaştıkça ilgili noktanın ışınları belirginleşir
 - Ufuk 2 noktada varsayılan olarak kilitli, istenirse serbest bırakılır
 - Mıknatıs: çizgi kaçış noktasına, dikeye (1 noktada yataya da) kilitlenir; `Space` ile geçici serbest çizim

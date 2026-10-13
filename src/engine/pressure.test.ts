@@ -35,7 +35,7 @@ describe('fırça basıncı', () => {
     const settings = new BrushSettings();
     settings.setSmoothing(0);
     settings.setPressure(pressureOn);
-    const brush = new BrushTool(viewport, doc, new History(), settings, perspectiveSource(scene), { isActive: () => false, radius: 20 }, () => {});
+    const brush = new BrushTool(viewport, doc, new History(), settings, perspectiveSource(scene), { isActive: () => false, radius: 20 }, { isActive: () => false, axisSnap: () => false }, () => {});
     const ev = (x: number, y: number, pressure: number): ToolPointerEvent => ({
       screen: { x, y },
       world: { x, y },

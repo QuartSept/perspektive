@@ -9,7 +9,15 @@ const KEY = 'perspektif.prefs.v1';
 
 /** Çizimden bağımsız kullanıcı tercihleri (localStorage). */
 interface Prefs {
-  brush?: { width?: number; opacity?: number; ink?: string; smoothing?: number; pressure?: boolean };
+  brush?: {
+    width?: number;
+    opacity?: number;
+    ink?: string;
+    smoothing?: number;
+    pressure?: boolean;
+    straightLines?: boolean;
+    axisSnap?: boolean;
+  };
   snap?: { enabled?: boolean; radius?: number };
   eraser?: { kind?: string; radius?: number };
   guidesVisible?: boolean;
@@ -44,6 +52,8 @@ export function loadPrefs(t: PrefsTargets): void {
   if (num(b.opacity)) t.brush.setOpacity(b.opacity);
   if (num(b.smoothing)) t.brush.setSmoothing(b.smoothing);
   if (typeof b.pressure === 'boolean') t.brush.setPressure(b.pressure);
+  if (typeof b.straightLines === 'boolean') t.brush.setStraightLines(b.straightLines);
+  if (typeof b.axisSnap === 'boolean') t.brush.setAxisSnap(b.axisSnap);
   if (INK_IDS.includes(b.ink as InkId)) t.brush.setInk(b.ink as InkId);
   const s = prefs.snap ?? {};
   if (typeof s.enabled === 'boolean') t.snap.setEnabled(s.enabled);
@@ -67,6 +77,8 @@ export function savePrefs(t: PrefsTargets): void {
       ink: t.brush.ink,
       smoothing: t.brush.smoothing,
       pressure: t.brush.pressure,
+      straightLines: t.brush.straightLines,
+      axisSnap: t.brush.axisSnap,
     },
     snap: { enabled: t.snap.enabled, radius: t.snap.radius },
     eraser: { kind: t.eraser.kind, radius: t.eraser.radius },

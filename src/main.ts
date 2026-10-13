@@ -93,6 +93,10 @@ const brush = new BrushTool(
       return snapSettings.radius;
     },
   },
+  {
+    isActive: () => scene.mode === 0 && brushSettings.straightLines,
+    axisSnap: () => brushSettings.axisSnap && !state.temporaryFree,
+  },
   () => renderer.requestRender('interaction'),
 );
 const eraserSettings = new EraserSettings();
@@ -131,6 +135,8 @@ const eraserPanel = new EraserPanel(document.getElementById('eraser-panel')!, er
 const brushPanel = new BrushPanel(document.getElementById('brush-panel')!, brushSettings, snapSettings);
 
 const panel = new PerspectivePanel(panelEl, {
+  onStraightLinesChange: (enabled) => brushSettings.setStraightLines(enabled),
+  onAxisSnapChange: (enabled) => brushSettings.setAxisSnap(enabled),
   onModeChange: changeMode,
   onHorizonFreeChange: (free) => editScene(history, scene, () => scene.setHorizonLocked(!free)),
   onRayCountChange: (count) => scene.setRayCount(count),
@@ -409,6 +415,8 @@ function redo(): void {
 function updatePanel(): void {
   panel.update({
     scene,
+    straightLines: brushSettings.straightLines,
+    axisSnap: brushSettings.axisSnap,
     guidesVisible: state.guidesVisible,
     hasSelection: state.selectedPointId !== null,
     pointToolActive: input.activeTool === tools.point,
@@ -540,6 +548,7 @@ function schedulePrefsSave(): void {
   prefsTimer = window.setTimeout(() => savePrefs(prefsTargets), 300);
 }
 brushSettings.onChange(schedulePrefsSave);
+brushSettings.onChange(updatePanel);
 onLanguageChange(() => {
   toolbar.refreshLanguage();
   brushPanel.update();

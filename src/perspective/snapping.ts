@@ -20,6 +20,9 @@ export interface SnapLine {
 export const SNAP_MAX_ANGLE = (25 * Math.PI) / 180;
 /** En iyi iki aday bundan yakınsa karar ertelenir (daha uzun hareket beklenir). */
 export const SNAP_AMBIGUITY_ANGLE = (4 * Math.PI) / 180;
+/** Perspektifsiz düz çizgide eksene yapışma açısı ve (titreşmesin diye) bırakma açısı. */
+export const AXIS_SNAP_ANGLE = (4 * Math.PI) / 180;
+export const AXIS_RELEASE_ANGLE = (6 * Math.PI) / 180;
 /** Bundan az farklı iki aday aynı doğru sayılır (ör. ufuk üzerindeki iki ışın). */
 const SAME_LINE_ANGLE = (1 * Math.PI) / 180;
 
@@ -85,6 +88,14 @@ export function perspectiveSource(scene: PerspectiveScene): SnapSource {
   return (start, nearPointRadius) => candidateLines(scene, start, nearPointRadius);
 }
 
+/** Başlangıçtan geçen tam yatay ve tam dikey (perspektifsiz mod için eksen adayları). */
+export function axisSource(): SnapSource {
+  return (start) => [
+    { origin: start, direction: { x: 1, y: 0 }, kind: 'horizontal' },
+    { origin: start, direction: { x: 0, y: 1 }, kind: 'vertical' },
+  ];
+}
+
 /** Kaynakları sırayla birleştirir (sıra, eşit açıda öncelik belirler). */
 export function combineSources(...sources: SnapSource[]): SnapSource {
   return (start, nearPointRadius) => sources.flatMap((source) => source(start, nearPointRadius));
@@ -135,10 +146,11 @@ export function decideLine(
   start: Point,
   current: Point,
   final: boolean,
+  maxAngle = SNAP_MAX_ANGLE,
 ): SnapDecision {
   const ranked = rankLines(candidates, start, current);
   const best = ranked[0];
-  if (!best || best.angle > SNAP_MAX_ANGLE) return { kind: 'none' };
+  if (!best || best.angle > maxAngle) return { kind: 'none' };
   const second = ranked[1];
   if (
     !final &&
@@ -152,8 +164,13 @@ export function decideLine(
 }
 
 /** Hareket yönüne en uygun aday; hiçbiri yeterince yakın değilse null. */
-export function chooseLine(candidates: SnapLine[], start: Point, current: Point): SnapLine | null {
-  const decision = decideLine(candidates, start, current, true);
+export function chooseLine(
+  candidates: SnapLine[],
+  start: Point,
+  current: Point,
+  maxAngle = SNAP_MAX_ANGLE,
+): SnapLine | null {
+  const decision = decideLine(candidates, start, current, true, maxAngle);
   return decision.kind === 'lock' ? decision.line : null;
 }
 

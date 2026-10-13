@@ -178,5 +178,7 @@
   "perspective.oneShort": "1",
   "perspective.twoShort": "2",
   "perspective.threeShort": "3",
-  "perspective.hintOff": "Perspektif kapalı: kaçış noktası ve ışın yok. Kurgunuz saklanır; 1, 2 ya da 3'e geçince geri gelir."
+  "perspective.hintOff": "Perspektif kapalı: her yöne çizebilirsiniz. Düz çizgi açıkken başlangıçla bitiş arası düz olur; eksene yapış yatay/dikeye oturtur (Space ile geçici kapanır). Kurgunuz saklanır; 1, 2 ya da 3'e geçince geri gelir.",
+  "freeLine.straight": "Düz çizgi",
+  "freeLine.axisSnap": "Eksene yapış"
 }

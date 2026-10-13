@@ -8,6 +8,8 @@ import {
 } from '../perspective/scene';
 
 export interface PerspectivePanelHandlers {
+  onStraightLinesChange(enabled: boolean): void;
+  onAxisSnapChange(enabled: boolean): void;
   onModeChange(mode: PerspectiveMode): void;
   onHorizonFreeChange(free: boolean): void;
   onRayCountChange(count: number): void;
@@ -17,6 +19,8 @@ export interface PerspectivePanelHandlers {
 
 export interface PerspectivePanelView {
   scene: PerspectiveScene;
+  straightLines: boolean;
+  axisSnap: boolean;
   guidesVisible: boolean;
   hasSelection: boolean;
   pointToolActive: boolean;
@@ -31,6 +35,9 @@ export class PerspectivePanel {
   private readonly guidesVisible: HTMLInputElement;
   private readonly deleteButton: HTMLButtonElement;
   private readonly hint: HTMLElement;
+  private readonly freeLineOptions: HTMLElement;
+  private readonly straightLines: HTMLInputElement;
+  private readonly axisSnap: HTMLInputElement;
 
   constructor(root: HTMLElement, handlers: PerspectivePanelHandlers) {
     this.modeButtons = [...root.querySelectorAll<HTMLButtonElement>('[data-mode]')];
@@ -40,6 +47,13 @@ export class PerspectivePanel {
     this.guidesVisible = root.querySelector('#guides-visible')!;
     this.deleteButton = root.querySelector('#delete-point')!;
     this.hint = root.querySelector('#perspective-hint')!;
+    this.freeLineOptions = root.querySelector('#free-line-options')!;
+    this.straightLines = root.querySelector('#straight-lines')!;
+    this.axisSnap = root.querySelector('#axis-snap')!;
+    this.straightLines.addEventListener('change', () => {
+      handlers.onStraightLinesChange(this.straightLines.checked);
+    });
+    this.axisSnap.addEventListener('change', () => handlers.onAxisSnapChange(this.axisSnap.checked));
 
     this.rayCount.min = String(RAY_COUNT_MIN);
     this.rayCount.max = String(RAY_COUNT_MAX);
@@ -87,6 +101,13 @@ export class PerspectivePanel {
     this.horizonFree.checked = lockApplies && !scene.horizonLocked;
     this.horizonFree.closest('.switch')?.classList.toggle('is-disabled', !lockApplies);
     this.rayCount.disabled = scene.mode === 0;
+
+    // Perspektifsiz çizim seçenekleri yalnızca kapalı modda
+    this.freeLineOptions.hidden = scene.mode !== 0;
+    this.straightLines.checked = view.straightLines;
+    this.axisSnap.checked = view.axisSnap;
+    this.axisSnap.disabled = !view.straightLines;
+    this.axisSnap.closest('.switch')?.classList.toggle('is-disabled', !view.straightLines);
 
     const count = String(scene.rayCount);
     if (this.rayCount.value !== count) this.rayCount.value = count;
