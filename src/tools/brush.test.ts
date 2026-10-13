@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { DrawingDocument } from '../engine/document';
 import type { Point } from '../engine/geometry';
+import { gridSource, PaperGrid } from '../engine/grid';
 import { History } from '../engine/history';
 import { Viewport } from '../engine/viewport';
 import { PerspectiveScene } from '../perspective/scene';
-import { distanceToLine, perspectiveSource } from '../perspective/snapping';
+import { combineSources, distanceToLine, perspectiveSource } from '../perspective/snapping';
 import { BrushTool } from './brush';
 import { BrushSettings } from './brush-settings';
 import type { ToolPointerEvent } from './tool';
@@ -19,6 +20,8 @@ let scene: PerspectiveScene;
 let magnetActive: boolean;
 let straightActive: boolean;
 let axisSnapOn: boolean;
+let grid: PaperGrid;
+let gridSpaceHeld: boolean;
 let brush: BrushTool;
 
 beforeEach(() => {
@@ -31,14 +34,22 @@ beforeEach(() => {
   magnetActive = true;
   straightActive = false;
   axisSnapOn = true;
+  grid = new PaperGrid();
+  gridSpaceHeld = false;
   brush = new BrushTool(
     viewport,
     doc,
     new History(),
     settings,
-    perspectiveSource(scene),
+    combineSources(perspectiveSource(scene), gridSource(grid)),
     { isActive: () => magnetActive, radius: 20 },
     { isActive: () => straightActive, axisSnap: () => axisSnapOn },
+    {
+      isActive: () => grid.snap && !gridSpaceHeld,
+      get spacing() {
+        return grid.spacing;
+      },
+    },
     () => {},
   );
 });
@@ -198,5 +209,71 @@ describe('perspektifsiz düz çizgi', () => {
     magnetActive = false;
     const s = draw(angled(30));
     expect(s.points.length).toBeGreaterThan(4);
+  });
+});
+
+describe('ızgaraya yapış', () => {
+  // 10 mm ≈ 37.8 dünya birimi; görünüm ölçeği 1 (ekran = dünya)
+  const g = () => grid.spacing;
+
+  beforeEach(() => {
+    grid.setSnap(true);
+  });
+
+  it('düz çizginin iki ucu da yakın ızgara düğümüne oturur', () => {
+    straightActive = true;
+    axisSnapOn = false;
+    const s = draw([
+      { x: g() + 3, y: g() - 2 },
+      { x: 3 * g(), y: 1.5 * g() },
+      { x: 5 * g() + 4, y: 2 * g() + 5 },
+    ]);
+    expect(s.points[0]).toBeCloseTo(g());
+    expect(s.points[1]).toBeCloseTo(g());
+    expect(s.points[2]).toBeCloseTo(5 * g());
+    expect(s.points[3]).toBeCloseTo(2 * g());
+  });
+
+  it('eksene yapışan düz çizginin ucu ızgara çizgisinde biter', () => {
+    straightActive = true;
+    const s = draw([
+      { x: g() + 2, y: g() + 1 },
+      { x: 4 * g() + 5, y: g() + 3 },
+    ]);
+    expect(s.points[1]).toBeCloseTo(g());
+    expect(s.points[3]).toBeCloseTo(g());
+    expect(s.points[2]).toBeCloseTo(4 * g());
+  });
+
+  it('eşikten uzak uç ve Space basılıyken yapışma olmaz', () => {
+    straightActive = true;
+    axisSnapOn = false;
+    const far = { x: 5 * g() + 15, y: 2 * g() + 15 };
+    const s = draw([{ x: g(), y: g() }, far]);
+    expect(s.points[2]).toBeCloseTo(far.x);
+    expect(s.points[3]).toBeCloseTo(far.y);
+    gridSpaceHeld = true;
+    const t = draw([{ x: g() + 3, y: g() + 3 }, { x: 4 * g() + 3, y: 2 * g() + 3 }]);
+    expect(t.points[0]).toBeCloseTo(g() + 3);
+  });
+
+  it('perspektifte ızgara çizgisi mıknatıs adayı olur: yatay çizgi kilitlenir, ucu çizgide biter', () => {
+    // 2 noktada yatay aday yok; burada ışınlar ~32° ve ~48° uzakta, yatay hareket kilitlenmezdi
+    const start = { x: 10 * g() + 2, y: 20 * g() + 1 };
+    const s = draw(wobblyPath(start, { x: 20 * g(), y: start.y }, 12, 15, 1.5));
+    expect(s.points).toHaveLength(4);
+    expect(s.points[0]).toBeCloseTo(10 * g());
+    expect(s.points[1]).toBeCloseTo(20 * g());
+    expect(s.points[3]).toBeCloseTo(20 * g());
+    const endX = s.points[2] / g();
+    expect(endX).toBeCloseTo(Math.round(endX));
+  });
+
+  it('serbest stroke başlangıcı ızgaraya kaydırılmaz', () => {
+    magnetActive = false;
+    const start = { x: g() + 3, y: g() + 3 };
+    const s = draw(wobblyPath(start, { x: 300, y: 500 }, 10, 15, 4));
+    expect(s.points[0]).toBeCloseTo(start.x);
+    expect(s.points[1]).toBeCloseTo(start.y);
   });
 });

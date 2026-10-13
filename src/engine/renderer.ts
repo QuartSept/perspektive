@@ -1,6 +1,7 @@
 import type { DrawingDocument } from './document';
 import type { LayerName, LayerStack } from './layers';
 import type { Paper } from './paper';
+import { drawGrid, gridFade, type PaperGrid } from './grid';
 import { fitImage, type ReferenceImage } from './reference';
 import type { EditorState } from './state';
 import { drawStroke } from './stroke';
@@ -26,6 +27,8 @@ export class Renderer {
   private frame = 0;
   /** Kâğıt katmanında, kâğıdın üstünde çizilen referans görsel. */
   reference: ReferenceImage | null = null;
+  /** Kâğıt katmanında, referans görselin üstünde çizilen kâğıt ızgarası. */
+  grid: PaperGrid | null = null;
 
   constructor(
     private readonly layers: LayerStack,
@@ -98,6 +101,20 @@ export class Renderer {
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(ref.bitmap, r.x, r.y, r.width, r.height);
       ctx.restore();
+    }
+
+    const grid = this.grid;
+    if (grid?.visible) {
+      const scale = this.viewport.scale;
+      drawGrid(
+        ctx,
+        this.paper.rect,
+        grid.spacing,
+        t.grid,
+        1 / scale,
+        gridFade(grid.spacing * scale),
+        this.viewport.visibleWorldRect(),
+      );
     }
 
     ctx.strokeStyle = t.paperBorder;

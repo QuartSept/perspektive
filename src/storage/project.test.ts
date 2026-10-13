@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DrawingDocument } from '../engine/document';
+import { PaperGrid } from '../engine/grid';
 import { History } from '../engine/history';
 import { Paper } from '../engine/paper';
 import { PerspectiveScene } from '../perspective/scene';
@@ -10,7 +11,8 @@ function sources() {
   const scene = new PerspectiveScene();
   scene.reset(paper.rect);
   const doc = new DrawingDocument();
-  return { paper, scene, doc };
+  const grid = new PaperGrid();
+  return { paper, scene, doc, grid };
 }
 
 describe('proje dosyası', () => {
@@ -22,6 +24,9 @@ describe('proje dosyası', () => {
     a.doc.replaceAll([
       { id: 's1', points: [1, 2, 3, 4], style: { width: 3, opacity: 0.5, ink: 'blue' } },
     ]);
+    a.grid.setVisible(true);
+    a.grid.setSnap(true);
+    a.grid.setSpacing(5);
     const text = serializeProject(a);
     expect(JSON.parse(text).app).toBe('perspektif');
 
@@ -30,6 +35,7 @@ describe('proje dosyası', () => {
     expect(parsed.scene.rayCount).toBe(40);
     expect(parsed.scene.horizonLocked).toBe(false);
     expect(parsed.strokes).toEqual(a.doc.strokes);
+    expect(parsed.grid).toEqual({ visible: true, snap: true, spacingMm: 5 });
   });
 
   it('JSON olmayan, başka uygulamaya ait ya da bozuk dosyayı reddeder', () => {
@@ -49,6 +55,7 @@ describe('proje dosyası', () => {
     other.doc.replaceAll([
       { id: 'new', points: [5, 5, 6, 6], style: { width: 2, opacity: 1, ink: 'red' } },
     ]);
+    other.grid.setVisible(true);
     const loaded = parseProject(serializeProject(other))!;
 
     const history = new History();
@@ -56,10 +63,12 @@ describe('proje dosyası', () => {
     history.execute(new LoadDrawingCommand(target, loaded, () => changed++));
     expect(target.doc.strokes.map((s) => s.id)).toEqual(['new']);
     expect(target.paper.orientation).toBe('landscape');
+    expect(target.grid.visible).toBe(true);
 
     history.undo();
     expect(target.doc.strokes.map((s) => s.id)).toEqual(['old']);
     expect(target.paper.orientation).toBe('portrait');
+    expect(target.grid.visible).toBe(false);
     expect(changed).toBe(2);
   });
 });

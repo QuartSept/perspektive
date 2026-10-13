@@ -20,6 +20,7 @@ const theme: SvgTheme = {
   horizon: 'rgba(194, 85, 61, 0.5)',
   markerFill: '#fdfcf8',
   printGuideOpacity: 0.35,
+  grid: 'rgba(43, 42, 39, 0.18)',
 };
 
 const paper = { width: 210 * PX_PER_MM, height: 297 * PX_PER_MM };
@@ -65,6 +66,20 @@ describe('buildSvg', () => {
 
     const plain = buildSvg({ paper, strokes, scene: s, theme }, false);
     expect(plain).not.toContain('id="guides"');
+  });
+
+  it('görünür ızgara kılavuzlu çıktıda iç çizgiler olarak yazılır', () => {
+    const spacing = 10 * PX_PER_MM;
+    const withGrid = buildSvg({ paper, strokes, scene: scene(), theme, gridSpacing: spacing }, true);
+    const d = withGrid.match(/<path id="grid" d="([^"]+)"/)![1];
+    // A4 (210×297 mm), 10 mm: 20 dikey + 29 yatay iç çizgi
+    expect(count(d, /V/g)).toBe(20);
+    expect(count(d, /H/g)).toBe(29);
+    expect(withGrid).toContain('stroke="rgb(43, 42, 39)" stroke-width="0.75" opacity="0.18"');
+
+    const noGuides = buildSvg({ paper, strokes, scene: scene(), theme, gridSpacing: spacing }, false);
+    expect(noGuides).not.toContain('id="grid"');
+    expect(buildSvg({ paper, strokes, scene: scene(), theme }, true)).not.toContain('id="grid"');
   });
 });
 

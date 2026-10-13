@@ -1,9 +1,6 @@
-import type { DrawingDocument } from '../engine/document';
-import type { Paper } from '../engine/paper';
-import type { PerspectiveScene } from '../perspective/scene';
 import { newestDrawing, parseSavedDrawing, type SavedDrawing } from './format';
 import { idbGet, idbPut } from './idb';
-import { buildSavedDrawing } from './project';
+import { buildSavedDrawing, type DrawingSources } from './project';
 
 const KEY = 'current';
 /** IndexedDB yoksa ya da yazma başarısızsa yedek. */
@@ -14,11 +11,7 @@ const RETRY_MS = 5000;
 
 export type SaveStatus = 'idle' | 'pending' | 'saving' | 'saved' | 'error';
 
-export interface AutosaveSources {
-  doc: DrawingDocument;
-  scene: PerspectiveScene;
-  paper: Paper;
-}
+export type AutosaveSources = DrawingSources;
 
 /**
  * Çizimi otomatik kaydeder: her değişiklikte kısa bir gecikmeyle,

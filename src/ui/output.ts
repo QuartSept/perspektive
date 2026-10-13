@@ -53,7 +53,13 @@ export async function downloadPng(src: PageSources, options: OutputOptions): Pro
 /** Kâğıt alanını gerçek ölçekli SVG olarak indirir. */
 export function downloadSvg(src: PageSources, options: OutputOptions): void {
   const svg = buildSvg(
-    { paper: src.paper, strokes: src.doc.strokes, scene: src.scene, theme: toPrintTheme(src.theme) },
+    {
+      paper: src.paper,
+      strokes: src.doc.strokes,
+      scene: src.scene,
+      theme: toPrintTheme(src.theme),
+      gridSpacing: src.grid?.visible ? src.grid.spacing : null,
+    },
     options.includeGuides,
   );
   downloadBlob(new Blob([svg], { type: 'image/svg+xml' }), `perspektif-${timestamp()}.svg`);

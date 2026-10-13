@@ -14,6 +14,7 @@ import { ReferenceImage } from './engine/reference';
 import { Paper, type Orientation, type PaperKind } from './engine/paper';
 import { Renderer } from './engine/renderer';
 import { EditorState } from './engine/state';
+import { gridSource, PaperGrid } from './engine/grid';
 import { readCanvasTheme } from './engine/theme';
 import { Viewport, type Padding } from './engine/viewport';
 import { editScene } from './perspective/commands';
@@ -38,6 +39,7 @@ import {
 import { TemplatesDialog } from './ui/templates-dialog';
 import { ConfirmDialog } from './ui/confirm-dialog';
 import { GridDialog } from './ui/grid-dialog';
+import { PaperGridPanel } from './ui/paper-grid-panel';
 import { ReferencePanel } from './ui/reference-panel';
 import { ReferenceStore } from './storage/reference-store';
 import { loadPrefs, savePrefs, type PrefsTargets } from './storage/prefs';
@@ -78,15 +80,20 @@ const doc = new DrawingDocument();
 const history = new History();
 const brushSettings = new BrushSettings();
 const snapSettings = new SnapSettings();
+const paperGrid = new PaperGrid();
 const input = new InputController(stage, viewport);
 
+const gridLineSource = gridSource(paperGrid);
 const brush = new BrushTool(
   viewport,
   doc,
   history,
   brushSettings,
-  // Aday kaynakları: sonraki aşamalarda eksen, ızgara ve şekil köşeleri eklenir
-  combineSources(perspectiveSource(scene)),
+  // Aday kaynakları: sonraki aşamalarda şekil köşe çizgileri eklenir. Perspektif
+  // kapalıyken ızgara yalnızca düz çizgilere uygulanır; serbest çizim kilitlenmez.
+  combineSources(perspectiveSource(scene), (start, near) =>
+    scene.mode === 0 ? [] : gridLineSource(start, near),
+  ),
   {
     isActive: () => snapSettings.enabled && !state.temporaryFree,
     get radius() {
@@ -96,6 +103,12 @@ const brush = new BrushTool(
   {
     isActive: () => scene.mode === 0 && brushSettings.straightLines,
     axisSnap: () => brushSettings.axisSnap && !state.temporaryFree,
+  },
+  {
+    isActive: () => paperGrid.snap && !state.temporaryFree,
+    get spacing() {
+      return paperGrid.spacing;
+    },
   },
   () => renderer.requestRender('interaction'),
 );
@@ -180,6 +193,7 @@ const pageSources = {
   paper,
   doc,
   scene,
+  grid: paperGrid,
   get theme() {
     return renderer.theme;
   },
@@ -222,7 +236,7 @@ async function confirmReplace(message: string): Promise<boolean> {
 const projectDialog = document.getElementById('project-dialog') as HTMLDialogElement;
 const projectError = document.getElementById('project-error')!;
 const projectFile = document.getElementById('project-file') as HTMLInputElement;
-const drawingSources = { doc, scene, paper };
+const drawingSources = { doc, scene, paper, grid: paperGrid };
 
 projectDialog.addEventListener('click', (e) => {
   if (e.target === projectDialog) projectDialog.close();
@@ -357,6 +371,7 @@ document.getElementById('open-grid')!.addEventListener('click', () => {
 
 const reference = new ReferenceImage();
 renderer.reference = reference;
+renderer.grid = paperGrid;
 reference.onChange(() => renderer.requestRender('paper'));
 const referenceStore = new ReferenceStore(reference);
 
@@ -530,7 +545,14 @@ viewport.onChange(() => {
   renderer.requestRender();
 });
 
-const autosave = new Autosave({ doc, scene, paper }, (status) => toolbar.setSaveStatus(status));
+const autosave = new Autosave(drawingSources, (status) => toolbar.setSaveStatus(status));
+
+new PaperGridPanel(document.getElementById('paper-grid-panel')!, paperGrid);
+// Izgara ayarı çizimle birlikte kaydedilir (geri al geçmişine girmez)
+paperGrid.onChange(() => {
+  renderer.requestRender('paper');
+  autosave.markDirty();
+});
 
 const prefsTargets: PrefsTargets = {
   brush: brushSettings,
@@ -650,6 +672,13 @@ window.addEventListener('blur', () => state.update({ temporaryFree: false }));
 window.addEventListener('keydown', (e) => {
   // Diyalog açıkken kısayollar kapalı (Esc diyaloğu kapatır)
   if (isTextEntry(e.target) || dialogOpen()) return;
+
+  // `#` bazı klavyelerde AltGr (Ctrl+Alt) ile yazılır: değiştirici denetiminden önce
+  if (e.key === '#' && !e.metaKey) {
+    paperGrid.setVisible(!paperGrid.visible);
+    e.preventDefault();
+    return;
+  }
 
   if ((e.ctrlKey || e.metaKey) && !e.altKey) {
     const key = e.key.toLowerCase();

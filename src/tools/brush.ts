@@ -1,6 +1,7 @@
 import { addStrokeCommand } from '../engine/commands';
 import type { DrawingDocument } from '../engine/document';
 import type { Point } from '../engine/geometry';
+import { GRID_SNAP_PX, snapAlongLine, snapToGrid } from '../engine/grid';
 import type { History } from '../engine/history';
 import { lastPoint, newStrokeId, type Stroke } from '../engine/stroke';
 import type { Viewport } from '../engine/viewport';
@@ -39,6 +40,14 @@ export interface StraightLineSource {
 }
 
 const axes = axisSource();
+
+/** Kâğıt ızgarasına yapışma (görünmez cetvel). */
+export interface GridSnapper {
+  /** Şu an ızgaraya yapışma etkin mi (ayar açık, Space basılı değil). */
+  isActive(): boolean;
+  /** Izgara aralığı, dünya birimi. */
+  readonly spacing: number;
+}
 
 export interface MagnetSource {
   /** Mıknatıs şu an etkin mi (kalıcı ayar + Space ile geçici serbest mod). */
@@ -88,6 +97,7 @@ export class BrushTool implements Tool, ToolOverlay {
     private readonly snapSource: SnapSource,
     private readonly magnet: MagnetSource,
     private readonly straight: StraightLineSource,
+    private readonly grid: GridSnapper,
     private readonly onPreviewChange: () => void,
   ) {}
 
@@ -112,21 +122,27 @@ export class BrushTool implements Tool, ToolOverlay {
   }
 
   onPointerDown(e: ToolPointerEvent): void {
-    const start = e.world;
+    // Düz çizgiler ızgara düğümünden/çizgisinden başlar; serbest stroke kendi noktasından
+    const snapped = this.grid.isActive()
+      ? snapToGrid(e.world, this.grid.spacing, this.gridTolerance).point
+      : e.world;
+    const straight = this.straight.isActive();
+    const candidates =
+      !straight && this.magnet.isActive()
+        ? this.snapSource(snapped, NEAR_POINT_PX / this.viewport.scale)
+        : [];
+    const start = straight || candidates.length ? snapped : e.world;
     this.withPressure = this.settings.pressure && e.pointerType === 'pen';
     this.stroke = { id: newStrokeId(), points: [start.x, start.y], style: this.settings.toStyle() };
     if (this.withPressure) this.stroke.pressures = [e.pressure];
     this.tip = start;
-    if (this.straight.isActive()) {
+    if (straight) {
       // Düz çizgi tek kalınlıkta: basınç kaydedilmez
       delete this.stroke.pressures;
       this.phase = { kind: 'straight', start, axis: null };
       this.onPreviewChange();
       return;
     }
-    const candidates = this.magnet.isActive()
-      ? this.snapSource(start, NEAR_POINT_PX / this.viewport.scale)
-      : [];
     this.phase = candidates.length
       ? { kind: 'deciding', start, candidates }
       : { kind: 'free' };
@@ -159,6 +175,19 @@ export class BrushTool implements Tool, ToolOverlay {
     this.tip = null;
     this.phase = { kind: 'free' };
     this.onPreviewChange();
+  }
+
+  /** Izgara yapışma eşiği, dünya biriminde. */
+  private get gridTolerance(): number {
+    return GRID_SNAP_PX / this.viewport.scale;
+  }
+
+  /** Doğru üzerindeki uç: ızgara açıksa doğrunun ızgara çizgisini kestiği yere oturur. */
+  private endOnLine(line: SnapLine, p: Point): Point {
+    const onGrid = this.grid.isActive()
+      ? snapAlongLine(line, p, this.grid.spacing, this.gridTolerance)
+      : null;
+    return onGrid ?? projectOnLine(line, p);
   }
 
   private handleSample(p: Sample): void {
@@ -216,7 +245,7 @@ export class BrushTool implements Tool, ToolOverlay {
   private setLockedEnd(line: SnapLine, start: Point, p: Point): void {
     const stroke = this.stroke!;
     const s = projectOnLine(line, start);
-    const end = projectOnLine(line, p);
+    const end = this.endOnLine(line, p);
     stroke.points.length = 0;
     stroke.points.push(s.x, s.y, end.x, end.y);
     // Kilitli düz çizgi tek kalınlıkta
@@ -240,7 +269,10 @@ export class BrushTool implements Tool, ToolOverlay {
       const keep = phase.axis && undirectedAngle(move, phase.axis.direction) <= AXIS_RELEASE_ANGLE;
       if (!keep) phase.axis = chooseLine(axes(start, 0), start, p, AXIS_SNAP_ANGLE);
     }
-    const end = phase.axis ? projectOnLine(phase.axis, p) : p;
+    let end: Point;
+    if (phase.axis) end = this.endOnLine(phase.axis, p);
+    else if (this.grid.isActive()) end = snapToGrid(p, this.grid.spacing, this.gridTolerance).point;
+    else end = p;
     const stroke = this.stroke!;
     stroke.points.length = 0;
     stroke.points.push(start.x, start.y, end.x, end.y);

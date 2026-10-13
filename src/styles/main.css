@@ -4,6 +4,11 @@
   box-sizing: border-box;
 }
 
+/* `display` veren sınıflar (ör. .panel) `hidden` özniteliğini ezmesin */
+[hidden] {
+  display: none !important;
+}
+
 html,
 body {
   margin: 0;

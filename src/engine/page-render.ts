@@ -1,4 +1,5 @@
 import type { DrawingDocument } from './document';
+import { drawGrid } from './grid';
 import type { Paper } from './paper';
 import { EditorState } from './state';
 import { drawStroke } from './stroke';
@@ -6,6 +7,9 @@ import { toPrintTheme, type CanvasTheme } from './theme';
 import { Viewport } from './viewport';
 import { drawGuides, drawMarkers } from '../perspective/guide-renderer';
 import type { PerspectiveScene } from '../perspective/scene';
+
+/** Çıktıda ızgara çizgi kalınlığı, dünya birimi (≈0,2 mm). */
+export const PRINT_GRID_WIDTH = 0.75;
 
 /** Çok büyük kâğıtlarda (ekran boyu) tarayıcı canvas sınırını aşmamak için. */
 const MAX_PIXELS = 40_000_000;
@@ -15,6 +19,8 @@ export interface PageSources {
   doc: DrawingDocument;
   scene: PerspectiveScene;
   theme: CanvasTheme;
+  /** Kâğıt ızgarası; görünürse "kılavuzlarla" çıktıya girer. */
+  grid?: { visible: boolean; spacing: number } | null;
 }
 
 export interface PageRenderOptions {
@@ -51,6 +57,11 @@ export function renderPage(src: PageSources, options: PageRenderOptions): HTMLCa
   viewport.width = canvas.width / k;
   viewport.height = canvas.height / k;
   viewport.scale = canvas.width / k / paper.width;
+
+  if (options.includeGuides && src.grid?.visible) {
+    viewport.applyTo(ctx, k);
+    drawGrid(ctx, paper.rect, src.grid.spacing, theme.grid, PRINT_GRID_WIDTH, 1);
+  }
 
   if (options.includeGuides) {
     const state = new EditorState();

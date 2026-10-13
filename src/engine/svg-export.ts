@@ -1,4 +1,5 @@
 import type { Point } from './geometry';
+import { gridLines } from './grid';
 import { PX_PER_MM } from './paper';
 import { strokeOutline, type InkId, type Stroke } from './stroke';
 import { rayAngles } from '../perspective/rays';
@@ -12,6 +13,8 @@ export interface SvgTheme {
   horizon: string;
   markerFill: string;
   printGuideOpacity: number;
+  /** Kâğıt ızgarası rengi (opaklık renkte olabilir). */
+  grid: string;
 }
 
 export interface SvgSources {
@@ -19,6 +22,8 @@ export interface SvgSources {
   strokes: readonly Stroke[];
   scene: PerspectiveScene;
   theme: SvgTheme;
+  /** Görünür kâğıt ızgarasının aralığı (dünya birimi); yoksa ızgara yazılmaz. */
+  gridSpacing?: number | null;
 }
 
 /** Kılavuz çizgi kalınlıkları dünya biriminde (ekran/yazdırma çıktısıyla aynı). */
@@ -26,6 +31,7 @@ const RAY_WIDTH = 1;
 const HORIZON_WIDTH = 1.25;
 const MARKER_RADIUS = 5.5;
 const MARKER_STROKE = 2;
+const GRID_WIDTH = 0.75;
 
 const num = (v: number): string => String(Math.round(v * 100) / 100);
 
@@ -81,10 +87,26 @@ function reach(p: Point, w: number, h: number): number {
   return Math.hypot(dx, dy) + 2;
 }
 
+function gridElement(src: SvgSources, spacing: number): string | null {
+  const { width: w, height: h } = src.paper;
+  const { xs, ys } = gridLines({ x: 0, y: 0, width: w, height: h }, spacing);
+  if (!xs.length && !ys.length) return null;
+  const d = [
+    ...xs.map((x) => `M${num(x)} 0V${num(h)}`),
+    ...ys.map((y) => `M0 ${num(y)}H${num(w)}`),
+  ].join('');
+  const { color, alpha } = splitAlpha(src.theme.grid);
+  return `<path id="grid" d="${d}" fill="none" stroke="${esc(color)}" stroke-width="${GRID_WIDTH}" opacity="${num(alpha)}"/>`;
+}
+
 function guideElements(src: SvgSources): string[] {
   const { scene, theme } = src;
   const { width: w, height: h } = src.paper;
   const out: string[] = [];
+  if (src.gridSpacing) {
+    const grid = gridElement(src, src.gridSpacing);
+    if (grid) out.push(grid);
+  }
   const horizon = scene.horizon();
   const angles = rayAngles(scene.rayCount, horizon?.angle ?? 0);
 

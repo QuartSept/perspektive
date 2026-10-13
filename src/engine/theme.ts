@@ -23,6 +23,8 @@ export interface CanvasTheme {
   /** Silgi gibi daire imleçler. */
   cursor: string;
   cursorHalo: string;
+  /** Kâğıt ızgarası (opaklık renkte). */
+  grid: string;
   /** PNG / SVG / yazdırma: temadan bağımsız renkler. */
   printPaper: string;
   printGuideOpacity: number;
@@ -30,6 +32,7 @@ export interface CanvasTheme {
   printVanishingPoints: string[];
   printHorizon: string;
   printMarkerFill: string;
+  printGrid: string;
 }
 
 /** Çıktı için tema: ekran renklerinin yerine temadan bağımsız --print-* renkleri. */
@@ -40,6 +43,7 @@ export function toPrintTheme(theme: CanvasTheme): CanvasTheme {
     vanishingPoints: theme.printVanishingPoints,
     horizon: theme.printHorizon,
     markerFill: theme.printMarkerFill,
+    grid: theme.printGrid,
   };
 }
 
@@ -74,11 +78,13 @@ export function readCanvasTheme(el: Element = document.documentElement): CanvasT
     markerHalo: v('--color-marker-halo'),
     cursor: v('--color-cursor'),
     cursorHalo: v('--color-cursor-halo'),
+    grid: v('--color-grid'),
     printPaper: v('--color-print-paper'),
     printGuideOpacity: n('--print-guide-opacity', 0.35),
     printInks,
     printVanishingPoints: [v('--print-vp-1'), v('--print-vp-2'), v('--print-vp-3')],
     printHorizon: v('--print-horizon'),
     printMarkerFill: v('--print-marker-fill'),
+    printGrid: v('--print-grid'),
   };
 }

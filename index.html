@@ -219,6 +219,28 @@
         <p class="panel__hint" id="perspective-hint"></p>
       </section>
 
+      <section class="panel" id="paper-grid-panel" data-i18n-aria-label="paperGrid.title">
+        <h2 class="panel__title" data-i18n="paperGrid.title">Kâğıt ızgarası</h2>
+
+        <label class="switch">
+          <input type="checkbox" id="paper-grid-visible" />
+          <span data-i18n="paperGrid.visible">Göster (#)</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" id="paper-grid-snap" />
+          <span data-i18n="paperGrid.snap">Izgaraya yapış</span>
+        </label>
+
+        <div class="field__label" id="paper-grid-spacing-label" data-i18n="paperGrid.spacing">Aralık</div>
+        <div class="segmented" id="paper-grid-spacing" role="radiogroup" aria-labelledby="paper-grid-spacing-label">
+          <button type="button" role="radio" data-grid-spacing="5">5 mm</button>
+          <button type="button" role="radio" data-grid-spacing="10">10 mm</button>
+          <button type="button" role="radio" data-grid-spacing="20">20 mm</button>
+        </div>
+
+        <p class="panel__hint" data-i18n="paperGrid.hint"></p>
+      </section>
+
       <section class="panel" id="reference-panel" data-i18n-aria-label="reference.title">
         <h2 class="panel__title" data-i18n="reference.title">Referans görsel</h2>
         <div id="reference-empty" class="panel__stack">
@@ -287,6 +309,7 @@
             <dt><kbd data-i18n="help.keySpace">Space</kbd></dt><dd data-i18n="help.space"></dd>
             <dt><kbd>M</kbd></dt><dd data-i18n="help.magnet"></dd>
             <dt><kbd>G</kbd></dt><dd data-i18n="help.guides"></dd>
+            <dt><kbd>#</kbd></dt><dd data-i18n="help.paperGrid"></dd>
             <dt><kbd>[</kbd> <kbd>]</kbd></dt><dd data-i18n="help.size"></dd>
             <dt><kbd>Ctrl</kbd>+<kbd>Z</kbd></dt><dd data-i18n="help.undo"></dd>
             <dt><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></dt><dd data-i18n="help.redo"></dd>

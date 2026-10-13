@@ -1,8 +1,9 @@
 import type { DrawingDocument } from '../engine/document';
+import type { PaperGrid } from '../engine/grid';
 import type { Command } from '../engine/history';
 import type { Paper } from '../engine/paper';
 import type { PerspectiveScene } from '../perspective/scene';
-import { DEFAULT_GRID, parseSavedDrawing, SAVE_VERSION, type SavedDrawing } from './format';
+import { parseSavedDrawing, SAVE_VERSION, type SavedDrawing } from './format';
 
 /** Proje dosyasını tanıtan alan; başka uygulamaların JSON'ı yanlışlıkla yüklenmesin. */
 const APP_ID = 'perspektif';
@@ -11,10 +12,11 @@ export interface DrawingSources {
   doc: DrawingDocument;
   scene: PerspectiveScene;
   paper: Paper;
+  grid: PaperGrid;
 }
 
 /** Çizimin kaydedilebilir anlık görüntüsü (otomatik kayıt ve proje dosyası ortak). */
-export function buildSavedDrawing({ doc, scene, paper }: DrawingSources): SavedDrawing {
+export function buildSavedDrawing({ doc, scene, paper, grid }: DrawingSources): SavedDrawing {
   return {
     version: SAVE_VERSION,
     savedAt: Date.now(),
@@ -33,18 +35,22 @@ export function buildSavedDrawing({ doc, scene, paper }: DrawingSources): SavedD
     },
     // Belgedeki stroke'lar değiştirilmez; doğrudan verilebilir
     strokes: [...doc.strokes],
-    // Izgara (Aşama 3) ve şekiller (Aşama 4) henüz yok: varsayılanlar yazılır
-    grid: { ...DEFAULT_GRID },
+    grid: grid.toSaved(),
+    // Şekiller (Aşama 4) henüz yok
     shapes: [],
   };
 }
 
 /** Kayıtlı çizimi uygular (yükleme, proje dosyası açma, geri al). */
-export function applySavedDrawing({ doc, scene, paper }: DrawingSources, saved: SavedDrawing): void {
+export function applySavedDrawing(
+  { doc, scene, paper, grid }: DrawingSources,
+  saved: SavedDrawing,
+): void {
   paper.restore(saved.paper.kind, saved.paper.width, saved.paper.height, saved.paper.orientation);
   scene.restore(saved.scene);
   scene.setRayCount(saved.scene.rayCount);
   doc.replaceAll(saved.strokes);
+  grid.restore(saved.grid);
 }
 
 export function serializeProject(sources: DrawingSources): string {
