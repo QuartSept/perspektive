@@ -14,6 +14,9 @@
         </div>
 
         <div class="toolbar__group" role="group" data-i18n-aria-label="toolbar.tools">
+          <button class="tool-btn" type="button" data-tool="select" data-i18n-title="tool.select" aria-pressed="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 4.5 18 11l-5.6 1.6L10 18z"/><path d="M12.4 12.6 17 17.5"/></svg>
+          </button>
           <button class="tool-btn" type="button" data-tool="brush" data-i18n-title="tool.brush" aria-pressed="false">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 4.5 19.5 9.5 10 19H5v-5z"/><path d="M12.5 6.5l5 5"/></svg>
           </button>
@@ -129,6 +132,12 @@
         </div>
 
         <p class="panel__hint" id="eraser-hint"></p>
+      </section>
+
+      <section class="panel" id="select-panel" data-i18n-aria-label="select.title" hidden>
+        <h2 class="panel__title" data-i18n="select.title">Seç / düzenle</h2>
+        <button type="button" class="btn" id="delete-shape" data-i18n="select.delete" disabled>Seçili şekli sil</button>
+        <p class="panel__hint" id="select-hint"></p>
       </section>
 
       <section class="panel" id="shape-panel" data-i18n-aria-label="shape.title" hidden>
@@ -318,6 +327,7 @@
         <form method="dialog">
           <h2 class="dialog__title" id="help-title" data-i18n="help.title">Klavye kısayolları</h2>
           <dl class="shortcuts">
+            <dt><kbd>V</kbd></dt><dd data-i18n="help.select"></dd>
             <dt><kbd>B</kbd></dt><dd data-i18n="help.brush"></dd>
             <dt><kbd>E</kbd></dt><dd data-i18n="help.eraser"></dd>
             <dt><kbd>S</kbd></dt><dd data-i18n="help.shape"></dd>

@@ -27,7 +27,8 @@ import { BrushTool } from './tools/brush';
 import { BrushSettings } from './tools/brush-settings';
 import { EraserSettings, EraserTool } from './tools/eraser';
 import { EraserPanel } from './ui/eraser-panel';
-import { ShapeSettings, ShapeTool } from './tools/shape-tools';
+import { ShapeSettings, ShapeTool, type ShapeSnapping } from './tools/shape-tools';
+import { SelectTool } from './tools/select';
 import { ShapePanel } from './ui/shape-panel';
 import { HandTool } from './tools/hand';
 import { Autosave } from './storage/autosave';
@@ -119,36 +120,48 @@ const brush = new BrushTool(
 const perspectiveLines = perspectiveSource(scene);
 const axisLines = axisSource();
 const shapeSettings = new ShapeSettings();
+const shapeSnapping: ShapeSnapping = {
+  // Kenar adayları: perspektifte ışınlar (mıknatıs açıksa), kapalıyken eksenler
+  // (eksene yapış açıksa), ikisinde de ızgara çizgileri. Space hepsini kapatır.
+  edgeCandidates(start, near): SnapLine[] {
+    if (state.temporaryFree) return [];
+    const lines: SnapLine[] = [];
+    if (scene.mode === 0) {
+      if (brushSettings.axisSnap) lines.push(...axisLines(start, near));
+    } else if (snapSettings.enabled) {
+      lines.push(...perspectiveLines(start, near));
+    }
+    lines.push(...gridLineSource(start, near));
+    return lines;
+  },
+  grid: gridSnapper,
+};
 const shapeTool = new ShapeTool(
   viewport,
   doc,
   history,
   shapeSettings,
   () => brushSettings.toStyle(),
-  {
-    // Kenar adayları: perspektifte ışınlar (mıknatıs açıksa), kapalıyken eksenler
-    // (eksene yapış açıksa), ikisinde de ızgara çizgileri. Space hepsini kapatır.
-    edgeCandidates(start, near): SnapLine[] {
-      if (state.temporaryFree) return [];
-      const lines: SnapLine[] = [];
-      if (scene.mode === 0) {
-        if (brushSettings.axisSnap) lines.push(...axisLines(start, near));
-      } else if (snapSettings.enabled) {
-        lines.push(...perspectiveLines(start, near));
-      }
-      lines.push(...gridLineSource(start, near));
-      return lines;
-    },
-    grid: gridSnapper,
-  },
+  shapeSnapping,
   () => renderer.requestRender('interaction'),
 );
+let selectionDragging = false;
+const selectionTool = new SelectTool(viewport, doc, history, shapeSnapping, () => {
+  // Çizim katmanı yalnızca sürükleme başlarken / biterken (özgün şekil gizlenir) yenilenir
+  const dragging = selectionTool.previewShape !== null;
+  if (dragging !== selectionDragging) renderer.requestRender('drawing');
+  selectionDragging = dragging;
+  renderer.requestRender('interaction');
+  input.updateCursor();
+  updateSelectPanel();
+});
 const eraserSettings = new EraserSettings();
 const eraser = new EraserTool(viewport, doc, history, eraserSettings, (strokesChanged) => {
   if (strokesChanged) renderer.requestRender('drawing', 'interaction');
   else renderer.requestRender('interaction');
 });
 const tools: Record<string, Tool> = {
+  select: selectionTool,
   brush,
   eraser,
   shape: shapeTool,
@@ -178,6 +191,16 @@ const toolbar = new Toolbar(toolbarEl, {
 
 const eraserPanel = new EraserPanel(document.getElementById('eraser-panel')!, eraserSettings);
 const shapePanel = new ShapePanel(document.getElementById('shape-panel')!, shapeSettings);
+const selectPanelEl = document.getElementById('select-panel')!;
+const deleteShapeButton = document.getElementById('delete-shape') as HTMLButtonElement;
+const selectHint = document.getElementById('select-hint')!;
+deleteShapeButton.addEventListener('click', () => selectionTool.deleteSelected());
+
+function updateSelectPanel(): void {
+  const has = selectionTool.selected !== null;
+  deleteShapeButton.disabled = !has;
+  selectHint.textContent = t(has ? 'select.hintSelected' : 'select.hintEmpty');
+}
 const brushPanel = new BrushPanel(document.getElementById('brush-panel')!, brushSettings, snapSettings);
 
 const panel = new PerspectivePanel(panelEl, {
@@ -196,6 +219,7 @@ function selectTool(id: string): void {
   input.setTool(tool);
   eraserPanel.setVisible(tool === eraser);
   shapePanel.setVisible(tool === shapeTool);
+  selectPanelEl.hidden = tool !== selectionTool;
   renderer.requestRender('drawing', 'interaction');
   toolbar.setActiveTool(id);
   syncMarkers();
@@ -617,6 +641,8 @@ onLanguageChange(() => {
   brushPanel.update();
   eraserPanel.update();
   referencePanel.update();
+  shapePanel.update();
+  updateSelectPanel();
   syncThemeButton();
   updatePanel();
   schedulePrefsSave();
@@ -671,7 +697,9 @@ state.onChange((changed) => {
 
 doc.onChange(() => {
   syncOnboarding();
-  renderer.requestRender('drawing');
+  // Seçili şeklin tutamaçları geri al / ileri al ile yer değiştirebilir
+  renderer.requestRender('drawing', 'interaction');
+  updateSelectPanel();
   toolbar.setCanClear(!doc.isEmpty);
   autosave.markDirty();
 });
@@ -765,6 +793,10 @@ window.addEventListener('keydown', (e) => {
     case 'B':
       selectTool('brush');
       break;
+    case 'v':
+    case 'V':
+      selectTool('select');
+      break;
     case '[':
     case ']': {
       // Etkin aracın boyutu: silgide yarıçap, diğerlerinde fırça kalınlığı
@@ -811,13 +843,15 @@ window.addEventListener('keydown', (e) => {
       break;
     case 'Delete':
     case 'Backspace':
-      if (state.selectedPointId) deleteSelectedPoint();
+      if (input.activeTool === selectionTool && selectionTool.selected) selectionTool.deleteSelected();
+      else if (state.selectedPointId) deleteSelectedPoint();
       // Seçili nokta yoksa Delete çizimi temizler (onaylı); Backspace yanlışlıkla basılmaya açık, temizlemez
       else if (e.key === 'Delete' && !doc.isEmpty) void clearDrawing();
       else return;
       break;
     case 'Escape':
       state.update({ selectedPointId: null });
+      selectionTool.select(null);
       break;
     default:
       return;

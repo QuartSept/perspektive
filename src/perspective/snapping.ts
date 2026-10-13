@@ -186,3 +186,12 @@ export function distanceToLine(line: SnapLine, p: Point): number {
     (p.x - line.origin.x) * line.direction.y - (p.y - line.origin.y) * line.direction.x,
   );
 }
+
+/** İki doğrunun kesişimi; neredeyse paralelse null. */
+export function intersectLines(a: SnapLine, b: SnapLine): Point | null {
+  const d = a.direction.x * b.direction.y - a.direction.y * b.direction.x;
+  if (Math.abs(d) < 1e-6) return null;
+  const t =
+    ((b.origin.x - a.origin.x) * b.direction.y - (b.origin.y - a.origin.y) * b.direction.x) / d;
+  return { x: a.origin.x + a.direction.x * t, y: a.origin.y + a.direction.y * t };
+}

@@ -21,6 +21,8 @@ import type { ToolOverlay } from '../tools/tool';
 
 /** Silinmek üzere işaretli stroke'ların opaklık çarpanı. */
 const FADED_ALPHA = 0.2;
+/** Şekil köşe tutamacı kenar uzunluğu, CSS piksel. */
+const HANDLE_SIZE = 8;
 
 /** Katmanları kirli (dirty) bayraklarıyla, kare başına en fazla bir kez çizer. */
 export class Renderer {
@@ -167,10 +169,35 @@ export class Renderer {
       for (const s of overlay.previewStrokes ?? []) drawStroke(ctx, s, this.theme.inks[s.style.ink]);
       if (overlay.preview) drawStroke(ctx, overlay.preview, this.theme.inks[overlay.preview.style.ink]);
     }
+    if (overlay?.shapeHandles?.length) {
+      this.drawHandles(ctx, overlay.shapeHandles, overlay.activeHandle ?? null);
+    }
     if (this.state.markersVisible) drawMarkers(this.guideView(ctx));
     if (overlay?.cursorRadius && this.state.pointer) {
       this.drawCursorCircle(ctx, this.state.pointer, overlay.cursorRadius);
     }
+  }
+
+  /** Seçili şeklin köşe tutamaçları: ekran uzayında sabit boyutlu kareler. */
+  private drawHandles(
+    ctx: CanvasRenderingContext2D,
+    handles: readonly { x: number; y: number }[],
+    active: number | null,
+  ): void {
+    const { dpr } = this.layers;
+    const t = this.theme;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    handles.forEach((h, i) => {
+      const s = this.viewport.worldToScreen(h);
+      const r = i === active ? HANDLE_SIZE / 2 + 1.5 : HANDLE_SIZE / 2;
+      ctx.beginPath();
+      ctx.rect(s.x - r, s.y - r, r * 2, r * 2);
+      ctx.fillStyle = i === active ? t.snap : t.markerFill;
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = i === active ? t.snap : t.cursor;
+      ctx.stroke();
+    });
   }
 
   /** Ekran uzayında, açık ve koyu zeminde görünür çift halkalı imleç. */

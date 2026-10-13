@@ -60,6 +60,63 @@ export interface ShapeSnapping {
 }
 
 /**
+ * Şekil köşesi ve kenarı yapıştırma (şekil aracı ve seç/düzenle aracı ortak).
+ * Bir kenar için oturulan doğruyu korur (titreşmesin diye); yeni kenarda `reset`.
+ */
+export class EdgeSnapper {
+  /** Kenarın şu an oturduğu doğru. */
+  line: SnapLine | null = null;
+
+  constructor(
+    private readonly viewport: Viewport,
+    private readonly snapping: ShapeSnapping,
+  ) {}
+
+  reset(): void {
+    this.line = null;
+  }
+
+  private get tolerance(): number {
+    return GRID_SNAP_PX / this.viewport.scale;
+  }
+
+  /** Köşe: ızgara açıksa en yakın düğüme / çizgiye. */
+  vertex(p: Point): Point {
+    const grid = this.snapping.grid;
+    return grid.isActive() ? snapToGrid(p, grid.spacing, this.tolerance).point : p;
+  }
+
+  /** `from`→`p` kenarının yönü bir adaya (kaçış ışını, eksen, ızgara çizgisi) yakınsa o doğru. */
+  lineFor(from: Point, p: Point): SnapLine | null {
+    const dx = p.x - from.x;
+    const dy = p.y - from.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 1e-9) return this.line;
+    const move = { x: dx / len, y: dy / len };
+    const keep = this.line && undirectedAngle(move, this.line.direction) <= EDGE_RELEASE_ANGLE;
+    if (!keep) {
+      const candidates = this.snapping.edgeCandidates(from, NEAR_POINT_PX / this.viewport.scale);
+      this.line = chooseLine(candidates, from, p, EDGE_SNAP_ANGLE);
+    }
+    return this.line;
+  }
+
+  /** Doğru üzerindeki nokta: ızgara açıksa doğrunun ızgara çizgisini kestiği yer. */
+  onLine(line: SnapLine, p: Point): Point {
+    const grid = this.snapping.grid;
+    const onGrid = grid.isActive() ? snapAlongLine(line, p, grid.spacing, this.tolerance) : null;
+    return onGrid ?? projectOnLine(line, p);
+  }
+
+  /** `from`'dan imlece giden kenarın ucu: oturduğu doğruya, yoksa ızgaraya. */
+  edgeEnd(from: Point, p: Point): Point {
+    if (Math.hypot(p.x - from.x, p.y - from.y) < 1e-9) return from;
+    const line = this.lineFor(from, p);
+    return line ? this.onLine(line, p) : this.vertex(p);
+  }
+}
+
+/**
  * Şekil aracı: doğru parçası, dikdörtgen ve üçgen sürükleyerek; çokgen
  * tıklayarak çizilir (ilk köşeye tıkla, çift tıkla ya da Enter: bitir;
  * Backspace: son köşeyi geri al; Esc: vazgeç). Köşeler ızgaraya, kenarlar
@@ -76,8 +133,8 @@ export class ShapeTool implements Tool, ToolOverlay {
   private polygon: Point[] | null = null;
   /** Çokgende imlecin (yapıştırılmış) konumu: sıradaki köşe adayı. */
   private hover: Point | null = null;
-  /** Sıradaki kenarın oturduğu doğru (titreşmesin diye korunur). */
-  private edgeLine: SnapLine | null = null;
+  /** Sıradaki kenarın yapıştırılması. */
+  private readonly snap: EdgeSnapper;
 
   constructor(
     private readonly viewport: Viewport,
@@ -85,9 +142,11 @@ export class ShapeTool implements Tool, ToolOverlay {
     private readonly history: History,
     private readonly settings: ShapeSettings,
     private readonly style: () => StrokeStyle,
-    private readonly snapping: ShapeSnapping,
+    snapping: ShapeSnapping,
     private readonly onPreviewChange: () => void,
-  ) {}
+  ) {
+    this.snap = new EdgeSnapper(viewport, snapping);
+  }
 
   get overlay(): ToolOverlay {
     return this;
@@ -99,7 +158,7 @@ export class ShapeTool implements Tool, ToolOverlay {
   }
 
   get snapLine(): SnapLine | null {
-    return this.dragStart || this.polygon ? this.edgeLine : null;
+    return this.dragStart || this.polygon ? this.snap.line : null;
   }
 
   get previewShapeOpen(): boolean {
@@ -129,7 +188,7 @@ export class ShapeTool implements Tool, ToolOverlay {
     this.dragEnd = null;
     this.polygon = null;
     this.hover = null;
-    this.edgeLine = null;
+    this.snap.reset();
     if (had) this.onPreviewChange();
   }
 
@@ -140,7 +199,7 @@ export class ShapeTool implements Tool, ToolOverlay {
     else if (key === 'Escape') this.cancel();
     else if (key === 'Backspace') {
       this.polygon.pop();
-      this.edgeLine = null;
+      this.snap.reset();
       if (this.polygon.length === 0) this.cancel();
       else this.onPreviewChange();
     } else return false;
@@ -152,9 +211,9 @@ export class ShapeTool implements Tool, ToolOverlay {
       this.updateHover(e.world);
       return;
     }
-    this.dragStart = this.snapVertex(e.world);
+    this.dragStart = this.snap.vertex(e.world);
     this.dragEnd = this.dragStart;
-    this.edgeLine = null;
+    this.snap.reset();
     this.onPreviewChange();
   }
 
@@ -166,8 +225,8 @@ export class ShapeTool implements Tool, ToolOverlay {
     if (!this.dragStart) return;
     this.dragEnd =
       this.settings.kind === 'segment'
-        ? this.edgeEnd(this.dragStart, e.world)
-        : this.snapVertex(e.world);
+        ? this.snap.edgeEnd(this.dragStart, e.world)
+        : this.snap.vertex(e.world);
     this.onPreviewChange();
   }
 
@@ -182,7 +241,7 @@ export class ShapeTool implements Tool, ToolOverlay {
     const vertices = this.dragVertices(start, this.dragEnd!);
     this.dragStart = null;
     this.dragEnd = null;
-    this.edgeLine = null;
+    this.snap.reset();
     if (vertices) {
       const shape = this.makeShape(this.settings.kind, vertices, this.style());
       this.history.execute(addShapeCommand(this.doc, shape));
@@ -195,7 +254,7 @@ export class ShapeTool implements Tool, ToolOverlay {
     if (!this.dragStart) return;
     this.dragStart = null;
     this.dragEnd = null;
-    this.edgeLine = null;
+    this.snap.reset();
     this.onPreviewChange();
   }
 
@@ -220,39 +279,6 @@ export class ShapeTool implements Tool, ToolOverlay {
     }
   }
 
-  private get tolerance(): number {
-    return GRID_SNAP_PX / this.viewport.scale;
-  }
-
-  /** Köşe: ızgara açıksa en yakın düğüme / çizgiye. */
-  private snapVertex(p: Point): Point {
-    const grid = this.snapping.grid;
-    return grid.isActive() ? snapToGrid(p, grid.spacing, this.tolerance).point : p;
-  }
-
-  /**
-   * `from`'dan imlece giden kenarın ucu: yön bir adaya (kaçış ışını, eksen,
-   * ızgara çizgisi) yakınsa o doğruya, değilse ızgaraya oturur.
-   */
-  private edgeEnd(from: Point, p: Point): Point {
-    const dx = p.x - from.x;
-    const dy = p.y - from.y;
-    const len = Math.hypot(dx, dy);
-    if (len < 1e-9) return from;
-    const move = { x: dx / len, y: dy / len };
-    const keep =
-      this.edgeLine && undirectedAngle(move, this.edgeLine.direction) <= EDGE_RELEASE_ANGLE;
-    if (!keep) {
-      const candidates = this.snapping.edgeCandidates(from, NEAR_POINT_PX / this.viewport.scale);
-      this.edgeLine = chooseLine(candidates, from, p, EDGE_SNAP_ANGLE);
-    }
-    const line = this.edgeLine;
-    if (!line) return this.snapVertex(p);
-    const grid = this.snapping.grid;
-    const onGrid = grid.isActive() ? snapAlongLine(line, p, grid.spacing, this.tolerance) : null;
-    return onGrid ?? projectOnLine(line, p);
-  }
-
   private screenDistance(a: Point, b: Point): number {
     return Math.hypot(a.x - b.x, a.y - b.y) * this.viewport.scale;
   }
@@ -266,9 +292,9 @@ export class ShapeTool implements Tool, ToolOverlay {
     // İlk köşeye yakınsa oraya oturur: tıklamak şekli kapatır
     if (pts.length >= 3 && this.screenDistance(p, pts[0]) <= CLOSE_PX) {
       this.hover = pts[0];
-      this.edgeLine = null;
+      this.snap.reset();
     } else {
-      this.hover = this.edgeEnd(pts[pts.length - 1], p);
+      this.hover = this.snap.edgeEnd(pts[pts.length - 1], p);
     }
     this.onPreviewChange();
   }
@@ -276,9 +302,9 @@ export class ShapeTool implements Tool, ToolOverlay {
   private polygonClick(p: Point): void {
     const pts = this.polygon;
     if (!pts) {
-      this.polygon = [this.snapVertex(p)];
+      this.polygon = [this.snap.vertex(p)];
       this.hover = null;
-      this.edgeLine = null;
+      this.snap.reset();
       this.onPreviewChange();
       return;
     }
@@ -294,7 +320,7 @@ export class ShapeTool implements Tool, ToolOverlay {
       return;
     }
     pts.push(q);
-    this.edgeLine = null;
+    this.snap.reset();
     this.onPreviewChange();
   }
 

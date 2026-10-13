@@ -44,6 +44,10 @@ export interface ToolOverlay {
   readonly previewShape?: Shape | null;
   /** Önizleme şekli açık çizilsin (bitmemiş çokgen). */
   readonly previewShapeOpen?: boolean;
+  /** Seçili şeklin köşe tutamaçları (dünya koordinatı). */
+  readonly shapeHandles?: readonly Point[];
+  /** Vurgulanan (üzerinde ya da sürüklenen) tutamaç. */
+  readonly activeHandle?: number | null;
   /** İmleç yerine çizilen daire yarıçapı, CSS piksel (ör. silgi). */
   readonly cursorRadius?: number | null;
 }
