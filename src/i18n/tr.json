@@ -171,5 +171,12 @@
   "help.theme": "Temayı değiştir (sistem / açık / koyu)",
   "brush.pressure": "Kalem basıncı",
   "help.touchKey": "Dokunmatik",
-  "help.touch": "Tek parmak çizer (kalem kullanıldıktan sonra kaydırır); iki parmak kaydırır ve yakınlaştırır"
+  "help.touch": "Tek parmak çizer (kalem kullanıldıktan sonra kaydırır); iki parmak kaydırır ve yakınlaştırır",
+  "perspective.modeLabel": "Kaçış noktası",
+  "perspective.off": "Perspektif kapalı",
+  "perspective.offShort": "Yok",
+  "perspective.oneShort": "1",
+  "perspective.twoShort": "2",
+  "perspective.threeShort": "3",
+  "perspective.hintOff": "Perspektif kapalı: kaçış noktası ve ışın yok. Kurgunuz saklanır; 1, 2 ya da 3'e geçince geri gelir."
 }

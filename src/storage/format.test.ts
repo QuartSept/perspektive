@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { newestDrawing, parseSavedDrawing, type SavedDrawing } from './format';
+import {
+  DEFAULT_GRID,
+  migrateSavedDrawing,
+  newestDrawing,
+  parseSavedDrawing,
+  SAVE_VERSION,
+  type SavedDrawing,
+} from './format';
 
 const valid = {
   version: 1,
@@ -19,8 +26,13 @@ const valid = {
 };
 
 describe('parseSavedDrawing', () => {
-  it('geçerli veriyi aynen döndürür', () => {
-    expect(parseSavedDrawing(valid)).toEqual(valid);
+  it('sürüm 1 kaydı sürüm 2’ye taşınır: içerik aynı, ızgara varsayılan, şekil yok', () => {
+    expect(parseSavedDrawing(valid)).toEqual({
+      ...valid,
+      version: SAVE_VERSION,
+      grid: DEFAULT_GRID,
+      shapes: [],
+    });
   });
 
   it('yönlendirmesi olmayan eski kaydı boyuttan çıkarır', () => {
@@ -79,5 +91,74 @@ describe('newestDrawing', () => {
     expect(newestDrawing(at(9), null, at(5))?.savedAt).toBe(9);
     expect(newestDrawing(null, at(3))?.savedAt).toBe(3);
     expect(newestDrawing(null, null)).toBeNull();
+  });
+});
+
+describe('sürüm 2', () => {
+  const v2 = {
+    ...valid,
+    version: 2,
+    grid: { visible: true, snap: true, spacingMm: 5 },
+    shapes: [
+      {
+        id: 'r1',
+        kind: 'rect',
+        vertices: [0, 0, 10, 0, 10, 5, 0, 5],
+        style: { width: 2, opacity: 1, ink: 'black' },
+        cornerLines: false,
+      },
+    ],
+  };
+
+  it('geçerli sürüm 2 kaydı aynen döner', () => {
+    expect(parseSavedDrawing(v2)).toEqual(v2);
+  });
+
+  it('daha yeni ya da tanınmayan sürüm reddedilir', () => {
+    expect(parseSavedDrawing({ ...v2, version: 3 })).toBeNull();
+    expect(parseSavedDrawing({ ...v2, version: 0 })).toBeNull();
+    expect(parseSavedDrawing({ ...v2, version: '2' })).toBeNull();
+    expect(migrateSavedDrawing({ version: 1.5 })).toBeNull();
+  });
+
+  it('dönüştürücü yapıyı taşır, girdiyi değiştirmez', () => {
+    const input = { ...valid };
+    const out = migrateSavedDrawing(input)!;
+    expect(out.version).toBe(2);
+    expect(input.version).toBe(1);
+  });
+
+  it('kapalı mod (0): pasif kurgu korunur (en fazla 3 nokta)', () => {
+    const points = [
+      { id: 'a', x: 1, y: 2 },
+      { id: 'b', x: 3, y: 2 },
+      { id: 'c', x: 2, y: 9, role: 'vertical' },
+      { id: 'd', x: 5, y: 5 },
+    ];
+    const d = parseSavedDrawing({ ...v2, scene: { ...v2.scene, mode: 0, points } })!;
+    expect(d.scene.mode).toBe(0);
+    expect(d.scene.points.map((p) => p.id)).toEqual(['a', 'b', 'c']);
+    expect(parseSavedDrawing({ ...v2, scene: { ...v2.scene, mode: 4 } })).toBeNull();
+  });
+
+  it('ızgara: bilinmeyen aralık varsayılana döner, eksik alanlar kapalı', () => {
+    expect(parseSavedDrawing({ ...v2, grid: { spacingMm: 7 } })!.grid).toEqual(DEFAULT_GRID);
+    expect(parseSavedDrawing({ ...v2, grid: 'x' })!.grid).toEqual(DEFAULT_GRID);
+  });
+
+  it('şekiller: bozuk olanlar atlanır, köşe sayısı türe uymalı', () => {
+    const style = { width: 2, opacity: 1, ink: 'blue' };
+    const shapes = [
+      { id: 'ok-seg', kind: 'segment', vertices: [0, 0, 5, 5], style },
+      { id: 'ok-poly', kind: 'polygon', vertices: [0, 0, 5, 0, 5, 5, 0, 9], style },
+      { id: 'bad-kind', kind: 'circle', vertices: [0, 0, 5, 5], style },
+      { id: 'bad-tri', kind: 'triangle', vertices: [0, 0, 5, 5], style },
+      { id: 'bad-odd', kind: 'segment', vertices: [0, 0, 5], style },
+      { id: 'bad-style', kind: 'segment', vertices: [0, 0, 5, 5], style: { width: 0, opacity: 1, ink: 'blue' } },
+    ];
+    const d = parseSavedDrawing({ ...v2, shapes })!;
+    expect(d.shapes.map((s) => s.id)).toEqual(['ok-seg', 'ok-poly']);
+    // cornerLines belirtilmemişse açık
+    expect(d.shapes[0].cornerLines).toBe(true);
   });
 });

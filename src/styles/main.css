@@ -735,3 +735,8 @@ kbd {
 .panel .dialog__error {
   font-size: 12px;
 }
+
+.field__label {
+  margin-bottom: -6px;
+  font-size: 13px;
+}

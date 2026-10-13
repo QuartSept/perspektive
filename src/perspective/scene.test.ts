@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PerspectiveScene, RAY_COUNT_MAX, RAY_COUNT_MIN } from './scene';
+import { candidateLines } from './snapping';
 
 const paper = { x: 0, y: 0, width: 800, height: 1000 };
 
@@ -89,5 +90,40 @@ describe('PerspectiveScene', () => {
     expect(scene.points[0].y).toBe(400);
     scene.points[0].x = 123;
     expect(snap.points[0].x).not.toBe(123);
+  });
+});
+
+describe('perspektif kapalı modu', () => {
+  it('kapalıyken etkin nokta ve ufuk yok; noktalar silinmez, geri açınca döner', () => {
+    const s = new PerspectiveScene();
+    s.reset(paper);
+    const before = s.points.map((p) => ({ ...p }));
+    s.setMode(0, paper);
+    expect(s.activePoints).toEqual([]);
+    expect(s.horizon()).toBeNull();
+    expect(s.canAddPoint).toBe(false);
+    expect(s.addPoint({ x: 1, y: 1 })).toBeNull();
+    expect(s.points).toEqual(before);
+    s.setMode(2, paper);
+    expect(s.activePoints).toEqual(before);
+  });
+
+  it('3 noktadan kapatıp açmak dikey noktayı korur; kapalıdan 1’e geçiş ilk noktayı tutar', () => {
+    const s = new PerspectiveScene();
+    s.reset(paper);
+    s.setMode(3, paper);
+    s.setMode(0, paper);
+    s.setMode(3, paper);
+    expect(s.verticalPoint).toBeDefined();
+    s.setMode(0, paper);
+    s.setMode(1, paper);
+    expect(s.points).toHaveLength(1);
+  });
+
+  it('kapalı modda mıknatıs adayı yok', () => {
+    const s = new PerspectiveScene();
+    s.reset(paper);
+    s.setMode(0, paper);
+    expect(candidateLines(s, { x: 100, y: 100 })).toEqual([]);
   });
 });

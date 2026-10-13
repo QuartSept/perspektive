@@ -176,10 +176,12 @@
       <section class="panel" id="perspective-panel" data-i18n-aria-label="perspective.title">
         <h2 class="panel__title" data-i18n="perspective.title">Perspektif</h2>
 
-        <div class="segmented" role="radiogroup" data-i18n-aria-label="perspective.mode">
-          <button type="button" role="radio" data-mode="1" data-i18n="perspective.onePoint">1 nokta</button>
-          <button type="button" role="radio" data-mode="2" data-i18n="perspective.twoPoint">2 nokta</button>
-          <button type="button" role="radio" data-mode="3" data-i18n="perspective.threePoint">3 nokta</button>
+        <div class="field__label" id="perspective-mode-label" data-i18n="perspective.modeLabel">Kaçış noktası</div>
+        <div class="segmented" role="radiogroup" aria-labelledby="perspective-mode-label">
+          <button type="button" role="radio" data-mode="0" data-i18n="perspective.offShort" data-i18n-title="perspective.off">Yok</button>
+          <button type="button" role="radio" data-mode="1" data-i18n="perspective.oneShort" data-i18n-title="perspective.onePoint">1</button>
+          <button type="button" role="radio" data-mode="2" data-i18n="perspective.twoShort" data-i18n-title="perspective.twoPoint">2</button>
+          <button type="button" role="radio" data-mode="3" data-i18n="perspective.threeShort" data-i18n-title="perspective.threePoint">3</button>
         </div>
 
         <label class="switch">

@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { proximityWeight, rayAngles, rayOpacities } from './rays';
 import { PerspectiveScene } from './scene';
-import { candidateLines, chooseLine, decideLine, distanceToLine, projectOnLine } from './snapping';
+import {
+  candidateLines,
+  chooseLine,
+  combineSources,
+  decideLine,
+  distanceToLine,
+  perspectiveSource,
+  projectOnLine,
+} from './snapping';
 
 function scene(mode: 1 | 2): PerspectiveScene {
   const s = new PerspectiveScene();
@@ -124,5 +132,17 @@ describe('decideLine', () => {
     const start = { x: 500, y: 400 };
     const d = decideLine(candidateLines(s, start), start, { x: 520, y: 400 }, false);
     expect(d.kind).toBe('lock');
+  });
+});
+
+describe('aday kaynakları', () => {
+  it('perspectiveSource candidateLines ile aynı; combineSources sırayla birleştirir', () => {
+    const s = scene(2);
+    const start = { x: 500, y: 800 };
+    const extra = { origin: start, direction: { x: 1, y: 0 }, kind: 'horizontal' as const };
+    const combined = combineSources(perspectiveSource(s), () => [extra]);
+    const lines = combined(start, 0);
+    expect(lines.slice(0, -1)).toEqual(candidateLines(s, start));
+    expect(lines[lines.length - 1]).toBe(extra);
   });
 });

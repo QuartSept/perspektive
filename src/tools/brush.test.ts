@@ -4,7 +4,7 @@ import type { Point } from '../engine/geometry';
 import { History } from '../engine/history';
 import { Viewport } from '../engine/viewport';
 import { PerspectiveScene } from '../perspective/scene';
-import { distanceToLine } from '../perspective/snapping';
+import { distanceToLine, perspectiveSource } from '../perspective/snapping';
 import { BrushTool } from './brush';
 import { BrushSettings } from './brush-settings';
 import type { ToolPointerEvent } from './tool';
@@ -32,7 +32,7 @@ beforeEach(() => {
     doc,
     new History(),
     settings,
-    scene,
+    perspectiveSource(scene),
     { isActive: () => magnetActive, radius: 20 },
     () => {},
   );

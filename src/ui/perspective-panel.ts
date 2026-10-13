@@ -81,9 +81,12 @@ export class PerspectivePanel {
       btn.tabIndex = checked ? 0 : -1;
     }
 
-    this.horizonFree.disabled = scene.mode === 1;
-    this.horizonFree.checked = scene.mode === 2 && !scene.horizonLocked;
-    this.horizonFree.closest('.switch')?.classList.toggle('is-disabled', scene.mode === 1);
+    // Ufuk kilidi yalnızca ufukta iki nokta varken (2 ve 3 nokta) anlamlı
+    const lockApplies = scene.mode >= 2;
+    this.horizonFree.disabled = !lockApplies;
+    this.horizonFree.checked = lockApplies && !scene.horizonLocked;
+    this.horizonFree.closest('.switch')?.classList.toggle('is-disabled', !lockApplies);
+    this.rayCount.disabled = scene.mode === 0;
 
     const count = String(scene.rayCount);
     if (this.rayCount.value !== count) this.rayCount.value = count;
@@ -92,13 +95,13 @@ export class PerspectivePanel {
     this.guidesVisible.checked = view.guidesVisible;
     this.deleteButton.disabled = !view.hasSelection;
 
-    const hintKey: MessageKey = !view.pointToolActive
-      ? 'perspective.hintOtherTool'
-      : scene.canAddPoint
-        ? 'perspective.hintAdd'
-        : scene.mode === 3
-          ? 'perspective.hintVertical'
-          : 'perspective.hintEdit';
-    this.hint.textContent = t(hintKey);
+    this.hint.textContent = t(hintKeyFor(view));
   }
+}
+
+function hintKeyFor({ scene, pointToolActive }: PerspectivePanelView): MessageKey {
+  if (scene.mode === 0) return 'perspective.hintOff';
+  if (!pointToolActive) return 'perspective.hintOtherTool';
+  if (scene.canAddPoint) return 'perspective.hintAdd';
+  return scene.mode === 3 ? 'perspective.hintVertical' : 'perspective.hintEdit';
 }

@@ -36,7 +36,7 @@ export function candidateLines(
   nearPointRadius = 0,
 ): SnapLine[] {
   const lines: SnapLine[] = [];
-  for (const p of scene.points) {
+  for (const p of scene.activePoints) {
     const dx = p.x - start.x;
     const dy = p.y - start.y;
     const len = Math.hypot(dx, dy);
@@ -69,6 +69,25 @@ export function candidateLines(
     if (scene.mode === 1) lines.push({ origin: start, direction: h, kind: 'horizontal' });
   }
   return lines;
+}
+
+/**
+ * Mıknatıs aday kaynağı: stroke başlangıcı için kilitlenebilecek doğrular.
+ * `nearPointRadius` dünya biriminde (kaçış noktası üstünden başlama eşiği).
+ * Perspektif, eksen, ızgara ve şekil köşe çizgileri ayrı kaynaklardır;
+ * fırça hepsini `combineSources` ile tek listede alır, karar mantığı
+ * (`decideLine`) kaynaktan bağımsızdır.
+ */
+export type SnapSource = (start: Point, nearPointRadius: number) => SnapLine[];
+
+/** Kurgudaki kaçış noktaları ve ufka göre dikey/yatay (bkz. `candidateLines`). */
+export function perspectiveSource(scene: PerspectiveScene): SnapSource {
+  return (start, nearPointRadius) => candidateLines(scene, start, nearPointRadius);
+}
+
+/** Kaynakları sırayla birleştirir (sıra, eşit açıda öncelik belirler). */
+export function combineSources(...sources: SnapSource[]): SnapSource {
+  return (start, nearPointRadius) => sources.flatMap((source) => source(start, nearPointRadius));
 }
 
 /** İki yön arasındaki yönsüz açı (0..π/2). */

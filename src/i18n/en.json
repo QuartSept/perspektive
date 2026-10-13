@@ -171,5 +171,12 @@
   "help.theme": "Switch theme (system / light / dark)",
   "brush.pressure": "Pen pressure",
   "help.touchKey": "Touch",
-  "help.touch": "One finger draws (pans once a pen has been used); two fingers pan and zoom"
+  "help.touch": "One finger draws (pans once a pen has been used); two fingers pan and zoom",
+  "perspective.modeLabel": "Vanishing points",
+  "perspective.off": "Perspective off",
+  "perspective.offShort": "Off",
+  "perspective.oneShort": "1",
+  "perspective.twoShort": "2",
+  "perspective.threeShort": "3",
+  "perspective.hintOff": "Perspective is off: no vanishing points or rays. Your setup is kept and comes back when you switch to 1, 2 or 3."
 }

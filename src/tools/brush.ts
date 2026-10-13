@@ -4,13 +4,12 @@ import type { Point } from '../engine/geometry';
 import type { History } from '../engine/history';
 import { lastPoint, newStrokeId, type Stroke } from '../engine/stroke';
 import type { Viewport } from '../engine/viewport';
-import type { PerspectiveScene } from '../perspective/scene';
 import {
-  candidateLines,
   decideLine,
   distanceToLine,
   projectOnLine,
   type SnapLine,
+  type SnapSource,
 } from '../perspective/snapping';
 import type { BrushSettings } from './brush-settings';
 import type { Sample, Tool, ToolOverlay, ToolPointerEvent } from './tool';
@@ -68,7 +67,8 @@ export class BrushTool implements Tool, ToolOverlay {
     private readonly doc: DrawingDocument,
     private readonly history: History,
     private readonly settings: BrushSettings,
-    private readonly scene: PerspectiveScene,
+    /** Mıknatıs adayları (perspektif + ileride eksen, ızgara, şekil köşeleri). */
+    private readonly snapSource: SnapSource,
     private readonly magnet: MagnetSource,
     private readonly onPreviewChange: () => void,
   ) {}
@@ -98,7 +98,7 @@ export class BrushTool implements Tool, ToolOverlay {
     if (this.withPressure) this.stroke.pressures = [e.pressure];
     this.tip = start;
     const candidates = this.magnet.isActive()
-      ? candidateLines(this.scene, start, NEAR_POINT_PX / this.viewport.scale)
+      ? this.snapSource(start, NEAR_POINT_PX / this.viewport.scale)
       : [];
     this.phase = candidates.length
       ? { kind: 'deciding', start, candidates }

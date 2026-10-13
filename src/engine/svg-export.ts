@@ -88,7 +88,7 @@ function guideElements(src: SvgSources): string[] {
   const horizon = scene.horizon();
   const angles = rayAngles(scene.rayCount, horizon?.angle ?? 0);
 
-  scene.points.forEach((p) => {
+  scene.activePoints.forEach((p) => {
     const r = reach(p, w, h);
     const d = angles
       .map((a) => `M${num(p.x)} ${num(p.y)}L${num(p.x + Math.cos(a) * r)} ${num(p.y + Math.sin(a) * r)}`)
@@ -110,7 +110,7 @@ function guideElements(src: SvgSources): string[] {
     );
   }
 
-  scene.points.forEach((p) => {
+  scene.activePoints.forEach((p) => {
     const color = theme.vanishingPoints[scene.colorIndexOf(p) % theme.vanishingPoints.length];
     out.push(
       `<circle cx="${num(p.x)}" cy="${num(p.y)}" r="${MARKER_RADIUS}" fill="${esc(theme.markerFill)}" stroke="${esc(color)}" stroke-width="${MARKER_STROKE}"/>`,

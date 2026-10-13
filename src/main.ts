@@ -18,6 +18,7 @@ import { readCanvasTheme } from './engine/theme';
 import { Viewport, type Padding } from './engine/viewport';
 import { editScene } from './perspective/commands';
 import { PerspectiveScene, type PerspectiveMode } from './perspective/scene';
+import { combineSources, perspectiveSource } from './perspective/snapping';
 import { buildTemplate, type TemplateId } from './perspective/templates';
 import { buildGrid } from './perspective/grid';
 import { SnapSettings } from './perspective/snap-settings';
@@ -84,7 +85,8 @@ const brush = new BrushTool(
   doc,
   history,
   brushSettings,
-  scene,
+  // Aday kaynakları: sonraki aşamalarda eksen, ızgara ve şekil köşeleri eklenir
+  combineSources(perspectiveSource(scene)),
   {
     isActive: () => snapSettings.enabled && !state.temporaryFree,
     get radius() {

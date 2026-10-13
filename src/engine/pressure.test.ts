@@ -4,6 +4,7 @@ import { History } from './history';
 import { pressureWidthFactor, strokeOutline } from './stroke';
 import { Viewport } from './viewport';
 import { PerspectiveScene } from '../perspective/scene';
+import { perspectiveSource } from '../perspective/snapping';
 import { parseSavedDrawing } from '../storage/format';
 import { BrushTool } from '../tools/brush';
 import { BrushSettings } from '../tools/brush-settings';
@@ -34,7 +35,7 @@ describe('fırça basıncı', () => {
     const settings = new BrushSettings();
     settings.setSmoothing(0);
     settings.setPressure(pressureOn);
-    const brush = new BrushTool(viewport, doc, new History(), settings, scene, { isActive: () => false, radius: 20 }, () => {});
+    const brush = new BrushTool(viewport, doc, new History(), settings, perspectiveSource(scene), { isActive: () => false, radius: 20 }, () => {});
     const ev = (x: number, y: number, pressure: number): ToolPointerEvent => ({
       screen: { x, y },
       world: { x, y },

@@ -2,7 +2,7 @@ import type { DrawingDocument } from '../engine/document';
 import type { Command } from '../engine/history';
 import type { Paper } from '../engine/paper';
 import type { PerspectiveScene } from '../perspective/scene';
-import { parseSavedDrawing, type SavedDrawing } from './format';
+import { DEFAULT_GRID, parseSavedDrawing, SAVE_VERSION, type SavedDrawing } from './format';
 
 /** Proje dosyasını tanıtan alan; başka uygulamaların JSON'ı yanlışlıkla yüklenmesin. */
 const APP_ID = 'perspektif';
@@ -16,7 +16,7 @@ export interface DrawingSources {
 /** Çizimin kaydedilebilir anlık görüntüsü (otomatik kayıt ve proje dosyası ortak). */
 export function buildSavedDrawing({ doc, scene, paper }: DrawingSources): SavedDrawing {
   return {
-    version: 1,
+    version: SAVE_VERSION,
     savedAt: Date.now(),
     paper: {
       kind: paper.kind,
@@ -33,6 +33,9 @@ export function buildSavedDrawing({ doc, scene, paper }: DrawingSources): SavedD
     },
     // Belgedeki stroke'lar değiştirilmez; doğrudan verilebilir
     strokes: [...doc.strokes],
+    // Izgara (Aşama 3) ve şekiller (Aşama 4) henüz yok: varsayılanlar yazılır
+    grid: { ...DEFAULT_GRID },
+    shapes: [],
   };
 }
 

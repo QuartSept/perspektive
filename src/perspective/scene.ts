@@ -1,6 +1,8 @@
 import { clamp, type Point, type Rect } from '../engine/geometry';
 
-export type PerspectiveMode = 1 | 2 | 3;
+/** 0: perspektif kapalı (kaçış noktası ve ışın yok), 1–3: nokta sayısı. */
+export type PerspectiveMode = 0 | 1 | 2 | 3;
+export const PERSPECTIVE_MODES: readonly PerspectiveMode[] = [0, 1, 2, 3];
 
 export interface VanishingPoint {
   id: string;
@@ -57,7 +59,9 @@ export function normalizeLineAngle(angle: number): number {
 }
 
 /**
- * Perspektif kurgusu: mod (1/2/3 nokta), kaçış noktaları, ufuk kilidi, ışın sayısı.
+ * Perspektif kurgusu: mod (kapalı/1/2/3 nokta), kaçış noktaları, ufuk kilidi, ışın sayısı.
+ * Kapalı modda noktalar silinmez, yalnızca pasif kalır (`activePoints` boş);
+ * yeniden açınca kurgu geri gelir.
  * 3 noktada ufuk üzerindeki iki noktaya ek olarak dikey kaçış noktası vardır;
  * ufuk kilidi ve ufuk sürükleme yalnızca ufuk noktalarını etkiler.
  * Koordinatlar dünya biriminde; noktalar kâğıt dışında da olabilir.
@@ -104,14 +108,24 @@ export class PerspectiveScene {
     return this.points.find((p) => p.id === id);
   }
 
-  /** Ufuk üzerindeki noktalar (eklenme sırasıyla). */
+  /** Etkin noktalar: çizim, mıknatıs ve düzenleme bunları kullanır (kapalı modda boş). */
+  get activePoints(): VanishingPoint[] {
+    return this.mode === 0 ? [] : this.points;
+  }
+
+  /** Ufuk üzerindeki etkin noktalar (eklenme sırasıyla). */
   get horizonPoints(): VanishingPoint[] {
-    return this.points.filter((p) => !isVerticalPoint(p));
+    return this.activePoints.filter((p) => !isVerticalPoint(p));
   }
 
   /** 3 noktada dikey kaçış noktası. */
   get verticalPoint(): VanishingPoint | undefined {
-    return this.points.find(isVerticalPoint);
+    return this.activePoints.find(isVerticalPoint);
+  }
+
+  /** Mod değişiminde kullanılır: kapalı moddan dönerken pasif noktalar da sayılır. */
+  private allHorizonPoints(): VanishingPoint[] {
+    return this.points.filter((p) => !isVerticalPoint(p));
   }
 
   /** Renk sırası: ufuk noktaları 0, 1; dikey nokta 2 (silme/ekleme sırasından bağımsız). */
@@ -192,7 +206,12 @@ export class PerspectiveScene {
   setMode(mode: PerspectiveMode, paper: Rect, keepId?: string | null): void {
     if (mode === this.mode) return;
     this.mode = mode;
-    if (mode < 3) this.points = this.horizonPoints;
+    // Kapalı mod noktalara dokunmaz (geri açınca kurgu aynen döner)
+    if (mode === 0) {
+      this.emit();
+      return;
+    }
+    if (mode < 3) this.points = this.allHorizonPoints();
     if (mode === 1 && this.points.length > 1) {
       const keep = (keepId && this.getPoint(keepId)) || this.points[0];
       this.points = [keep];

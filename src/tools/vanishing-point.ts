@@ -119,7 +119,7 @@ export class VanishingPointTool implements Tool {
     if (!this.state.markersVisible) return null;
     let best: string | null = null;
     let bestDist = POINT_HIT_RADIUS;
-    for (const p of this.scene.points) {
+    for (const p of this.scene.activePoints) {
       const s = this.viewport.worldToScreen(p);
       const d = Math.hypot(s.x - screen.x, s.y - screen.y);
       if (d <= bestDist) {

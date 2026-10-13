@@ -28,10 +28,10 @@ function reachToCorners(p: Point, width: number, height: number): number {
 function emphasisWeights(view: GuideView, screens: Point[]): number[] {
   const { scene, state } = view;
   if (state.draggingPointId) {
-    return scene.points.map((p) => (p.id === state.draggingPointId ? 1 : 0));
+    return scene.activePoints.map((p) => (p.id === state.draggingPointId ? 1 : 0));
   }
   const pointer = state.pointer;
-  if (!pointer) return scene.points.map(() => 0);
+  if (!pointer) return scene.activePoints.map(() => 0);
   return screens.map((s) => proximityWeight(Math.hypot(s.x - pointer.x, s.y - pointer.y)));
 }
 
@@ -48,7 +48,8 @@ export function drawGuides(view: GuideView): void {
 
   const horizon = scene.horizon();
   const baseAngle = horizon?.angle ?? 0;
-  const screens = scene.points.map((p) => viewport.worldToScreen(p));
+  const points = scene.activePoints;
+  const screens = points.map((p) => viewport.worldToScreen(p));
   const opacities = rayOpacities(
     emphasisWeights(view, screens),
     theme.guideOpacity,
@@ -65,7 +66,7 @@ export function drawGuides(view: GuideView): void {
       ctx.lineTo(s.x + Math.cos(a) * reach, s.y + Math.sin(a) * reach);
     }
     ctx.globalAlpha = opacities[i];
-    ctx.strokeStyle = vanishingPointColor(theme, scene.colorIndexOf(scene.points[i]));
+    ctx.strokeStyle = vanishingPointColor(theme, scene.colorIndexOf(points[i]));
     ctx.lineWidth = 1;
     ctx.stroke();
   });
@@ -109,7 +110,7 @@ export function drawMarkers(view: GuideView): void {
   const { ctx, dpr, viewport, scene, state, theme } = view;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  scene.points.forEach((p) => {
+  scene.activePoints.forEach((p) => {
     const s = viewport.worldToScreen(p);
     const color = vanishingPointColor(theme, scene.colorIndexOf(p));
     const selected = state.selectedPointId === p.id;

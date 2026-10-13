@@ -85,7 +85,7 @@ export function gridHomography(
   size: Size,
 ): GridHomography | null {
   const horizon = scene.horizon();
-  if (!horizon || scene.points.length < scene.mode) return null;
+  if (!horizon || scene.mode === 0 || scene.activePoints.length < scene.mode) return null;
   const e = { x: Math.cos(horizon.angle), y: Math.sin(horizon.angle) };
   const up = { x: e.y, y: -e.x };
   const O = horizon.origin;
