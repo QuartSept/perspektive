@@ -1,6 +1,7 @@
 import type { Point } from './geometry';
 import { gridLines } from './grid';
 import { PX_PER_MM } from './paper';
+import { isClosed, type Shape } from './shapes';
 import { strokeOutline, type InkId, type Stroke } from './stroke';
 import { rayAngles } from '../perspective/rays';
 import type { PerspectiveScene } from '../perspective/scene';
@@ -20,6 +21,8 @@ export interface SvgTheme {
 export interface SvgSources {
   paper: { width: number; height: number };
   strokes: readonly Stroke[];
+  /** Şekiller stroke'ların altında yazılır. */
+  shapes?: readonly Shape[];
   scene: PerspectiveScene;
   theme: SvgTheme;
   /** Görünür kâğıt ızgarasının aralığı (dünya birimi); yoksa ızgara yazılmaz. */
@@ -78,6 +81,16 @@ function strokeElement(stroke: Stroke, color: string): string {
   }
   // Stroke opaklığı tek path'e uygulanır: kendi üstüne binen yerler koyulaşmaz
   return `<path d="${strokePathData(p)}" fill="none" stroke="${esc(color)}" stroke-width="${num(width)}" stroke-linecap="round" stroke-linejoin="round"${op}/>`;
+}
+
+function shapeElement(shape: Shape, color: string): string {
+  const v = shape.vertices;
+  const parts: string[] = [];
+  for (let i = 0; i < v.length; i += 2) parts.push(`${i === 0 ? 'M' : 'L'}${num(v[i])} ${num(v[i + 1])}`);
+  const d = parts.join('') + (isClosed(shape.kind) ? 'Z' : '');
+  const { width, opacity } = shape.style;
+  const op = opacity < 1 ? ` opacity="${num(opacity)}"` : '';
+  return `<path d="${d}" fill="none" stroke="${esc(color)}" stroke-width="${num(width)}" stroke-linecap="round" stroke-linejoin="round"${op}/>`;
 }
 
 /** Noktadan sayfanın en uzak köşesine uzaklık (+pay): ışınlar sayfayı baştan sona keser. */
@@ -150,9 +163,9 @@ export function buildSvg(src: SvgSources, includeGuides: boolean): string {
   const { width: w, height: h } = src.paper;
   const body: string[] = [];
   if (includeGuides) body.push(`<g id="guides">${guideElements(src).join('')}</g>`);
-  body.push(
-    `<g id="drawing">${src.strokes.map((s) => strokeElement(s, src.theme.inks[s.style.ink])).join('')}</g>`,
-  );
+  const shapes = (src.shapes ?? []).map((s) => shapeElement(s, src.theme.inks[s.style.ink]));
+  const strokes = src.strokes.map((s) => strokeElement(s, src.theme.inks[s.style.ink]));
+  body.push(`<g id="drawing">${[...shapes, ...strokes].join('')}</g>`);
 
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',

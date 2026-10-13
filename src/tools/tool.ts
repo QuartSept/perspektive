@@ -1,4 +1,5 @@
 import type { Point } from '../engine/geometry';
+import type { Shape } from '../engine/shapes';
 import type { Stroke } from '../engine/stroke';
 import type { SnapLine } from '../perspective/snapping';
 
@@ -35,6 +36,14 @@ export interface ToolOverlay {
   readonly hiddenStrokeIds?: ReadonlySet<string>;
   /** Etkileşim katmanında gösterilen geçici stroke'lar (ör. piksel silgisinin kalan parçaları). */
   readonly previewStrokes?: readonly Stroke[];
+  /** Silinmek üzere işaretlenen şekiller (soluk çizilir). */
+  readonly fadedShapeIds?: ReadonlySet<string>;
+  /** Geçici olarak çizilmeyen şekiller (ör. düzenlenirken yerine önizleme gösterilir). */
+  readonly hiddenShapeIds?: ReadonlySet<string>;
+  /** Çizilmekte olan şekil. */
+  readonly previewShape?: Shape | null;
+  /** Önizleme şekli açık çizilsin (bitmemiş çokgen). */
+  readonly previewShapeOpen?: boolean;
   /** İmleç yerine çizilen daire yarıçapı, CSS piksel (ör. silgi). */
   readonly cursorRadius?: number | null;
 }

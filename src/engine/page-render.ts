@@ -2,6 +2,7 @@ import type { DrawingDocument } from './document';
 import { drawGrid } from './grid';
 import type { Paper } from './paper';
 import { EditorState } from './state';
+import { drawShape } from './shapes';
 import { drawStroke } from './stroke';
 import { toPrintTheme, type CanvasTheme } from './theme';
 import { Viewport } from './viewport';
@@ -78,6 +79,9 @@ export function renderPage(src: PageSources, options: PageRenderOptions): HTMLCa
   }
 
   viewport.applyTo(ctx, k);
+  for (const shape of doc.shapes) {
+    drawShape(ctx, shape, theme.inks[shape.style.ink]);
+  }
   for (const stroke of doc.strokes) {
     drawStroke(ctx, stroke, theme.inks[stroke.style.ink]);
   }

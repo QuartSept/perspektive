@@ -4,6 +4,7 @@ import type { Paper } from './paper';
 import { drawGrid, gridFade, type PaperGrid } from './grid';
 import { fitImage, type ReferenceImage } from './reference';
 import type { EditorState } from './state';
+import { drawShape, shapeBounds } from './shapes';
 import { drawStroke } from './stroke';
 import { strokeBounds } from './stroke-geometry';
 import { rectsOverlap } from './geometry';
@@ -129,6 +130,15 @@ export class Renderer {
     const faded = overlay?.fadedStrokeIds;
     const hidden = overlay?.hiddenStrokeIds;
     const view = this.viewport.visibleWorldRect();
+    const fadedShapes = overlay?.fadedShapeIds;
+    const hiddenShapes = overlay?.hiddenShapeIds;
+    // Şekiller stroke'ların altında
+    for (const shape of this.doc.shapes) {
+      if (hiddenShapes?.has(shape.id)) continue;
+      if (!rectsOverlap(shapeBounds(shape), view, shape.style.width / 2)) continue;
+      const alpha = fadedShapes?.has(shape.id) ? FADED_ALPHA : 1;
+      drawShape(ctx, shape, this.theme.inks[shape.style.ink], alpha);
+    }
     for (const stroke of this.doc.strokes) {
       if (hidden?.has(stroke.id)) continue;
       // Görünür alanın dışındaki stroke'ları atla (yakınlaştırılmış büyük çizimlerde kazanç)
@@ -147,8 +157,13 @@ export class Renderer {
     const ctx = this.layers.clear('interaction');
     const overlay = this.getOverlay();
     if (overlay?.snapLine) drawSnapLine(this.guideView(ctx), overlay.snapLine);
-    if (overlay?.preview || overlay?.previewStrokes?.length) {
+    if (overlay?.preview || overlay?.previewStrokes?.length || overlay?.previewShape) {
       this.viewport.applyTo(ctx, this.layers.dpr);
+      const shape = overlay.previewShape;
+      if (shape) {
+        const color = this.theme.inks[shape.style.ink];
+        drawShape(ctx, shape, color, 1, overlay.previewShapeOpen ? false : undefined);
+      }
       for (const s of overlay.previewStrokes ?? []) drawStroke(ctx, s, this.theme.inks[s.style.ink]);
       if (overlay.preview) drawStroke(ctx, overlay.preview, this.theme.inks[overlay.preview.style.ink]);
     }

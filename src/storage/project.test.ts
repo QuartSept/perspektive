@@ -24,6 +24,15 @@ describe('proje dosyası', () => {
     a.doc.replaceAll([
       { id: 's1', points: [1, 2, 3, 4], style: { width: 3, opacity: 0.5, ink: 'blue' } },
     ]);
+    a.doc.replaceAll([...a.doc.strokes], [
+      {
+        id: 'h1',
+        kind: 'triangle',
+        vertices: [0, 0, 10, 0, 5, 8],
+        style: { width: 2, opacity: 1, ink: 'red' },
+        cornerLines: false,
+      },
+    ]);
     a.grid.setVisible(true);
     a.grid.setSnap(true);
     a.grid.setSpacing(5);
@@ -35,6 +44,7 @@ describe('proje dosyası', () => {
     expect(parsed.scene.rayCount).toBe(40);
     expect(parsed.scene.horizonLocked).toBe(false);
     expect(parsed.strokes).toEqual(a.doc.strokes);
+    expect(parsed.shapes).toEqual(a.doc.shapes);
     expect(parsed.grid).toEqual({ visible: true, snap: true, spacingMm: 5 });
   });
 

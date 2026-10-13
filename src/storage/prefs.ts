@@ -2,7 +2,9 @@ import { INK_IDS, type InkId } from '../engine/stroke';
 import { getLanguage, isLang, setLanguage } from '../i18n';
 import type { SnapSettings } from '../perspective/snap-settings';
 import type { BrushSettings } from '../tools/brush-settings';
+import { SHAPE_KINDS, type ShapeKind } from '../engine/shapes';
 import { ERASER_KINDS, type EraserKind, type EraserSettings } from '../tools/eraser';
+import type { ShapeSettings } from '../tools/shape-tools';
 import { THEME_PREFERENCES, type ThemeController, type ThemePreference } from '../ui/theme';
 
 const KEY = 'perspektif.prefs.v1';
@@ -20,6 +22,7 @@ interface Prefs {
   };
   snap?: { enabled?: boolean; radius?: number };
   eraser?: { kind?: string; radius?: number };
+  shape?: { kind?: string };
   guidesVisible?: boolean;
   language?: string;
   onboardingDismissed?: boolean;
@@ -30,6 +33,7 @@ export interface PrefsTargets {
   brush: BrushSettings;
   snap: SnapSettings;
   eraser: EraserSettings;
+  shape: ShapeSettings;
   theme: ThemeController;
   getGuidesVisible(): boolean;
   setGuidesVisible(visible: boolean): void;
@@ -61,6 +65,8 @@ export function loadPrefs(t: PrefsTargets): void {
   const er = prefs.eraser ?? {};
   if (ERASER_KINDS.includes(er.kind as EraserKind)) t.eraser.setKind(er.kind as EraserKind);
   if (num(er.radius)) t.eraser.setRadius(er.radius);
+  const sh = prefs.shape ?? {};
+  if (SHAPE_KINDS.includes(sh.kind as ShapeKind)) t.shape.setKind(sh.kind as ShapeKind);
   if (typeof prefs.guidesVisible === 'boolean') t.setGuidesVisible(prefs.guidesVisible);
   if (isLang(prefs.language)) setLanguage(prefs.language);
   if (prefs.onboardingDismissed === true) t.setOnboardingDismissed(true);
@@ -82,6 +88,7 @@ export function savePrefs(t: PrefsTargets): void {
     },
     snap: { enabled: t.snap.enabled, radius: t.snap.radius },
     eraser: { kind: t.eraser.kind, radius: t.eraser.radius },
+    shape: { kind: t.shape.kind },
     guidesVisible: t.getGuidesVisible(),
     language: getLanguage(),
     onboardingDismissed: t.getOnboardingDismissed(),

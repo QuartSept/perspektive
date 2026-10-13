@@ -3,7 +3,7 @@ import './styles/main.css';
 
 import { applyTranslations, onLanguageChange, setLanguage, t, type MessageKey } from './i18n';
 import { ThemeController } from './ui/theme';
-import { ReplaceStrokesCommand } from './engine/commands';
+import { removeItemsCommand, ReplaceStrokesCommand } from './engine/commands';
 import { DrawingDocument } from './engine/document';
 import { OrientationCommand } from './engine/orientation';
 import { History } from './engine/history';
@@ -19,7 +19,7 @@ import { readCanvasTheme } from './engine/theme';
 import { Viewport, type Padding } from './engine/viewport';
 import { editScene } from './perspective/commands';
 import { PerspectiveScene, type PerspectiveMode } from './perspective/scene';
-import { combineSources, perspectiveSource } from './perspective/snapping';
+import { axisSource, combineSources, perspectiveSource, type SnapLine } from './perspective/snapping';
 import { buildTemplate, type TemplateId } from './perspective/templates';
 import { buildGrid } from './perspective/grid';
 import { SnapSettings } from './perspective/snap-settings';
@@ -27,6 +27,8 @@ import { BrushTool } from './tools/brush';
 import { BrushSettings } from './tools/brush-settings';
 import { EraserSettings, EraserTool } from './tools/eraser';
 import { EraserPanel } from './ui/eraser-panel';
+import { ShapeSettings, ShapeTool } from './tools/shape-tools';
+import { ShapePanel } from './ui/shape-panel';
 import { HandTool } from './tools/hand';
 import { Autosave } from './storage/autosave';
 import {
@@ -84,6 +86,12 @@ const paperGrid = new PaperGrid();
 const input = new InputController(stage, viewport);
 
 const gridLineSource = gridSource(paperGrid);
+const gridSnapper = {
+  isActive: () => paperGrid.snap && !state.temporaryFree,
+  get spacing() {
+    return paperGrid.spacing;
+  },
+};
 const brush = new BrushTool(
   viewport,
   doc,
@@ -104,11 +112,34 @@ const brush = new BrushTool(
     isActive: () => scene.mode === 0 && brushSettings.straightLines,
     axisSnap: () => brushSettings.axisSnap && !state.temporaryFree,
   },
+  gridSnapper,
+  () => renderer.requestRender('interaction'),
+);
+
+const perspectiveLines = perspectiveSource(scene);
+const axisLines = axisSource();
+const shapeSettings = new ShapeSettings();
+const shapeTool = new ShapeTool(
+  viewport,
+  doc,
+  history,
+  shapeSettings,
+  () => brushSettings.toStyle(),
   {
-    isActive: () => paperGrid.snap && !state.temporaryFree,
-    get spacing() {
-      return paperGrid.spacing;
+    // Kenar adayları: perspektifte ışınlar (mıknatıs açıksa), kapalıyken eksenler
+    // (eksene yapış açıksa), ikisinde de ızgara çizgileri. Space hepsini kapatır.
+    edgeCandidates(start, near): SnapLine[] {
+      if (state.temporaryFree) return [];
+      const lines: SnapLine[] = [];
+      if (scene.mode === 0) {
+        if (brushSettings.axisSnap) lines.push(...axisLines(start, near));
+      } else if (snapSettings.enabled) {
+        lines.push(...perspectiveLines(start, near));
+      }
+      lines.push(...gridLineSource(start, near));
+      return lines;
     },
+    grid: gridSnapper,
   },
   () => renderer.requestRender('interaction'),
 );
@@ -120,6 +151,7 @@ const eraser = new EraserTool(viewport, doc, history, eraserSettings, (strokesCh
 const tools: Record<string, Tool> = {
   brush,
   eraser,
+  shape: shapeTool,
   point: new VanishingPointTool(viewport, scene, state, history, () => input.updateCursor()),
   hand: new HandTool(viewport, () => input.updateCursor()),
 };
@@ -145,6 +177,7 @@ const toolbar = new Toolbar(toolbarEl, {
 });
 
 const eraserPanel = new EraserPanel(document.getElementById('eraser-panel')!, eraserSettings);
+const shapePanel = new ShapePanel(document.getElementById('shape-panel')!, shapeSettings);
 const brushPanel = new BrushPanel(document.getElementById('brush-panel')!, brushSettings, snapSettings);
 
 const panel = new PerspectivePanel(panelEl, {
@@ -162,6 +195,7 @@ function selectTool(id: string): void {
   if (!tool || input.busy) return;
   input.setTool(tool);
   eraserPanel.setVisible(tool === eraser);
+  shapePanel.setVisible(tool === shapeTool);
   renderer.requestRender('drawing', 'interaction');
   toolbar.setActiveTool(id);
   syncMarkers();
@@ -227,7 +261,7 @@ const confirmDialog = new ConfirmDialog();
 
 /** Mevcut çizimin yerine geçecek işlemler için onay (boş tuvalde sorulmaz). */
 async function confirmReplace(message: string): Promise<boolean> {
-  if (doc.strokes.length === 0) return true;
+  if (doc.isEmpty) return true;
   return confirmDialog.ask({ message, confirmLabel: t('confirm.continue') });
 }
 
@@ -289,6 +323,7 @@ function templateDrawing(id: TemplateId) {
       points: tpl.points,
     },
     strokes: tpl.strokes,
+    shapes: [],
   };
 }
 
@@ -331,7 +366,7 @@ let onboardingDismissed = false;
 
 /** Boş tuvalde, kapatılmadıysa görünür. */
 function syncOnboarding(): void {
-  onboardingEl.hidden = onboardingDismissed || doc.strokes.length > 0;
+  onboardingEl.hidden = onboardingDismissed || !doc.isEmpty;
 }
 
 function setOnboardingDismissed(dismissed: boolean): void {
@@ -406,17 +441,22 @@ function openOutput(mode: OutputMode): void {
   outputDialog.open(mode, defaultPrintScale(paper.kind));
 }
 
-/** Tüm stroke'ları siler (geri alınabilir); kaçış noktaları korunur. */
+/** Tüm stroke'ları ve şekilleri siler (geri alınabilir); kaçış noktaları korunur. */
 async function clearDrawing(): Promise<void> {
-  if (input.busy || doc.strokes.length === 0 || dialogOpen()) return;
+  if (input.busy || doc.isEmpty || dialogOpen()) return;
   const ok = await confirmDialog.ask({
     message: t('document.clearConfirm'),
     confirmLabel: t('confirm.clear'),
     destructive: true,
   });
   // Onay beklenirken durum değişmiş olabilir
-  if (!ok || input.busy || doc.strokes.length === 0) return;
-  history.execute(new ReplaceStrokesCommand(doc, doc.strokes.map((s) => s.id), []));
+  if (!ok || input.busy || doc.isEmpty) return;
+  const command = removeItemsCommand(
+    doc,
+    doc.strokes.map((s) => s.id),
+    doc.shapes.map((s) => s.id),
+  );
+  if (command) history.execute(command);
 }
 
 function undo(): void {
@@ -525,7 +565,7 @@ function changeOrientation(orientation: Orientation): void {
     toolbar.setPaper(paper.kind, paper.orientation);
     return;
   }
-  if (doc.strokes.length > 0) {
+  if (!doc.isEmpty) {
     history.execute(new OrientationCommand(paper, doc, scene, orientation, onPaperChanged));
   } else {
     paper.setOrientation(orientation);
@@ -558,6 +598,7 @@ const prefsTargets: PrefsTargets = {
   brush: brushSettings,
   snap: snapSettings,
   eraser: eraserSettings,
+  shape: shapeSettings,
   theme: themeController,
   getGuidesVisible: () => state.guidesVisible,
   setGuidesVisible,
@@ -581,6 +622,11 @@ onLanguageChange(() => {
   schedulePrefsSave();
 });
 snapSettings.onChange(schedulePrefsSave);
+shapeSettings.onChange(() => {
+  // Tür değişince süren çizim (ör. yarım çokgen) bırakılır
+  shapeTool.cancel();
+  schedulePrefsSave();
+});
 
 const themeButton = document.getElementById('theme-toggle')!;
 function syncThemeButton(): void {
@@ -626,7 +672,7 @@ state.onChange((changed) => {
 doc.onChange(() => {
   syncOnboarding();
   renderer.requestRender('drawing');
-  toolbar.setCanClear(doc.strokes.length > 0);
+  toolbar.setCanClear(!doc.isEmpty);
   autosave.markDirty();
 });
 
@@ -672,6 +718,12 @@ window.addEventListener('blur', () => state.update({ temporaryFree: false }));
 window.addEventListener('keydown', (e) => {
   // Diyalog açıkken kısayollar kapalı (Esc diyaloğu kapatır)
   if (isTextEntry(e.target) || dialogOpen()) return;
+
+  // Yarım çokgen: Enter bitirir, Backspace son köşeyi geri alır, Esc vazgeçer
+  if (input.activeTool === shapeTool && !e.ctrlKey && !e.metaKey && !e.altKey && shapeTool.handleKey(e.key)) {
+    e.preventDefault();
+    return;
+  }
 
   // `#` bazı klavyelerde AltGr (Ctrl+Alt) ile yazılır: değiştirici denetiminden önce
   if (e.key === '#' && !e.metaKey) {
@@ -732,6 +784,12 @@ window.addEventListener('keydown', (e) => {
     case 'H':
       selectTool('hand');
       break;
+    case 's':
+    case 'S':
+      // Şekil aracı zaten etkinse türü değiştirir
+      if (input.activeTool === shapeTool) shapeSettings.cycle();
+      else selectTool('shape');
+      break;
     case 'p':
     case 'P':
       selectTool('point');
@@ -755,7 +813,7 @@ window.addEventListener('keydown', (e) => {
     case 'Backspace':
       if (state.selectedPointId) deleteSelectedPoint();
       // Seçili nokta yoksa Delete çizimi temizler (onaylı); Backspace yanlışlıkla basılmaya açık, temizlemez
-      else if (e.key === 'Delete' && doc.strokes.length > 0) void clearDrawing();
+      else if (e.key === 'Delete' && !doc.isEmpty) void clearDrawing();
       else return;
       break;
     case 'Escape':

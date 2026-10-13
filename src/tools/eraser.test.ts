@@ -93,3 +93,43 @@ describe('EraserTool', () => {
     expect(left.points[2]).toBeCloseTo(46.5, 1);
   });
 });
+
+describe('EraserTool ve şekiller', () => {
+  const rect = {
+    id: 'r',
+    kind: 'rect' as const,
+    vertices: [200, 0, 300, 0, 300, 100, 200, 100],
+    style: { width: 2, opacity: 1, ink: 'black' as const },
+    cornerLines: true,
+  };
+
+  it('iki türde de şekil komple silinir; stroke ile tek adımda geri alınır', () => {
+    for (const kind of ['stroke', 'pixel'] as const) {
+      settings.setKind(kind);
+      doc.replaceAll([line('a', 0)], [rect]);
+      history.clear();
+      // Önce stroke'a, sonra dikdörtgenin sol kenarına dokunan hareket
+      erase([{ x: 50, y: -5 }, { x: 50, y: 5 }, { x: 200, y: 50 }]);
+      expect(doc.shapes).toHaveLength(0);
+      expect(doc.strokes.some((s) => s.id === 'a')).toBe(false);
+      history.undo();
+      expect(doc.shapes.map((s) => s.id)).toEqual(['r']);
+      expect(doc.strokes.map((s) => s.id)).toEqual(['a']);
+    }
+  });
+
+  it('sürüklerken şekil soluk işaretlenir, iptalde belge değişmez', () => {
+    doc.replaceAll([], [rect]);
+    eraser.onPointerDown(ev({ x: 300, y: 40 }));
+    expect([...(eraser.overlay.fadedShapeIds ?? [])]).toEqual(['r']);
+    eraser.onPointerCancel();
+    expect(eraser.overlay.fadedShapeIds?.size ?? 0).toBe(0);
+    expect(doc.shapes).toHaveLength(1);
+  });
+
+  it('şeklin içinden geçmek silmez', () => {
+    doc.replaceAll([], [rect]);
+    erase([{ x: 240, y: 40 }, { x: 260, y: 60 }]);
+    expect(doc.shapes).toHaveLength(1);
+  });
+});

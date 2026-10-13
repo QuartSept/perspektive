@@ -20,6 +20,9 @@
           <button class="tool-btn" type="button" data-tool="eraser" data-i18n-title="tool.eraser" aria-pressed="false">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 19.5 3.8 14.8a1.6 1.6 0 0 1 0-2.3l8.7-8.7a1.6 1.6 0 0 1 2.3 0l5.4 5.4a1.6 1.6 0 0 1 0 2.3l-8.2 8z"/><path d="M8.5 19.5H20M9 9.5l5.5 5.5"/></svg>
           </button>
+          <button class="tool-btn" type="button" data-tool="shape" data-i18n-title="tool.shape" aria-pressed="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 11.5h9v9h-9z"/><path d="M16.5 3.5 21 11h-9z"/></svg>
+          </button>
           <button class="tool-btn" type="button" data-tool="point" data-i18n-title="tool.point" aria-pressed="false">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9.5 4 4M12 9.5 20 4M12 9.5 3 13M12 9.5 21 13M12 9.5 7 21M12 9.5 17 21" opacity=".55"/><circle cx="12" cy="9.5" r="2.6"/></svg>
           </button>
@@ -126,6 +129,19 @@
         </div>
 
         <p class="panel__hint" id="eraser-hint"></p>
+      </section>
+
+      <section class="panel" id="shape-panel" data-i18n-aria-label="shape.title" hidden>
+        <h2 class="panel__title" data-i18n="shape.title">Şekil</h2>
+
+        <div class="segmented segmented--icons" role="radiogroup" data-i18n-aria-label="shape.kind">
+          <button type="button" role="radio" data-shape-kind="segment" data-i18n-title="shape.segment" data-i18n-aria-label="shape.segment"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19 19 5"/><circle cx="5" cy="19" r="1.6"/><circle cx="19" cy="5" r="1.6"/></svg></button>
+          <button type="button" role="radio" data-shape-kind="rect" data-i18n-title="shape.rect" data-i18n-aria-label="shape.rect"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 6.5h15v11h-15z"/></svg></button>
+          <button type="button" role="radio" data-shape-kind="triangle" data-i18n-title="shape.triangle" data-i18n-aria-label="shape.triangle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5 20 19H4z"/></svg></button>
+          <button type="button" role="radio" data-shape-kind="polygon" data-i18n-title="shape.polygon" data-i18n-aria-label="shape.polygon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h9l4 7-6 7H6l-2-8z"/></svg></button>
+        </div>
+
+        <p class="panel__hint" id="shape-hint"></p>
       </section>
 
       <section class="panel" id="brush-panel" data-i18n-aria-label="brush.title">
@@ -304,6 +320,7 @@
           <dl class="shortcuts">
             <dt><kbd>B</kbd></dt><dd data-i18n="help.brush"></dd>
             <dt><kbd>E</kbd></dt><dd data-i18n="help.eraser"></dd>
+            <dt><kbd>S</kbd></dt><dd data-i18n="help.shape"></dd>
             <dt><kbd>P</kbd></dt><dd data-i18n="help.point"></dd>
             <dt><kbd>H</kbd></dt><dd data-i18n="help.hand"></dd>
             <dt><kbd data-i18n="help.keySpace">Space</kbd></dt><dd data-i18n="help.space"></dd>

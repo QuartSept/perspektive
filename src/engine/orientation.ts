@@ -2,6 +2,7 @@ import type { DrawingDocument } from './document';
 import type { Point } from './geometry';
 import type { Command } from './history';
 import type { Orientation, Paper } from './paper';
+import { mapShape, type Shape } from './shapes';
 import type { Stroke } from './stroke';
 import { normalizeLineAngle, type PerspectiveScene, type SceneSnapshot } from '../perspective/scene';
 
@@ -48,11 +49,12 @@ function rotateSnapshot(snap: SceneSnapshot, rotation: ContentRotation): SceneSn
 interface OrientationState {
   orientation: Orientation;
   strokes: readonly Stroke[];
+  shapes: readonly Shape[];
   scene: SceneSnapshot;
 }
 
 /**
- * Çizim başlamışken yönlendirme değişimi: kâğıt, stroke'lar ve kaçış noktaları
+ * Çizim başlamışken yönlendirme değişimi: kâğıt, stroke'lar, şekiller ve kaçış noktaları
  * birlikte 90° döner. Tek adımda geri alınır. (Çizim yoksa kaçış noktaları
  * yerinde kalır ve bu komut kullanılmaz.)
  */
@@ -69,10 +71,16 @@ export class OrientationCommand implements Command {
   ) {
     const rotation = contentRotation(to, paper.width, paper.height);
     const sceneSnap = scene.snapshot();
-    this.before = { orientation: paper.orientation, strokes: [...doc.strokes], scene: sceneSnap };
+    this.before = {
+      orientation: paper.orientation,
+      strokes: [...doc.strokes],
+      shapes: [...doc.shapes],
+      scene: sceneSnap,
+    };
     this.after = {
       orientation: to,
       strokes: doc.strokes.map((s) => rotateStroke(s, rotation)),
+      shapes: doc.shapes.map((s) => mapShape(s, rotation.map)),
       scene: rotateSnapshot(sceneSnap, rotation),
     };
   }
@@ -87,7 +95,7 @@ export class OrientationCommand implements Command {
 
   private set(state: OrientationState): void {
     this.paper.setOrientation(state.orientation);
-    this.doc.replaceAll([...state.strokes]);
+    this.doc.replaceAll([...state.strokes], [...state.shapes]);
     this.scene.restore(state.scene);
     this.onChanged();
   }

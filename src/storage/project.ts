@@ -36,8 +36,7 @@ export function buildSavedDrawing({ doc, scene, paper, grid }: DrawingSources): 
     // Belgedeki stroke'lar değiştirilmez; doğrudan verilebilir
     strokes: [...doc.strokes],
     grid: grid.toSaved(),
-    // Şekiller (Aşama 4) henüz yok
-    shapes: [],
+    shapes: [...doc.shapes],
   };
 }
 
@@ -49,7 +48,7 @@ export function applySavedDrawing(
   paper.restore(saved.paper.kind, saved.paper.width, saved.paper.height, saved.paper.orientation);
   scene.restore(saved.scene);
   scene.setRayCount(saved.scene.rayCount);
-  doc.replaceAll(saved.strokes);
+  doc.replaceAll(saved.strokes, saved.shapes);
   grid.restore(saved.grid);
 }
 

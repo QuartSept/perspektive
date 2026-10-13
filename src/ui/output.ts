@@ -56,6 +56,7 @@ export function downloadSvg(src: PageSources, options: OutputOptions): void {
     {
       paper: src.paper,
       strokes: src.doc.strokes,
+      shapes: src.doc.shapes,
       scene: src.scene,
       theme: toPrintTheme(src.theme),
       gridSpacing: src.grid?.visible ? src.grid.spacing : null,

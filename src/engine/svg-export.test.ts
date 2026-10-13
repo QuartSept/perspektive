@@ -94,3 +94,28 @@ describe('yardımcılar', () => {
     expect(splitAlpha('#abcdef')).toEqual({ color: '#abcdef', alpha: 1 });
   });
 });
+
+describe('şekiller', () => {
+  it('şekiller stroke’ların altında, kapalı olanlar Z ile yazılır', () => {
+    const shapes = [
+      {
+        id: 'r',
+        kind: 'rect' as const,
+        vertices: [0, 0, 10, 0, 10, 5, 0, 5],
+        style: { width: 3, opacity: 0.5, ink: 'black' as const },
+        cornerLines: true,
+      },
+      {
+        id: 'g',
+        kind: 'segment' as const,
+        vertices: [1, 1, 9, 9],
+        style: { width: 2, opacity: 1, ink: 'red' as const },
+        cornerLines: true,
+      },
+    ];
+    const svg = buildSvg({ paper, strokes, shapes, scene: scene(), theme }, false);
+    expect(svg).toContain('<path d="M0 0L10 0L10 5L0 5Z" fill="none" stroke="#111111" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>');
+    expect(svg).toContain('<path d="M1 1L9 9" fill="none"');
+    expect(svg.indexOf('M0 0L10 0')).toBeLessThan(svg.indexOf('M10 10 Q'));
+  });
+});

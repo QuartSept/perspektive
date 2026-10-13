@@ -6,6 +6,25 @@ export interface Command {
 
 const MAX_HISTORY = 300;
 
+/** Birden fazla komutu tek geri al adımında toplar (geri alırken ters sırada). */
+export class CompositeCommand implements Command {
+  constructor(private readonly commands: readonly Command[]) {}
+
+  apply(): void {
+    for (const c of this.commands) c.apply();
+  }
+
+  revert(): void {
+    for (let i = this.commands.length - 1; i >= 0; i--) this.commands[i].revert();
+  }
+}
+
+/** Tek komut varsa kendisi, birden fazlaysa birleşik komut; hiç yoksa null. */
+export function combineCommands(commands: readonly Command[]): Command | null {
+  if (commands.length === 0) return null;
+  return commands.length === 1 ? commands[0] : new CompositeCommand(commands);
+}
+
 /** Komut tabanlı geri al / ileri al yığını. */
 export class History {
   private undoStack: Command[] = [];
