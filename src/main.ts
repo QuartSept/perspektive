@@ -49,6 +49,7 @@ import { TemplatesDialog } from './ui/templates-dialog';
 import { ConfirmDialog } from './ui/confirm-dialog';
 import { GridDialog } from './ui/grid-dialog';
 import { PaperGridPanel } from './ui/paper-grid-panel';
+import { SidebarDock } from './ui/sidebar';
 import { ReferencePanel } from './ui/reference-panel';
 import { ReferenceStore } from './storage/reference-store';
 import { loadPrefs, savePrefs, type PrefsTargets } from './storage/prefs';
@@ -78,6 +79,7 @@ const stage = document.getElementById('stage')!;
 const toolbarEl = document.querySelector<HTMLElement>('.toolbar')!;
 const sidebarEl = document.getElementById('sidebar')!;
 const panelEl = document.getElementById('perspective-panel')!;
+const railEl = document.getElementById('sidebar-rail') as HTMLButtonElement;
 stage.tabIndex = 0;
 
 const viewport = new Viewport();
@@ -91,6 +93,14 @@ const brushSettings = new BrushSettings();
 const snapSettings = new SnapSettings();
 const paperGrid = new PaperGrid();
 const corners = new CornerLineSettings();
+// Kenar çubuğunun dokunma dinleyicisi tuvalinkinden önce kaydolmalı (dokunuşu yutar)
+const sidebarDock = new SidebarDock(
+  document.getElementById('app')!,
+  railEl,
+  sidebarEl,
+  document.getElementById('sidebar-pin') as HTMLButtonElement,
+  stage,
+);
 const input = new InputController(stage, viewport);
 
 const gridLineSource = gridSource(paperGrid);
@@ -533,7 +543,9 @@ function updatePanel(): void {
 function fitPadding(): Padding {
   const stageRect = stage.getBoundingClientRect();
   const toolbarBottom = toolbarEl.getBoundingClientRect().bottom - stageRect.top;
-  const panelRight = sidebarEl.getBoundingClientRect().right - stageRect.left;
+  // Sabitlenmemiş paneller tuvalin üstünde açılır: yalnızca şerit yer kaplar
+  const leftEl = sidebarDock.pinned ? sidebarEl : railEl;
+  const panelRight = leftEl.getBoundingClientRect().right - stageRect.left;
   return {
     top: toolbarBottom + FIT_MARGIN,
     right: FIT_MARGIN,
@@ -660,7 +672,10 @@ const prefsTargets: PrefsTargets = {
   setGuidesVisible,
   getOnboardingDismissed: () => onboardingDismissed,
   setOnboardingDismissed,
+  getSidebarPinned: () => sidebarDock.pinned,
+  setSidebarPinned: (pinned) => sidebarDock.setPinned(pinned),
 };
+sidebarDock.onChange(schedulePrefsSave);
 let prefsTimer = 0;
 function schedulePrefsSave(): void {
   window.clearTimeout(prefsTimer);
@@ -894,6 +909,7 @@ window.addEventListener('keydown', (e) => {
       break;
     }
     case 'Escape':
+      sidebarDock.close();
       state.update({ selectedPointId: null });
       selectionTool.select(null);
       break;

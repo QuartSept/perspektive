@@ -114,7 +114,18 @@
         </div>
       </header>
 
+      <button type="button" class="sidebar-rail" id="sidebar-rail" aria-controls="sidebar" aria-expanded="false" data-i18n-title="sidebar.open">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>
+        <span class="sidebar-rail__label" data-i18n="sidebar.title">Paneller</span>
+      </button>
+
       <div class="sidebar" id="sidebar">
+      <div class="sidebar__head">
+        <span class="panel__title" data-i18n="sidebar.title">Paneller</span>
+        <button type="button" class="sidebar__pin" id="sidebar-pin" aria-pressed="false" data-i18n-title="sidebar.pin" data-i18n-aria-label="sidebar.pin">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-1 6 3 3H7l3-3z"/><path d="M12 13v7"/></svg>
+        </button>
+      </div>
       <section class="panel" id="eraser-panel" data-i18n-aria-label="eraser.title" hidden>
         <h2 class="panel__title" data-i18n="eraser.title">Silgi</h2>
 

@@ -27,6 +27,7 @@ interface Prefs {
   language?: string;
   onboardingDismissed?: boolean;
   theme?: string;
+  sidebarPinned?: boolean;
 }
 
 export interface PrefsTargets {
@@ -39,6 +40,8 @@ export interface PrefsTargets {
   setGuidesVisible(visible: boolean): void;
   getOnboardingDismissed(): boolean;
   setOnboardingDismissed(dismissed: boolean): void;
+  getSidebarPinned(): boolean;
+  setSidebarPinned(pinned: boolean): void;
 }
 
 const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
@@ -70,6 +73,7 @@ export function loadPrefs(t: PrefsTargets): void {
   if (typeof prefs.guidesVisible === 'boolean') t.setGuidesVisible(prefs.guidesVisible);
   if (isLang(prefs.language)) setLanguage(prefs.language);
   if (prefs.onboardingDismissed === true) t.setOnboardingDismissed(true);
+  if (typeof prefs.sidebarPinned === 'boolean') t.setSidebarPinned(prefs.sidebarPinned);
   if (THEME_PREFERENCES.includes(prefs.theme as ThemePreference)) {
     t.theme.set(prefs.theme as ThemePreference);
   }
@@ -93,6 +97,7 @@ export function savePrefs(t: PrefsTargets): void {
     language: getLanguage(),
     onboardingDismissed: t.getOnboardingDismissed(),
     theme: t.theme.preference,
+    sidebarPinned: t.getSidebarPinned(),
   };
   try {
     localStorage.setItem(KEY, JSON.stringify(prefs));
