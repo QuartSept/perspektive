@@ -29,7 +29,9 @@ Hesap ve sunucu yoktur; her şey tarayıcınızda kalır.
 - Türkçe ve İngilizce arayüz; açık, koyu ya da sistem teması (çıktılar her zaman beyaz kâğıtta)
 - Kalem basıncı (değişken kalınlık), dokunmatik: tek parmak çizer, iki parmak kaydırır ve yakınlaştırır; kalem kullanılınca avuç içi koruması
 
-Klavye kısayolları uygulama içinde `?` ile açılır.
+Klavye kısayolları uygulama içinde `?` ile açılır. Başlıcaları: `V` seç / düzenle, `B` fırça, `E` silgi,
+`S` şekil (tekrar basınca tür değişir), `P` kaçış noktası, `H` kaydır, `M` mıknatıs, `G` kılavuzlar,
+`#` kâğıt ızgarası, ok tuşları seçili şekli kaydırır.
 
 ## Geliştirme
 
@@ -54,9 +56,9 @@ de çalışır.
 ```
 src/
   main.ts            giriş noktası, bileşenleri birbirine bağlar
-  engine/            viewport, katmanlar, stroke modeli, belge, geri al (komutlar), render
-  perspective/       kaçış noktaları, ışın üretimi, snapping
-  tools/             Tool arayüzü, fırça, StrokeEraser, kaçış noktası, el
+  engine/            viewport, katmanlar, stroke ve şekil modeli, kâğıt ızgarası, belge, geri al (komutlar), render
+  perspective/       kaçış noktaları, ışın üretimi, snapping (aday kaynakları), köşe kaçış çizgileri
+  tools/             Tool arayüzü, fırça, silgi, şekil, seç / düzenle, kaçış noktası, el
   ui/                araç çubuğu, paneller, çıktı diyaloğu, yazdırma görünümü
   i18n/              tr.json, en.json, çeviri yardımcıları
   storage/           otomatik kayıt, tercihler, kayıt biçimi doğrulama

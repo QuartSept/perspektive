@@ -8,10 +8,12 @@ import { distanceToLine, intersectLines, type SnapLine } from '../perspective/sn
 import { EdgeSnapper, type ShapeSnapping } from './shape-tools';
 import type { Tool, ToolOverlay, ToolPointerEvent } from './tool';
 
-/** Köşe tutamacını yakalama yarıçapı, ekran pikseli. */
+/** Köşe tutamacını yakalama yarıçapı, ekran pikseli (parmakla daha geniş). */
 export const HANDLE_HIT_PX = 10;
-/** Şekle tıklama toleransı (kenardan), ekran pikseli. */
+const HANDLE_HIT_TOUCH_PX = 20;
+/** Şekle tıklama toleransı (kenardan), ekran pikseli (parmakla daha geniş). */
 const SHAPE_HIT_PX = 6;
+const SHAPE_HIT_TOUCH_PX = 14;
 /** İki kenar doğrusunun kesişimi imlece bu kadar yakınsa köşe kesişime oturur. */
 const INTERSECT_PX = 24;
 
@@ -20,6 +22,8 @@ type Drag =
       kind: 'vertex';
       original: Shape;
       index: number;
+      /** Köşe ile tutulan nokta arası fark (köşe imlece sıçramasın; parmakta önemli). */
+      offset: Point;
       /** Komşu köşe başına kenar yapıştırıcı (önceki, sonraki). */
       snappers: EdgeSnapper[];
     }
@@ -114,6 +118,19 @@ export class SelectTool implements Tool, ToolOverlay {
     return true;
   }
 
+  /** Seçili şekli dünya biriminde kaydırır (klavye); kaydırıldıysa true. */
+  nudge(dx: number, dy: number): boolean {
+    const shape = this.selected;
+    if (!shape || this.drag) return false;
+    const index = this.doc.shapeIndexOf(shape.id);
+    const vertices = shape.vertices.map((c, i) => c + (i % 2 ? dy : dx));
+    this.history.execute(
+      new ReplaceShapesCommand(this.doc, [shape.id], [{ index, shape: { ...shape, vertices } }]),
+    );
+    this.onChange();
+    return true;
+  }
+
   /** Seçili şeklin köşe çizgilerini açar / kapatır (geri alınabilir). */
   setCornerLines(enabled: boolean): void {
     const shape = this.selected;
@@ -126,8 +143,9 @@ export class SelectTool implements Tool, ToolOverlay {
   }
 
   onPointerDown(e: ToolPointerEvent): void {
+    const touch = e.pointerType === 'touch';
     const selected = this.selected;
-    const handle = selected ? this.hitHandle(selected, e.screen) : null;
+    const handle = selected ? this.hitHandle(selected, e.screen, touch) : null;
     if (selected && handle !== null) {
       const count = selected.vertices.length / 2;
       const neighbors = selected.kind === 'rect' ? 0 : selected.kind === 'segment' ? 1 : 2;
@@ -135,10 +153,14 @@ export class SelectTool implements Tool, ToolOverlay {
         kind: 'vertex',
         original: selected,
         index: handle,
+        offset: {
+          x: selected.vertices[handle * 2] - e.world.x,
+          y: selected.vertices[handle * 2 + 1] - e.world.y,
+        },
         snappers: Array.from({ length: Math.min(neighbors, count - 1) }, () => this.newSnapper()),
       };
     } else {
-      const hit = this.hitShape(e.world);
+      const hit = this.hitShape(e.world, touch);
       this.select(hit?.id ?? null);
       if (hit) this.drag = { kind: 'move', original: hit, grab: e.world, snapper: this.newSnapper() };
     }
@@ -152,7 +174,9 @@ export class SelectTool implements Tool, ToolOverlay {
       return;
     }
     this.draft =
-      drag.kind === 'vertex' ? this.movedVertex(drag, e.world) : this.movedShape(drag, e.world);
+      drag.kind === 'vertex'
+        ? this.movedVertex(drag, { x: e.world.x + drag.offset.x, y: e.world.y + drag.offset.y })
+        : this.movedShape(drag, e.world);
     this.onChange();
   }
 
@@ -195,9 +219,9 @@ export class SelectTool implements Tool, ToolOverlay {
     this.onChange();
   }
 
-  private hitHandle(shape: Shape, screen: Point): number | null {
+  private hitHandle(shape: Shape, screen: Point, touch = false): number | null {
     let best: number | null = null;
-    let bestDist = HANDLE_HIT_PX;
+    let bestDist = touch ? HANDLE_HIT_TOUCH_PX : HANDLE_HIT_PX;
     shapeVertices(shape).forEach((v, i) => {
       const s = this.viewport.worldToScreen(v);
       const d = Math.hypot(s.x - screen.x, s.y - screen.y);
@@ -210,8 +234,8 @@ export class SelectTool implements Tool, ToolOverlay {
   }
 
   /** Noktanın altındaki en üstteki şekil (kenarına yakınlıkla). */
-  private hitShape(world: Point): Shape | null {
-    const tolerance = SHAPE_HIT_PX / this.viewport.scale;
+  private hitShape(world: Point, touch = false): Shape | null {
+    const tolerance = (touch ? SHAPE_HIT_TOUCH_PX : SHAPE_HIT_PX) / this.viewport.scale;
     const shapes = this.doc.shapes;
     for (let i = shapes.length - 1; i >= 0; i--) {
       if (segmentTouchesShape(shapes[i], world, world, tolerance)) return shapes[i];

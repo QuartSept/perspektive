@@ -881,6 +881,18 @@ window.addEventListener('keydown', (e) => {
       else if (e.key === 'Delete' && !doc.isEmpty) void clearDrawing();
       else return;
       break;
+    case 'ArrowLeft':
+    case 'ArrowRight':
+    case 'ArrowUp':
+    case 'ArrowDown': {
+      // Seçili şekli kaydır: 1 px (Shift: 10 px); ızgaraya yapış açıkken bir kare
+      if (input.activeTool !== selectionTool || input.busy) return;
+      const step = paperGrid.snap ? paperGrid.spacing : (e.shiftKey ? 10 : 1) / viewport.scale;
+      const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
+      const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
+      if (!selectionTool.nudge(dx, dy)) return;
+      break;
+    }
     case 'Escape':
       state.update({ selectedPointId: null });
       selectionTool.select(null);

@@ -206,3 +206,25 @@ describe('köşe çizgisi geçişi', () => {
     expect(doc.getShape('r')!.cornerLines).toBe(true);
   });
 });
+
+describe('klavye ve dokunma', () => {
+  it('seçili şekil ok tuşlarıyla kaydırılır, her adım geri alınır; seçim yokken işlenmez', () => {
+    expect(tool.nudge(5, 0)).toBe(false);
+    tool.select('r');
+    tool.nudge(5, 0);
+    tool.nudge(0, -2);
+    expect(verts('r').slice(0, 2)).toEqual([105, 98]);
+    history.undo();
+    expect(verts('r').slice(0, 2)).toEqual([105, 100]);
+  });
+
+  it('parmakla tutamaç ve kenar daha geniş alandan yakalanır', () => {
+    tool.select('r');
+    const touch = (p: Point): ToolPointerEvent => ({ ...ev(p), pointerType: 'touch' });
+    // Köşeden 15 px uzak: farede kaçar, parmakla yakalanır
+    tool.onPointerDown(touch({ x: 315, y: 200 }));
+    tool.onPointerMove(touch({ x: 360, y: 240 }));
+    tool.onPointerUp(touch({ x: 360, y: 240 }));
+    expect(verts('r')).toEqual([100, 100, 345, 100, 345, 240, 100, 240]);
+  });
+});

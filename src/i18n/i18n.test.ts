@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import html from '../../index.html?raw';
 import en from './en.json';
 import tr from './tr.json';
 
@@ -20,5 +21,11 @@ describe('çeviri dosyaları', () => {
     for (const key of Object.keys(tr) as (keyof typeof tr)[]) {
       expect(holes(en[key]), key).toEqual(holes(tr[key]));
     }
+  });
+
+  it('index.html’deki her data-i18n anahtarı çeviri dosyasında var', () => {
+    const keys = [...html.matchAll(/data-i18n(?:-[a-z-]+)?="([^"]+)"/g)].map((m) => m[1]);
+    expect(keys.length).toBeGreaterThan(50);
+    for (const key of keys) expect(Object.keys(tr), key).toContain(key);
   });
 });

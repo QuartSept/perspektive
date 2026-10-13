@@ -166,6 +166,7 @@ export class PerspectivePanel {
           btn.setAttribute('role', 'radio');
           btn.dataset.pointId = p.id;
           btn.title = t('corners.pointLabel', { n: i + 1 });
+          btn.setAttribute('aria-label', btn.title);
           const dot = document.createElement('span');
           dot.className = 'vp-dot';
           dot.style.background = `var(--color-vp-${view.scene.colorIndexOf(p) + 1})`;
