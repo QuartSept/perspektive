@@ -7,7 +7,14 @@ import type { PerspectiveScene } from './scene';
 import type { CornerLine } from './corner-lines';
 import type { SnapLine } from './snapping';
 
+/** İşaretçi yarıçapı ve çizgisi `markerScale` = 1'de (CSS piksel). */
 export const MARKER_RADIUS = 5.5;
+const MARKER_STROKE = 2;
+
+/** Ölçeğe göre işaretçi yarıçapı ve çizgi kalınlığı (çizgi çok incelmesin). */
+export function markerMetrics(scale: number): { radius: number; stroke: number } {
+  return { radius: MARKER_RADIUS * scale, stroke: Math.max(1.25, MARKER_STROKE * scale) };
+}
 
 export interface GuideView {
   ctx: CanvasRenderingContext2D;
@@ -143,6 +150,7 @@ export function drawMarkers(view: GuideView): void {
   const { ctx, dpr, viewport, scene, state, theme } = view;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
+  const { radius, stroke } = markerMetrics(state.markerScale);
   scene.activePoints.forEach((p) => {
     const s = viewport.worldToScreen(p);
     const color = vanishingPointColor(theme, scene.colorIndexOf(p));
@@ -151,17 +159,17 @@ export function drawMarkers(view: GuideView): void {
 
     if (hot) {
       ctx.beginPath();
-      ctx.arc(s.x, s.y, MARKER_RADIUS + 6, 0, Math.PI * 2);
+      ctx.arc(s.x, s.y, radius + 6, 0, Math.PI * 2);
       ctx.fillStyle = theme.markerHalo;
       ctx.fill();
     }
 
     ctx.beginPath();
-    ctx.arc(s.x, s.y, hot ? MARKER_RADIUS + 1 : MARKER_RADIUS, 0, Math.PI * 2);
+    ctx.arc(s.x, s.y, hot ? radius + 1 : radius, 0, Math.PI * 2);
     ctx.fillStyle = selected ? color : theme.markerFill;
     ctx.fill();
     ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = stroke;
     ctx.stroke();
   });
 }

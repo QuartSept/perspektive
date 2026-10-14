@@ -99,7 +99,7 @@ describe('sürüm 2', () => {
   const v2 = {
     ...valid,
     version: 2,
-    grid: { visible: true, snap: true, spacingMm: 5 },
+    grid: { visible: true, snap: true, spacingMm: 5, centerMark: true },
     shapes: [
       {
         id: 'r1',

@@ -1,5 +1,5 @@
 import type { DrawingDocument } from './document';
-import { drawGrid } from './grid';
+import { drawCenterMark, drawGrid } from './grid';
 import type { Paper } from './paper';
 import { EditorState } from './state';
 import { drawShape } from './shapes';
@@ -22,7 +22,9 @@ export interface PageSources {
   scene: PerspectiveScene;
   theme: CanvasTheme;
   /** Kâğıt ızgarası; görünürse "kılavuzlarla" çıktıya girer. */
-  grid?: { visible: boolean; spacing: number } | null;
+  grid?: { visible: boolean; spacing: number; centerMark?: boolean } | null;
+  /** Kaçış noktası işaretçisi boyutu (ekrandakiyle aynı). */
+  markerScale?: number;
   /** Köşe kaçış çizgisi ayarı; "kılavuzlarla" çıktıya girer. */
   corners?: CornerLineSettings | null;
 }
@@ -66,9 +68,14 @@ export function renderPage(src: PageSources, options: PageRenderOptions): HTMLCa
     viewport.applyTo(ctx, k);
     drawGrid(ctx, paper.rect, src.grid.spacing, theme.grid, PRINT_GRID_WIDTH, 1);
   }
+  if (options.includeGuides && src.grid?.centerMark) {
+    viewport.applyTo(ctx, k);
+    drawCenterMark(ctx, paper.rect, theme.centerMark, PRINT_GRID_WIDTH);
+  }
 
   if (options.includeGuides) {
     const state = new EditorState();
+    if (src.markerScale) state.markerScale = src.markerScale;
     const view = {
       ctx,
       dpr: k,

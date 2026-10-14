@@ -28,6 +28,7 @@ interface Prefs {
   onboardingDismissed?: boolean;
   theme?: string;
   sidebarPinned?: boolean;
+  markerScale?: number;
 }
 
 export interface PrefsTargets {
@@ -42,6 +43,8 @@ export interface PrefsTargets {
   setOnboardingDismissed(dismissed: boolean): void;
   getSidebarPinned(): boolean;
   setSidebarPinned(pinned: boolean): void;
+  getMarkerScale(): number;
+  setMarkerScale(scale: number): void;
 }
 
 const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
@@ -74,6 +77,7 @@ export function loadPrefs(t: PrefsTargets): void {
   if (isLang(prefs.language)) setLanguage(prefs.language);
   if (prefs.onboardingDismissed === true) t.setOnboardingDismissed(true);
   if (typeof prefs.sidebarPinned === 'boolean') t.setSidebarPinned(prefs.sidebarPinned);
+  if (num(prefs.markerScale)) t.setMarkerScale(prefs.markerScale);
   if (THEME_PREFERENCES.includes(prefs.theme as ThemePreference)) {
     t.theme.set(prefs.theme as ThemePreference);
   }
@@ -98,6 +102,7 @@ export function savePrefs(t: PrefsTargets): void {
     onboardingDismissed: t.getOnboardingDismissed(),
     theme: t.theme.preference,
     sidebarPinned: t.getSidebarPinned(),
+    markerScale: t.getMarkerScale(),
   };
   try {
     localStorage.setItem(KEY, JSON.stringify(prefs));

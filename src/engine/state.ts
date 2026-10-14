@@ -12,7 +12,13 @@ export interface EditorStateData {
   horizonHovered: boolean;
   /** Space basılı: mıknatıs geçici olarak kapalı. */
   temporaryFree: boolean;
+  /** Kaçış noktası işaretçisi boyutu (1 = eski tam boyut). */
+  markerScale: number;
 }
+
+export const MARKER_SCALE_DEFAULT = 0.7;
+export const MARKER_SCALE_MIN = 0.5;
+export const MARKER_SCALE_MAX = 1.5;
 
 export class EditorState implements EditorStateData {
   pointer: Point | null = null;
@@ -23,6 +29,7 @@ export class EditorState implements EditorStateData {
   draggingPointId: string | null = null;
   horizonHovered = false;
   temporaryFree = false;
+  markerScale = MARKER_SCALE_DEFAULT;
 
   private listeners = new Set<(changed: Set<keyof EditorStateData>) => void>();
 

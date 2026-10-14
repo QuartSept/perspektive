@@ -94,6 +94,9 @@
           <button class="tool-btn" type="button" data-action="zoom-in" data-i18n-title="view.zoomIn">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14"/></svg>
           </button>
+          <button class="tool-btn" type="button" data-action="center" data-i18n-title="view.center">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.5"/><path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4"/><circle cx="12" cy="12" r="1.2"/></svg>
+          </button>
           <button class="tool-btn" type="button" data-action="zoom-fit" data-i18n-title="view.fit">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
           </button>
@@ -248,6 +251,14 @@
           <input type="range" id="ray-count" class="range" />
         </div>
 
+        <div class="field">
+          <div class="field__row">
+            <label for="marker-size" data-i18n="perspective.markerSize">Nokta boyutu</label>
+            <output id="marker-size-value" for="marker-size"></output>
+          </div>
+          <input type="range" id="marker-size" class="range" />
+        </div>
+
         <label class="switch">
           <input type="checkbox" id="guides-visible" checked />
           <span data-i18n="perspective.showGuides">Kılavuzlar (G)</span>
@@ -262,7 +273,10 @@
           <div class="segmented" id="corner-point" role="radiogroup" data-i18n-aria-label="corners.point" hidden></div>
         </div>
 
-        <button type="button" class="btn" id="delete-point" data-i18n="perspective.deletePoint">Seçili noktayı sil</button>
+        <div class="panel__row">
+          <button type="button" class="btn" id="center-point" data-i18n="perspective.centerPoint" data-i18n-title="perspective.centerPointTitle">Merkeze al</button>
+          <button type="button" class="btn" id="delete-point" data-i18n="perspective.deletePoint">Seçili noktayı sil</button>
+        </div>
         <button type="button" class="btn" id="open-grid" data-i18n="grid.open">Izgara ekle…</button>
 
         <p class="panel__hint" id="perspective-hint"></p>
@@ -278,6 +292,10 @@
         <label class="switch">
           <input type="checkbox" id="paper-grid-snap" />
           <span data-i18n="paperGrid.snap">Izgaraya yapış</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" id="paper-grid-center" />
+          <span data-i18n="paperGrid.centerMark">Merkez çizgileri</span>
         </label>
 
         <div class="field__label" id="paper-grid-spacing-label" data-i18n="paperGrid.spacing">Aralık</div>
@@ -370,6 +388,7 @@
             <dt><kbd>Esc</kbd></dt><dd data-i18n="help.escape"></dd>
             <dt><kbd>+</kbd> <kbd>−</kbd></dt><dd data-i18n="help.zoom"></dd>
             <dt><kbd>0</kbd> / <kbd>1</kbd></dt><dd data-i18n="help.fit"></dd>
+            <dt><kbd>C</kbd></dt><dd data-i18n="help.center"></dd>
             <dt><kbd>Ctrl</kbd>+<kbd>S</kbd></dt><dd data-i18n="help.save"></dd>
             <dt><kbd>Ctrl</kbd>+<kbd>P</kbd></dt><dd data-i18n="help.print"></dd>
             <dt><kbd>Ctrl</kbd>+<kbd>O</kbd></dt><dd data-i18n="help.open"></dd>

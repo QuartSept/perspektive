@@ -5,6 +5,19 @@ import type { Tool, ToolPointerEvent } from '../tools/tool';
 const WHEEL_ZOOM_SPEED = 0.0015;
 const LINE_HEIGHT_PX = 16;
 
+/**
+ * Etkin araçtan bağımsız olarak bazı basışları üstlenen yardımcı (ör. her
+ * araçta kaçış noktasını tutup taşımak). Basış ona aitse hareketin geri kalanı
+ * `tool`'a gider; etkin araç o hareketi hiç görmez.
+ */
+export interface GestureGrabber {
+  readonly tool: Tool;
+  /** Bu basış üstlenilsin mi. */
+  grabs(e: ToolPointerEvent): boolean;
+  /** Tuş basılı değilken üzerine gelme; imleç önerisi (yoksa null: etkin aracın imleci). */
+  hoverGrab(screen: Point): string | null;
+}
+
 interface Pinch {
   ids: [number, number];
   lastMid: Point;
@@ -22,6 +35,11 @@ interface Pinch {
 export class InputController {
   private tool: Tool | null = null;
   private toolPointer: number | null = null;
+  private grabber: GestureGrabber | null = null;
+  /** Süren hareketi üstlenen araç (genellikle etkin araç, tutucu üstlendiyse onun aracı). */
+  private gestureTool: Tool | null = null;
+  /** Tutucunun üzerine gelme imleci. */
+  private grabCursor: string | null = null;
   private pan: { pointerId: number; last: Point } | null = null;
   private hoverListeners = new Set<(screen: Point | null) => void>();
   /** Ekrana değen parmaklar (CSS piksel). */
@@ -77,12 +95,25 @@ export class InputController {
     this.cancelToolGesture();
     this.tool?.deactivate?.();
     this.tool = tool;
+    this.grabCursor = null;
     tool.activate?.();
     this.updateCursor();
   }
 
+  /** Etkin araç tutucunun kendi aracıysa tutucu devre dışı kalır. */
+  setGrabber(grabber: GestureGrabber | null): void {
+    this.grabber = grabber;
+  }
+
   updateCursor(): void {
-    this.stage.style.cursor = this.pan ? 'grabbing' : (this.tool?.cursor ?? 'default');
+    const tool = this.gestureTool ?? this.tool;
+    const cursor = this.gestureTool ? tool?.cursor : (this.grabCursor ?? tool?.cursor);
+    this.stage.style.cursor = this.pan ? 'grabbing' : (cursor ?? 'default');
+  }
+
+  /** Tutucu bu araçta geçerli mi. */
+  private grabberActive(): boolean {
+    return this.grabber !== null && this.tool !== null && this.tool !== this.grabber.tool;
   }
 
   private localPoint(e: MouseEvent): Point {
@@ -118,7 +149,10 @@ export class InputController {
     if (e.button === 0 && this.tool) {
       this.capture(e.pointerId);
       this.toolPointer = e.pointerId;
-      this.tool.onPointerDown(this.toToolEvent(e));
+      const ev = this.toToolEvent(e);
+      this.gestureTool = this.grabberActive() && this.grabber!.grabs(ev) ? this.grabber!.tool : this.tool;
+      this.gestureTool.onPointerDown(ev);
+      this.updateCursor();
     }
   };
 
@@ -166,6 +200,7 @@ export class InputController {
 
   private onPointerLeave = (e: PointerEvent): void => {
     if (this.pan || e.pointerId === this.toolPointer) return;
+    this.grabCursor = null;
     this.emitHover(null);
   };
 
@@ -185,9 +220,19 @@ export class InputController {
       return;
     }
     if (!this.tool) return;
-    if (this.toolPointer === null || e.pointerId === this.toolPointer) {
-      this.tool.onPointerMove(this.toToolEvent(e));
+    if (this.toolPointer !== null) {
+      if (e.pointerId === this.toolPointer) (this.gestureTool ?? this.tool).onPointerMove(this.toToolEvent(e));
+      return;
     }
+    // Tuş basılı değil: tutucu üzerine gelmeyi değerlendirir, etkin araç da önizler
+    if (this.grabberActive() && e.pointerType !== 'touch') {
+      const cursor = this.grabber!.hoverGrab(this.localPoint(e));
+      if (cursor !== this.grabCursor) {
+        this.grabCursor = cursor;
+        this.updateCursor();
+      }
+    }
+    this.tool.onPointerMove(this.toToolEvent(e));
   };
 
   private onPointerUp = (e: PointerEvent): void => {
@@ -199,7 +244,10 @@ export class InputController {
     }
     if (e.pointerId === this.toolPointer) {
       this.toolPointer = null;
-      this.tool?.onPointerUp(this.toToolEvent(e));
+      const tool = this.gestureTool ?? this.tool;
+      this.gestureTool = null;
+      tool?.onPointerUp(this.toToolEvent(e));
+      this.updateCursor();
     }
   };
 
@@ -229,7 +277,10 @@ export class InputController {
   private cancelToolGesture(): void {
     if (this.toolPointer === null) return;
     this.toolPointer = null;
-    this.tool?.onPointerCancel?.();
+    const tool = this.gestureTool ?? this.tool;
+    this.gestureTool = null;
+    tool?.onPointerCancel?.();
+    this.updateCursor();
   }
 
   private onWheel = (e: WheelEvent): void => {

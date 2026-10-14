@@ -61,6 +61,8 @@ export function downloadSvg(src: PageSources, options: OutputOptions): void {
       scene: src.scene,
       theme: toPrintTheme(src.theme),
       gridSpacing: src.grid?.visible ? src.grid.spacing : null,
+      centerMark: src.grid?.centerMark ?? false,
+      markerScale: src.markerScale,
       cornerLines: src.corners
         ? cornerLines(src.doc.shapes, cornerTargets(src.scene, src.corners), src.paper.rect)
         : [],

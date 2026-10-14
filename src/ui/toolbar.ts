@@ -8,7 +8,7 @@ import {
 import { formatPercent, getLanguage, isLang, t, type Lang, type MessageKey } from '../i18n';
 import type { SaveStatus } from '../storage/autosave';
 
-export type ViewAction = 'zoom-in' | 'zoom-out' | 'zoom-reset' | 'zoom-fit';
+export type ViewAction = 'zoom-in' | 'zoom-out' | 'zoom-reset' | 'zoom-fit' | 'center';
 export type ToolbarAction =
   | ViewAction
   | 'undo'

@@ -13,6 +13,8 @@ Hesap ve sunucu yoktur; her şey tarayıcınızda kalır.
 - Perspektif kapatılabilir: her yöne düz çizgi (başlangıç → bitiş), yatay/dikeye yapışma; kurgu saklanır
 - Kâğıt ızgarası (5 / 10 / 20 mm, gerçek ölçek): göster ve ızgaraya yapış ayrı; gizliyken yapışma açıksa görünmez cetvel. Ayar çizimle kaydedilir, "kılavuzlarla" çıktılara girer
 - Hayalet ışınlar (12–72), imleç yaklaştıkça ilgili noktanın ışınları belirginleşir
+- Kaçış noktası her araçta (fırça, şekil, seç) tutulup taşınabilir; boyutu ayarlanabilir, "Merkeze al" ile kâğıt merkezine yerleşir, taşırken merkez eksenlerine yapışır (`Shift` ile kapalı)
+- "Merkeze git" (`C`): görünüm ölçeği koruyarak kâğıdın ortasına kayar; isteğe bağlı merkez çizgileri
 - Ufuk 2 noktada varsayılan olarak kilitli, istenirse serbest bırakılır
 - Mıknatıs: çizgi kaçış noktasına, dikeye (1 noktada yataya da) kilitlenir; `Space` ile geçici serbest çizim
 - Fırça (kalınlık, opaklık, yumuşatma, 8 renk), silgi (bütün çizgi ya da kısmi/piksel), geri al / ileri al

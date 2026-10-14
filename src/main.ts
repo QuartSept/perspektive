@@ -13,7 +13,9 @@ import { renderPage } from './engine/page-render';
 import { ReferenceImage } from './engine/reference';
 import { Paper, type Orientation, type PaperKind } from './engine/paper';
 import { Renderer } from './engine/renderer';
-import { EditorState } from './engine/state';
+import { clamp } from './engine/geometry';
+import { EditorState, MARKER_SCALE_MAX, MARKER_SCALE_MIN } from './engine/state';
+import { centerPoint, centerSetup, rectCenter } from './perspective/centering';
 import { gridSource, PaperGrid } from './engine/grid';
 import { readCanvasTheme } from './engine/theme';
 import { Viewport, type Padding } from './engine/viewport';
@@ -190,9 +192,33 @@ const tools: Record<string, Tool> = {
   brush,
   eraser,
   shape: shapeTool,
-  point: new VanishingPointTool(viewport, scene, state, history, () => input.updateCursor()),
+  point: new VanishingPointTool(viewport, scene, state, history, () => paper.rect, onPointToolChange),
   hand: new HandTool(viewport, () => input.updateCursor()),
 };
+
+/** Fırça, şekil ve seç araçlarında kaçış noktasını tutup taşımak için (yalnızca taşır). */
+const pointGrab = new VanishingPointTool(
+  viewport,
+  scene,
+  state,
+  history,
+  () => paper.rect,
+  onPointToolChange,
+  { grabOnly: true },
+);
+const grabber = {
+  tool: pointGrab,
+  grabs: (e: Parameters<VanishingPointTool['grabs']>[0]) => pointGrab.grabs(e),
+  hoverGrab: (screen: { x: number; y: number }) => pointGrab.hoverGrab(screen),
+};
+/** Kaçış noktasının her araçta tutulabildiği araçlar. */
+const grabbingTools = new Set<Tool>([brush, shapeTool, selectionTool]);
+
+function onPointToolChange(): void {
+  input.updateCursor();
+  // Merkez ekseni kılavuzu etkileşim katmanında
+  renderer.requestRender('interaction');
+}
 
 const renderer = new Renderer(
   layers,
@@ -242,6 +268,8 @@ const panel = new PerspectivePanel(panelEl, {
   onRayCountChange: (count) => scene.setRayCount(count),
   onGuidesVisibleChange: setGuidesVisible,
   onDeletePoint: deleteSelectedPoint,
+  onCenterPoint: centerScenePoint,
+  onMarkerScaleChange: setMarkerScale,
   onCornerTargetChange: (target) => corners.setTarget(target),
   onCornerPointChange: (id) => corners.setPoint(id),
 });
@@ -281,6 +309,7 @@ function selectTool(id: string): void {
   if (!tool || input.busy) return;
   const changed = tool !== input.activeTool;
   input.setTool(tool);
+  input.setGrabber(grabbingTools.has(tool) ? grabber : null);
   eraserPanel.setVisible(tool === eraser);
   shapePanel.setVisible(tool === shapeTool);
   selectPanelEl.hidden = tool !== selectionTool;
@@ -309,6 +338,22 @@ function changeMode(mode: PerspectiveMode): void {
   editScene(history, scene, () => scene.setMode(mode, paper.rect, state.selectedPointId));
 }
 
+/**
+ * "Merkeze al": seçili nokta kâğıt merkezine; seçim yoksa kurgu merkeze göre
+ * yerleşir. Tek adımda geri alınır.
+ */
+function centerScenePoint(): void {
+  editScene(history, scene, () => {
+    const id = state.selectedPointId;
+    if (id && centerPoint(scene, id, paper.rect)) return;
+    centerSetup(scene, paper.rect);
+  });
+}
+
+function setMarkerScale(scale: number): void {
+  state.update({ markerScale: clamp(scale, MARKER_SCALE_MIN, MARKER_SCALE_MAX) });
+}
+
 function deleteSelectedPoint(): void {
   const id = state.selectedPointId;
   if (!id) return;
@@ -322,6 +367,9 @@ const pageSources = {
   scene,
   grid: paperGrid,
   corners,
+  get markerScale() {
+    return state.markerScale;
+  },
   get theme() {
     return renderer.theme;
   },
@@ -570,6 +618,7 @@ function updatePanel(): void {
     guidesVisible: state.guidesVisible,
     hasSelection: state.selectedPointId !== null,
     pointToolActive: input.activeTool === tools.point,
+    markerScale: state.markerScale,
     cornerTarget: corners.target,
     cornerPointId: corners.target === 'one' ? (cornerTargets(scene, corners)[0]?.id ?? null) : null,
   });
@@ -631,6 +680,9 @@ function runAction(action: ToolbarAction): void {
       break;
     case 'zoom-reset':
       viewport.setScale(1);
+      break;
+    case 'center':
+      viewport.centerOn(rectCenter(paper.rect), fitPadding());
       break;
     case 'zoom-fit':
       fitToPaper();
@@ -710,6 +762,8 @@ const prefsTargets: PrefsTargets = {
   setOnboardingDismissed,
   getSidebarPinned: () => sidebarDock.pinned,
   setSidebarPinned: (pinned) => sidebarDock.setPinned(pinned),
+  getMarkerScale: () => state.markerScale,
+  setMarkerScale,
 };
 sidebarDock.onChange(schedulePrefsSave);
 let prefsTimer = 0;
@@ -780,9 +834,11 @@ snapSettings.onChange(syncMagnetButton);
 
 state.onChange((changed) => {
   if (changed.has('temporaryFree')) syncMagnetButton();
-  if (changed.has('guidesVisible')) schedulePrefsSave();
+  if (changed.has('guidesVisible') || changed.has('markerScale')) schedulePrefsSave();
   renderer.requestRender('guides', 'interaction');
-  if (changed.has('selectedPointId') || changed.has('guidesVisible')) updatePanel();
+  if (changed.has('selectedPointId') || changed.has('guidesVisible') || changed.has('markerScale')) {
+    updatePanel();
+  }
 });
 
 doc.onChange(() => {
@@ -907,6 +963,10 @@ window.addEventListener('keydown', (e) => {
     case 'h':
     case 'H':
       selectTool('hand');
+      break;
+    case 'c':
+    case 'C':
+      runAction('center');
       break;
     case 's':
     case 'S':

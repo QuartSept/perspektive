@@ -18,6 +18,7 @@ export interface SvgTheme {
   /** Kâğıt ızgarası rengi (opaklık renkte olabilir). */
   grid: string;
   cornerLineOpacity?: number;
+  centerMark?: string;
 }
 
 export interface SvgSources {
@@ -31,6 +32,10 @@ export interface SvgSources {
   gridSpacing?: number | null;
   /** Köşe kaçış çizgileri (kırpılmış); kılavuzlu çıktıda kesikli yazılır. */
   cornerLines?: readonly CornerLine[];
+  /** Kâğıt merkezi kılavuzu yazılsın mı. */
+  centerMark?: boolean;
+  /** Kaçış noktası işaretçisi boyutu (ekrandakiyle aynı; yoksa 1). */
+  markerScale?: number;
 }
 
 /** Kılavuz çizgi kalınlıkları dünya biriminde (ekran/yazdırma çıktısıyla aynı). */
@@ -38,6 +43,7 @@ const RAY_WIDTH = 1;
 const HORIZON_WIDTH = 1.25;
 const MARKER_RADIUS = 5.5;
 const MARKER_STROKE = 2;
+const CENTER_DASH = '6 4';
 const GRID_WIDTH = 0.75;
 const CORNER_DASH = '5 4';
 
@@ -125,6 +131,12 @@ function guideElements(src: SvgSources): string[] {
     const grid = gridElement(src, src.gridSpacing);
     if (grid) out.push(grid);
   }
+  if (src.centerMark && theme.centerMark) {
+    const { color, alpha } = splitAlpha(theme.centerMark);
+    out.push(
+      `<path id="center-mark" d="M${num(w / 2)} 0V${num(h)}M0 ${num(h / 2)}H${num(w)}" fill="none" stroke="${esc(color)}" stroke-width="${GRID_WIDTH}" stroke-dasharray="${CENTER_DASH}" opacity="${num(alpha)}"/>`,
+    );
+  }
   const horizon = scene.horizon();
   const angles = rayAngles(scene.rayCount, horizon?.angle ?? 0);
 
@@ -164,10 +176,13 @@ function guideElements(src: SvgSources): string[] {
     );
   }
 
+  const ms = src.markerScale ?? 1;
+  const r = MARKER_RADIUS * ms;
+  const sw = Math.max(1.25, MARKER_STROKE * ms);
   scene.activePoints.forEach((p) => {
     const color = theme.vanishingPoints[scene.colorIndexOf(p) % theme.vanishingPoints.length];
     out.push(
-      `<circle cx="${num(p.x)}" cy="${num(p.y)}" r="${MARKER_RADIUS}" fill="${esc(theme.markerFill)}" stroke="${esc(color)}" stroke-width="${MARKER_STROKE}"/>`,
+      `<circle cx="${num(p.x)}" cy="${num(p.y)}" r="${num(r)}" fill="${esc(theme.markerFill)}" stroke="${esc(color)}" stroke-width="${num(sw)}"/>`,
     );
   });
   return out;

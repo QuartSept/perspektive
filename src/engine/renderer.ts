@@ -1,7 +1,7 @@
 import type { DrawingDocument } from './document';
 import type { LayerName, LayerStack } from './layers';
 import type { Paper } from './paper';
-import { drawGrid, gridFade, type PaperGrid } from './grid';
+import { drawCenterMark, drawGrid, gridFade, type PaperGrid } from './grid';
 import { fitImage, type ReferenceImage } from './reference';
 import type { EditorState } from './state';
 import { drawShape, shapeBounds } from './shapes';
@@ -123,6 +123,7 @@ export class Renderer {
         this.viewport.visibleWorldRect(),
       );
     }
+    if (grid?.centerMark) drawCenterMark(ctx, this.paper.rect, t.centerMark, 1 / this.viewport.scale);
 
     ctx.strokeStyle = t.paperBorder;
     ctx.lineWidth = 1 / this.viewport.scale;
@@ -179,6 +180,7 @@ export class Renderer {
     const ctx = this.layers.clear('interaction');
     const overlay = this.getOverlay();
     if (overlay?.snapLine) drawSnapLine(this.guideView(ctx), overlay.snapLine);
+    for (const line of overlay?.guideLines ?? []) drawSnapLine(this.guideView(ctx), line);
     if (overlay?.preview || overlay?.previewStrokes?.length || overlay?.previewShape) {
       this.viewport.applyTo(ctx, this.layers.dpr);
       const shape = overlay.previewShape;

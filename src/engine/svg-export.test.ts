@@ -130,3 +130,17 @@ describe('köşe çizgileri', () => {
     expect(buildSvg({ paper, strokes, scene: s, theme, cornerLines: lines }, false)).not.toContain('corner-lines');
   });
 });
+
+describe('merkez çizgileri ve işaretçi boyutu', () => {
+  it('kılavuzlu çıktıda kesikli merkez çizgileri; işaretçi ekrandaki boyutta', () => {
+    const s = scene();
+    const svg = buildSvg(
+      { paper, strokes, scene: s, theme: { ...theme, centerMark: 'rgba(194, 85, 61, 0.5)' }, centerMark: true, markerScale: 0.7 },
+      true,
+    );
+    expect(svg).toContain('id="center-mark"');
+    expect(svg).toContain('stroke-dasharray="6 4"');
+    expect(count(svg, /r="3.85"/g)).toBe(2);
+    expect(buildSvg({ paper, strokes, scene: s, theme, centerMark: true }, false)).not.toContain('center-mark');
+  });
+});

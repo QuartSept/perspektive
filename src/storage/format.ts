@@ -25,9 +25,11 @@ export interface SavedGrid {
   visible: boolean;
   snap: boolean;
   spacingMm: GridSpacingMm;
+  /** Kâğıt merkezi kılavuzu (sonradan eklendi; yoksa kapalı). */
+  centerMark: boolean;
 }
 
-export const DEFAULT_GRID: SavedGrid = { visible: false, snap: false, spacingMm: 10 };
+export const DEFAULT_GRID: SavedGrid = { visible: false, snap: false, spacingMm: 10, centerMark: false };
 
 /**
  * Kaydedilen çizim (sürüm 2). Biçim değişirse `SAVE_VERSION` artırılır ve
@@ -137,6 +139,7 @@ function parseGrid(v: unknown): SavedGrid {
     spacingMm: GRID_SPACINGS_MM.includes(v.spacingMm as GridSpacingMm)
       ? (v.spacingMm as GridSpacingMm)
       : DEFAULT_GRID.spacingMm,
+    centerMark: v.centerMark === true,
   };
 }
 

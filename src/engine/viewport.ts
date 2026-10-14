@@ -95,6 +95,21 @@ export class Viewport {
     this.emit();
   }
 
+  /**
+   * Dünya noktasını, kenar boşlukları dışında kalan alanın ortasına kaydırır;
+   * ölçek değişmez ("sığdır"dan farkı).
+   */
+  centerOn(world: Point, padding: Padding): void {
+    const availW = Math.max(1, this.width - padding.left - padding.right);
+    const availH = Math.max(1, this.height - padding.top - padding.bottom);
+    const x = padding.left + availW / 2 - world.x * this.scale;
+    const y = padding.top + availH / 2 - world.y * this.scale;
+    if (x === this.offsetX && y === this.offsetY) return;
+    this.offsetX = x;
+    this.offsetY = y;
+    this.emit();
+  }
+
   /** Bağlama dünya → cihaz pikseli dönüşümünü uygular. */
   applyTo(ctx: CanvasRenderingContext2D, dpr: number): void {
     ctx.setTransform(

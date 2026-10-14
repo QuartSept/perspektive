@@ -5,6 +5,7 @@ import { GRID_SPACINGS_MM, type GridSpacingMm } from '../storage/format';
 export class PaperGridPanel {
   private readonly visible: HTMLInputElement;
   private readonly snap: HTMLInputElement;
+  private readonly center: HTMLInputElement;
   private readonly spacingButtons: HTMLButtonElement[];
 
   constructor(
@@ -13,10 +14,12 @@ export class PaperGridPanel {
   ) {
     this.visible = root.querySelector('#paper-grid-visible')!;
     this.snap = root.querySelector('#paper-grid-snap')!;
+    this.center = root.querySelector('#paper-grid-center')!;
     this.spacingButtons = [...root.querySelectorAll<HTMLButtonElement>('[data-grid-spacing]')];
 
     this.visible.addEventListener('change', () => grid.setVisible(this.visible.checked));
     this.snap.addEventListener('change', () => grid.setSnap(this.snap.checked));
+    this.center.addEventListener('change', () => grid.setCenterMark(this.center.checked));
     for (const btn of this.spacingButtons) {
       btn.addEventListener('click', () => grid.setSpacing(spacingOf(btn)));
     }
@@ -39,6 +42,7 @@ export class PaperGridPanel {
     const g = this.grid;
     this.visible.checked = g.visible;
     this.snap.checked = g.snap;
+    this.center.checked = g.centerMark;
     for (const btn of this.spacingButtons) {
       const checked = spacingOf(btn) === g.spacingMm;
       btn.setAttribute('aria-checked', String(checked));

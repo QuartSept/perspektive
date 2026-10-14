@@ -49,7 +49,7 @@ describe('proje dosyası', () => {
     expect(parsed.scene.horizonLocked).toBe(false);
     expect(parsed.strokes).toEqual(a.doc.strokes);
     expect(parsed.shapes).toEqual(a.doc.shapes);
-    expect(parsed.grid).toEqual({ visible: true, snap: true, spacingMm: 5 });
+    expect(parsed.grid).toEqual({ visible: true, snap: true, spacingMm: 5, centerMark: false });
     expect(parsed.cornerLines).toEqual({ target: 'one', pointId: a.scene.points[1].id });
   });
 

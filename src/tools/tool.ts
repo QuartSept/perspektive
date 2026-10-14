@@ -30,6 +30,8 @@ export interface ToolOverlay {
   readonly preview?: Stroke | null;
   /** Kilitli perspektif doğrusu. */
   readonly snapLine?: SnapLine | null;
+  /** Ek yapışma kılavuzları (ör. kâğıt merkezi eksenleri). */
+  readonly guideLines?: readonly SnapLine[];
   /** Silinmek üzere işaretlenen stroke'lar (soluk çizilir). */
   readonly fadedStrokeIds?: ReadonlySet<string>;
   /** Geçici olarak çizilmeyen stroke'lar (yerlerine `previewStrokes` gösterilir). */
