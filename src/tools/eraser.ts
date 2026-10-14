@@ -1,5 +1,6 @@
 import { removeItemsCommand, ReplaceShapesCommand, ReplaceStrokesCommand } from '../engine/commands';
-import type { DrawingDocument } from '../engine/document';
+import type { DrawingDocument, LayerBlock } from '../engine/document';
+import type { Layered } from '../engine/doc-layers';
 import { clamp, type Point } from '../engine/geometry';
 import { combineCommands, type Command, type History } from '../engine/history';
 import { segmentTouchesShape } from '../engine/shapes';
@@ -19,6 +20,8 @@ export const ERASER_KINDS: readonly EraserKind[] = ['stroke', 'pixel'];
 export class EraserSettings {
   kind: EraserKind = 'stroke';
   radius = 8;
+  /** Kapalıyken yalnızca etkin katman silinir. Kilitli / gizli katmana hiç dokunulmaz. */
+  allLayers = false;
 
   private listeners = new Set<() => void>();
 
@@ -34,6 +37,12 @@ export class EraserSettings {
   setKind(kind: EraserKind): void {
     if (kind === this.kind) return;
     this.kind = kind;
+    this.emit();
+  }
+
+  setAllLayers(all: boolean): void {
+    if (all === this.allLayers) return;
+    this.allLayers = all;
     this.emit();
   }
 
@@ -59,6 +68,14 @@ abstract class SweepingEraser implements Tool, ToolOverlay {
   readonly cursor = 'none';
   private last: Point | null = null;
   protected markedShapes = new Set<string>();
+  /** Etkin katman kilitli / gizliyken (yalnızca etkin katman kapsamında) nedeni bildirilir. */
+  onLayerBlocked: ((reason: LayerBlock) => void) | null = null;
+
+  /** Silgi bu nesneye dokunabilir mi: katmanı düzenlenebilir ve kapsamda. */
+  protected erasable(item: Layered): boolean {
+    if (!this.doc.isEditable(item)) return false;
+    return this.settings.allLayers || this.doc.layerOf(item).id === this.doc.activeLayerId;
+  }
 
   get fadedShapeIds(): ReadonlySet<string> {
     return this.markedShapes;
@@ -68,7 +85,7 @@ abstract class SweepingEraser implements Tool, ToolOverlay {
   protected sweepShapes(a: Point, b: Point, radius: number): boolean {
     let changed = false;
     for (const shape of this.doc.shapes) {
-      if (this.markedShapes.has(shape.id)) continue;
+      if (this.markedShapes.has(shape.id) || !this.erasable(shape)) continue;
       if (segmentTouchesShape(shape, a, b, radius)) {
         this.markedShapes.add(shape.id);
         changed = true;
@@ -105,6 +122,8 @@ abstract class SweepingEraser implements Tool, ToolOverlay {
   }
 
   onPointerDown(e: ToolPointerEvent): void {
+    const blocked = this.settings.allLayers ? null : this.doc.activeLayerBlocked;
+    if (blocked) this.onLayerBlocked?.(blocked);
     this.begin();
     this.last = e.world;
     this.sweep(e.world, e.world, this.settings.radius / this.viewport.scale);
@@ -158,7 +177,7 @@ export class StrokeEraserTool extends SweepingEraser {
   protected sweep(a: Point, b: Point, radius: number): void {
     let changed = this.sweepShapes(a, b, radius);
     for (const stroke of this.doc.strokes) {
-      if (this.marked.has(stroke.id)) continue;
+      if (this.marked.has(stroke.id) || !this.erasable(stroke)) continue;
       if (segmentTouchesStroke(stroke, a, b, radius)) {
         this.marked.add(stroke.id);
         changed = true;
@@ -213,6 +232,7 @@ export class PixelEraserTool extends SweepingEraser {
     // Şekil kısmen silinmez (köşe bilgisi bozulur): komple silinmek üzere işaretlenir
     const shapesChanged = this.sweepShapes(a, b, radius);
     for (const stroke of this.doc.strokes) {
+      if (!this.erasable(stroke)) continue;
       const current = this.pieces.get(stroke.id) ?? [stroke];
       let touched = false;
       const next: Stroke[] = [];
@@ -294,6 +314,11 @@ export class EraserTool implements Tool {
     this.strokeEraser = new StrokeEraserTool(viewport, doc, history, settings, onOverlayChange);
     this.pixelEraser = new PixelEraserTool(viewport, doc, history, settings, onOverlayChange);
     this.active = this.current();
+  }
+
+  set onLayerBlocked(fn: ((reason: LayerBlock) => void) | null) {
+    this.strokeEraser.onLayerBlocked = fn;
+    this.pixelEraser.onLayerBlocked = fn;
   }
 
   private current(): SweepingEraser {

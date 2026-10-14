@@ -60,9 +60,19 @@ export class SelectTool implements Tool, ToolOverlay {
     return this;
   }
 
-  /** Seçili şekil (geri alma vb. ile belgeden kalktıysa null). */
+  /** Seçili şekil (belgeden kalktıysa ya da katmanı kilitlendi / gizlendiyse null). */
   get selected(): Shape | null {
-    return this.selectedId ? (this.doc.getShape(this.selectedId) ?? null) : null;
+    const shape = this.selectedId ? this.doc.getShape(this.selectedId) : undefined;
+    return shape && this.doc.isEditable(shape) ? shape : null;
+  }
+
+  /** Seçili şekli başka katmana taşır (sırası korunur, geri alınabilir). */
+  moveToLayer(layerId: string): void {
+    const shape = this.selected;
+    if (!shape || this.drag || !this.doc.getLayer(layerId) || this.doc.layerOf(shape).id === layerId) return;
+    const index = this.doc.shapeIndexOf(shape.id);
+    this.history.execute(new ReplaceShapesCommand(this.doc, [shape.id], [{ index, shape: { ...shape, layerId } }]));
+    this.onChange();
   }
 
   get cursor(): string {
@@ -238,6 +248,8 @@ export class SelectTool implements Tool, ToolOverlay {
     const tolerance = (touch ? SHAPE_HIT_TOUCH_PX : SHAPE_HIT_PX) / this.viewport.scale;
     const shapes = this.doc.shapes;
     for (let i = shapes.length - 1; i >= 0; i--) {
+      // Kilitli ya da gizli katmandaki şekil seçilemez
+      if (!this.doc.isEditable(shapes[i])) continue;
       if (segmentTouchesShape(shapes[i], world, world, tolerance)) return shapes[i];
     }
     return null;

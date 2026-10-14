@@ -145,11 +145,20 @@
           <input type="range" id="eraser-radius" class="range" />
         </div>
 
+        <label class="switch">
+          <input type="checkbox" id="eraser-all-layers" />
+          <span data-i18n="eraser.allLayers">Tüm katmanlar</span>
+        </label>
+
         <p class="panel__hint" id="eraser-hint"></p>
       </section>
 
       <section class="panel" id="select-panel" data-i18n-aria-label="select.title" hidden>
         <h2 class="panel__title" data-i18n="select.title">Seç / düzenle</h2>
+        <div class="field" id="shape-layer-row" hidden>
+          <label class="field__label" for="shape-layer" data-i18n="select.layer">Katman</label>
+          <select id="shape-layer" class="select"></select>
+        </div>
         <label class="switch" id="shape-corner-lines-row" hidden>
           <input type="checkbox" id="shape-corner-lines" />
           <span data-i18n="select.cornerLines">Köşe çizgileri</span>
@@ -214,6 +223,26 @@
         </div>
 
         <p class="panel__hint" data-i18n="snap.hint"></p>
+      </section>
+
+      <section class="panel" id="layers-panel" data-i18n-aria-label="layers.title">
+        <h2 class="panel__title" id="layers-title" data-i18n="layers.title">Katmanlar</h2>
+        <ul class="layer-list" id="layers-list" data-i18n-aria-label="layers.title"></ul>
+        <div class="layer-actions">
+          <button type="button" class="icon-btn" data-layer-action="add" data-i18n-title="layers.add" data-i18n-aria-label="layers.add"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+          <button type="button" class="icon-btn" data-layer-action="duplicate" data-i18n-title="layers.duplicate" data-i18n-aria-label="layers.duplicate"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8.5" y="8.5" width="11" height="11" rx="1.5"/><path d="M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5"/></svg></button>
+          <button type="button" class="icon-btn" data-layer-action="up" data-i18n-title="layers.up" data-i18n-aria-label="layers.up"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
+          <button type="button" class="icon-btn" data-layer-action="down" data-i18n-title="layers.down" data-i18n-aria-label="layers.down"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg></button>
+          <button type="button" class="icon-btn" data-layer-action="merge" data-i18n-title="layers.merge" data-i18n-aria-label="layers.merge"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 11h14M12 14v6M9 17l3 3 3-3"/></svg></button>
+          <button type="button" class="icon-btn" data-layer-action="delete" data-i18n-title="layers.delete" data-i18n-aria-label="layers.delete"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/></svg></button>
+        </div>
+        <div class="field">
+          <div class="field__row">
+            <label for="layer-opacity" data-i18n="layers.opacity">Katman opaklığı</label>
+            <output id="layer-opacity-value" for="layer-opacity"></output>
+          </div>
+          <input type="range" id="layer-opacity" class="range" />
+        </div>
       </section>
 
       <section class="panel" id="perspective-panel" data-i18n-aria-label="perspective.title">

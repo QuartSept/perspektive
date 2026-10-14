@@ -7,7 +7,7 @@ import { removeItemsCommand, ReplaceStrokesCommand } from './engine/commands';
 import { DrawingDocument } from './engine/document';
 import { createLayer } from './engine/doc-layers';
 import { OrientationCommand } from './engine/orientation';
-import { History } from './engine/history';
+import { History, type Command } from './engine/history';
 import { InputController } from './engine/input';
 import { LayerStack } from './engine/layers';
 import { renderPage } from './engine/page-render';
@@ -53,6 +53,19 @@ import { ConfirmDialog } from './ui/confirm-dialog';
 import { GridDialog } from './ui/grid-dialog';
 import { PaperGridPanel } from './ui/paper-grid-panel';
 import { SidebarDock } from './ui/sidebar';
+import { Toast } from './ui/toast';
+import { layerDisplayName, LayersPanel } from './ui/layers-panel';
+import {
+  addLayerCommand,
+  beginLayerEdit,
+  duplicateLayerCommand,
+  mergeDownCommand,
+  moveLayerCommand,
+  removeLayerCommand,
+  updateLayerCommand,
+} from './engine/layer-commands';
+import type { LayerBlock } from './engine/document';
+import { MAX_LAYERS } from './engine/doc-layers';
 import { ReferencePanel } from './ui/reference-panel';
 import { ReferenceStore } from './storage/reference-store';
 import { loadPrefs, savePrefs, type PrefsTargets } from './storage/prefs';
@@ -247,6 +260,9 @@ const selectPanelEl = document.getElementById('select-panel')!;
 const deleteShapeButton = document.getElementById('delete-shape') as HTMLButtonElement;
 const selectHint = document.getElementById('select-hint')!;
 const shapeCornerRow = document.getElementById('shape-corner-lines-row')!;
+const shapeLayerRow = document.getElementById('shape-layer-row')!;
+const shapeLayer = document.getElementById('shape-layer') as HTMLSelectElement;
+shapeLayer.addEventListener('change', () => selectionTool.moveToLayer(shapeLayer.value));
 const shapeCornerLines = document.getElementById('shape-corner-lines') as HTMLInputElement;
 deleteShapeButton.addEventListener('click', () => selectionTool.deleteSelected());
 shapeCornerLines.addEventListener('change', () => selectionTool.setCornerLines(shapeCornerLines.checked));
@@ -257,6 +273,18 @@ function updateSelectPanel(): void {
   deleteShapeButton.disabled = !has;
   shapeCornerRow.hidden = !has;
   shapeCornerLines.checked = selected?.cornerLines ?? false;
+  // Taşınacak katman: yalnızca birden fazla katman varken
+  shapeLayerRow.hidden = !has || doc.layers.length < 2;
+  if (has && doc.layers.length >= 2) {
+    const options = [...doc.layers].reverse().map((l) => {
+      const o = document.createElement('option');
+      o.value = l.id;
+      o.textContent = displayName(l.id);
+      return o;
+    });
+    shapeLayer.replaceChildren(...options);
+    shapeLayer.value = doc.layerOf(selected!).id;
+  }
   selectHint.textContent = t(has ? 'select.hintSelected' : 'select.hintEmpty');
 }
 const brushPanel = new BrushPanel(document.getElementById('brush-panel')!, brushSettings, snapSettings);
@@ -276,12 +304,104 @@ const panel = new PerspectivePanel(panelEl, {
 });
 
 const panelById = (id: string) => document.getElementById(id)!;
+
+// ---------- Katmanlar ----------
+
+const toast = new Toast(document.getElementById('app')!);
+
+/** Kilitli / gizli etkin katmana çizilmeye çalışılınca nedeni söylenir (sessizce çizmemek). */
+function showLayerBlocked(reason: LayerBlock): void {
+  toast.show(t(reason === 'locked' ? 'layers.blockedLocked' : 'layers.blockedHidden'));
+}
+brush.onLayerBlocked = showLayerBlocked;
+shapeTool.onLayerBlocked = showLayerBlocked;
+eraser.onLayerBlocked = showLayerBlocked;
+
+const displayName = (id: string) => {
+  const index = doc.layerIndex(id);
+  return index < 0 ? '' : layerDisplayName(doc.layers[index], index);
+};
+
+let opacityEdit: (() => void) | null = null;
+const layersPanel = new LayersPanel(panelById('layers-panel'), {
+  onSelect: (id) => doc.setActiveLayer(id),
+  onToggleVisible: (id) => {
+    const layer = doc.getLayer(id);
+    if (layer) runCommand(updateLayerCommand(doc, id, { visible: !layer.visible }));
+  },
+  onToggleLocked: (id) => {
+    const layer = doc.getLayer(id);
+    if (layer) runCommand(updateLayerCommand(doc, id, { locked: !layer.locked }));
+  },
+  onRename: (id, name) => runCommand(updateLayerCommand(doc, id, { name })),
+  onAdd: () => {
+    const command = addLayerCommand(doc, t('layers.defaultName', { n: doc.layers.length + 1 }));
+    if (command) runCommand(command);
+    else toast.show(t('layers.limit', { n: MAX_LAYERS }));
+  },
+  onDuplicate: () => {
+    const id = doc.activeLayerId;
+    const command = duplicateLayerCommand(doc, id, t('layers.copyName', { name: displayName(id) }));
+    if (command) runCommand(command);
+    else toast.show(t('layers.limit', { n: MAX_LAYERS }));
+  },
+  onMoveUp: () => runCommand(moveLayerCommand(doc, doc.activeLayerId, doc.layerIndex(doc.activeLayerId) + 1)),
+  onMoveDown: () => runCommand(moveLayerCommand(doc, doc.activeLayerId, doc.layerIndex(doc.activeLayerId) - 1)),
+  onMergeDown: () => runCommand(mergeDownCommand(doc, doc.activeLayerId)),
+  onDelete: () => void deleteActiveLayer(),
+  onOpacity: (value, final) => {
+    if (input.busy) return;
+    opacityEdit ??= beginLayerEdit(history, doc);
+    const id = doc.activeLayerId;
+    doc.setLayers(doc.layers.map((l) => (l.id === id ? { ...l, opacity: value } : l)));
+    if (final) {
+      opacityEdit();
+      opacityEdit = null;
+    }
+  },
+  onToggleReference: () => reference.setVisible(!reference.visible),
+});
+
+function runCommand(command: Command | null): void {
+  if (command && !input.busy) history.execute(command);
+}
+
+/** Etkin katmanı siler; içinde çizim varsa önce sorar. */
+async function deleteActiveLayer(): Promise<void> {
+  const id = doc.activeLayerId;
+  if (doc.layers.length <= 1 || input.busy) return;
+  const used = doc.strokes.some((s) => doc.layerOf(s).id === id) || doc.shapes.some((s) => doc.layerOf(s).id === id);
+  if (used) {
+    const ok = await confirmDialog.ask({
+      message: t('layers.deleteConfirm', { name: displayName(id) }),
+      confirmLabel: t('confirm.continue'),
+      destructive: true,
+    });
+    if (!ok) return;
+  }
+  runCommand(removeLayerCommand(doc, id));
+}
+
+/** Katman listesi yalnızca katmanlar ya da referans değişince yeniden çizilir (her çizgide değil). */
+let layersKey = '';
+function updateLayersPanel(force = false): void {
+  const key = JSON.stringify([doc.layers, doc.activeLayerId, reference.loaded, reference.visible]);
+  if (!force && key === layersKey) return;
+  layersKey = key;
+  layersPanel.update({
+    layers: doc.layers,
+    activeId: doc.activeLayerId,
+    canAdd: doc.layers.length < MAX_LAYERS,
+    reference: { loaded: reference.loaded, visible: reference.visible },
+  });
+}
 /** Kenar çubuğundaki panellerin varsayılan sırası (başlığın altında). */
 const defaultPanelOrder = [
   'select-panel',
   'shape-panel',
   'eraser-panel',
   'brush-panel',
+  'layers-panel',
   'perspective-panel',
   'paper-grid-panel',
   'reference-panel',
@@ -532,6 +652,11 @@ document.getElementById('onboarding-close')!.addEventListener('click', () => {
 
 const gridDialog = new GridDialog({
   onAdd(plane, cells) {
+    const blocked = doc.activeLayerBlocked;
+    if (blocked) {
+      showLayerBlocked(blocked);
+      return true;
+    }
     const strokes = buildGrid(scene, plane, cells, paper);
     if (!strokes) return false;
     const start = doc.strokes.length;
@@ -556,7 +681,10 @@ const reference = new ReferenceImage();
 renderer.reference = reference;
 renderer.grid = paperGrid;
 renderer.corners = corners;
-reference.onChange(() => renderer.requestRender('paper'));
+reference.onChange(() => {
+  renderer.requestRender('paper');
+  updateLayersPanel();
+});
 const referenceStore = new ReferenceStore(reference);
 
 async function loadReferenceFile(file: File): Promise<void> {
@@ -600,10 +728,11 @@ async function clearDrawing(): Promise<void> {
   });
   // Onay beklenirken durum değişmiş olabilir
   if (!ok || input.busy || doc.isEmpty) return;
+  // Kilitli ve gizli katmanlar korunur
   const command = removeItemsCommand(
     doc,
-    doc.strokes.map((s) => s.id),
-    doc.shapes.map((s) => s.id),
+    doc.strokes.filter((s) => doc.isEditable(s)).map((s) => s.id),
+    doc.shapes.filter((s) => doc.isEditable(s)).map((s) => s.id),
   );
   if (command) history.execute(command);
 }
@@ -786,6 +915,7 @@ onLanguageChange(() => {
   referencePanel.update();
   shapePanel.update();
   updateSelectPanel();
+  updateLayersPanel(true);
   syncThemeButton();
   updatePanel();
   schedulePrefsSave();
@@ -852,7 +982,9 @@ doc.onChange(() => {
   // Seçili şeklin tutamaçları ve köşe çizgileri geri al / ileri al ile yer değiştirebilir
   renderer.requestRender('drawing', 'guides', 'interaction');
   updateSelectPanel();
-  toolbar.setCanClear(!doc.isEmpty);
+  updateLayersPanel();
+  // Kilitli / gizli katmanlar temizlenmez: yalnızca silinebilecek bir şey varken etkin
+  toolbar.setCanClear(doc.strokes.some((x) => doc.isEditable(x)) || doc.shapes.some((x) => doc.isEditable(x)));
   autosave.markDirty();
 });
 
@@ -1049,6 +1181,7 @@ async function restore(): Promise<void> {
   referenceStore.start();
 }
 
+updateLayersPanel(true);
 selectTool('brush');
 starting = false;
 syncMagnetButton();

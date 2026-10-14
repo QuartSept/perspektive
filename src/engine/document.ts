@@ -2,6 +2,9 @@ import { createLayer, type Layer, type Layered } from './doc-layers';
 import type { Shape } from './shapes';
 import type { Stroke } from './stroke';
 
+/** Etkin katmana neden çizilemediği. */
+export type LayerBlock = 'locked' | 'hidden';
+
 /** Kimliği olan öğeleri `removeIds` sonrası verilen indekslere (artan sırada) ekler. */
 function spliceList<T extends { id: string }>(
   list: T[],
@@ -81,6 +84,14 @@ export class DrawingDocument {
     this.layerItems = layers.map((l) => ({ ...l }));
     this.activeId = this.getLayer(activeId) ? activeId : this.layerItems[this.layerItems.length - 1].id;
     this.emit();
+  }
+
+  /** Etkin katmana çizilemiyorsa nedeni (kilitli / gizli), çizilebiliyorsa null. */
+  get activeLayerBlocked(): LayerBlock | null {
+    const layer = this.activeLayer;
+    if (layer.locked) return 'locked';
+    if (!layer.visible) return 'hidden';
+    return null;
   }
 
   /** Etkin katmanı değiştirir (geri al geçmişine girmez). */

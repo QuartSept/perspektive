@@ -1,6 +1,7 @@
 import type { Point } from './geometry';
 import { gridLines } from './grid';
 import { PX_PER_MM } from './paper';
+import type { Layer } from './doc-layers';
 import { isClosed, type Shape } from './shapes';
 import { strokeOutline, type InkId, type Stroke } from './stroke';
 import type { CornerLine } from '../perspective/corner-lines';
@@ -26,6 +27,11 @@ export interface SvgSources {
   strokes: readonly Stroke[];
   /** Şekiller stroke'ların altında yazılır. */
   shapes?: readonly Shape[];
+  /**
+   * Katmanlar (alttan üste); verilirse her katman ayrı `<g>` olur, gizliler
+   * yazılmaz, opaklık gruba uygulanır. Nesnenin katmanı yoksa en alttaki.
+   */
+  layers?: readonly Layer[];
   scene: PerspectiveScene;
   theme: SvgTheme;
   /** Görünür kâğıt ızgarasının aralığı (dünya birimi); yoksa ızgara yazılmaz. */
@@ -188,6 +194,32 @@ function guideElements(src: SvgSources): string[] {
   return out;
 }
 
+function drawingElements(src: SvgSources): string[] {
+  const inks = src.theme.inks;
+  const items = (shapes: readonly Shape[], strokes: readonly Stroke[]) => [
+    ...shapes.map((s) => shapeElement(s, inks[s.style.ink])),
+    ...strokes.map((s) => strokeElement(s, inks[s.style.ink])),
+  ];
+  const shapes = src.shapes ?? [];
+  if (!src.layers?.length) return items(shapes, src.strokes);
+  const ids = new Set(src.layers.map((l) => l.id));
+  const bottom = src.layers[0].id;
+  const layerOf = (o: { layerId?: string }) => (o.layerId && ids.has(o.layerId) ? o.layerId : bottom);
+  const out: string[] = [];
+  for (const layer of src.layers) {
+    if (!layer.visible) continue;
+    const content = items(
+      shapes.filter((s) => layerOf(s) === layer.id),
+      src.strokes.filter((s) => layerOf(s) === layer.id),
+    );
+    if (!content.length) continue;
+    const op = layer.opacity < 1 ? ` opacity="${num(layer.opacity)}"` : '';
+    const label = layer.name ? ` data-name="${esc(layer.name)}"` : '';
+    out.push(`<g id="layer-${esc(layer.id)}"${label}${op}>${content.join('')}</g>`);
+  }
+  return out;
+}
+
 /**
  * Kâğıt alanını SVG olarak üretir. Boyut mm cinsinden yazılır (gerçek ölçek),
  * içerik dünya biriminde (`viewBox`). Kâğıt dışına taşanlar kırpılır.
@@ -197,9 +229,7 @@ export function buildSvg(src: SvgSources, includeGuides: boolean): string {
   const { width: w, height: h } = src.paper;
   const body: string[] = [];
   if (includeGuides) body.push(`<g id="guides">${guideElements(src).join('')}</g>`);
-  const shapes = (src.shapes ?? []).map((s) => shapeElement(s, src.theme.inks[s.style.ink]));
-  const strokes = src.strokes.map((s) => strokeElement(s, src.theme.inks[s.style.ink]));
-  body.push(`<g id="drawing">${[...shapes, ...strokes].join('')}</g>`);
+  body.push(`<g id="drawing">${drawingElements(src).join('')}</g>`);
 
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',

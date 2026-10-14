@@ -192,3 +192,26 @@ describe('çokgen', () => {
     expect(tool.drawingPolygon).toBe(false);
   });
 });
+
+describe('katman kilidi', () => {
+  it('etkin katman kilitli / gizliyken şekil başlamaz, neden bildirilir', () => {
+    const reasons: string[] = [];
+    tool.onLayerBlocked = (r) => reasons.push(r);
+    doc.setLayers([{ ...doc.layers[0], locked: true }]);
+    settings.setKind('rect');
+    drag({ x: 100, y: 100 }, { x: 300, y: 200 });
+    doc.setLayers([{ ...doc.layers[0], locked: false, visible: false }]);
+    settings.setKind('polygon');
+    click({ x: 100, y: 100 });
+    expect(doc.shapes).toHaveLength(0);
+    expect(tool.drawingPolygon).toBe(false);
+    expect(reasons).toEqual(['locked', 'hidden']);
+  });
+
+  it('yeni şekil etkin katmana çizilir', () => {
+    doc.setLayers([...doc.layers, { id: 'top', name: '', visible: true, locked: false, opacity: 1 }], 'top');
+    settings.setKind('rect');
+    drag({ x: 100, y: 100 }, { x: 300, y: 200 });
+    expect(doc.shapes[0].layerId).toBe('top');
+  });
+});

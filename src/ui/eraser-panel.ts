@@ -13,6 +13,7 @@ export class EraserPanel {
   private readonly radius: HTMLInputElement;
   private readonly radiusValue: HTMLOutputElement;
   private readonly hint: HTMLElement;
+  private readonly allLayers: HTMLInputElement;
 
   constructor(
     private readonly root: HTMLElement,
@@ -22,6 +23,8 @@ export class EraserPanel {
     this.radius = root.querySelector('#eraser-radius')!;
     this.radiusValue = root.querySelector('#eraser-radius-value')!;
     this.hint = root.querySelector('#eraser-hint')!;
+    this.allLayers = root.querySelector('#eraser-all-layers')!;
+    this.allLayers.addEventListener('change', () => settings.setAllLayers(this.allLayers.checked));
 
     this.radius.min = String(ERASER_RADIUS_MIN);
     this.radius.max = String(ERASER_RADIUS_MAX);
@@ -52,6 +55,7 @@ export class EraserPanel {
 
   update(): void {
     const { kind, radius } = this.settings;
+    this.allLayers.checked = this.settings.allLayers;
     for (const btn of this.kindButtons) {
       const checked = btn.dataset.eraserKind === kind;
       btn.setAttribute('aria-checked', String(checked));

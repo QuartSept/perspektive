@@ -21,7 +21,7 @@ interface Prefs {
     axisSnap?: boolean;
   };
   snap?: { enabled?: boolean; radius?: number };
-  eraser?: { kind?: string; radius?: number };
+  eraser?: { kind?: string; radius?: number; allLayers?: boolean };
   shape?: { kind?: string };
   guidesVisible?: boolean;
   language?: string;
@@ -71,6 +71,7 @@ export function loadPrefs(t: PrefsTargets): void {
   const er = prefs.eraser ?? {};
   if (ERASER_KINDS.includes(er.kind as EraserKind)) t.eraser.setKind(er.kind as EraserKind);
   if (num(er.radius)) t.eraser.setRadius(er.radius);
+  if (typeof er.allLayers === 'boolean') t.eraser.setAllLayers(er.allLayers);
   const sh = prefs.shape ?? {};
   if (SHAPE_KINDS.includes(sh.kind as ShapeKind)) t.shape.setKind(sh.kind as ShapeKind);
   if (typeof prefs.guidesVisible === 'boolean') t.setGuidesVisible(prefs.guidesVisible);
@@ -95,7 +96,7 @@ export function savePrefs(t: PrefsTargets): void {
       axisSnap: t.brush.axisSnap,
     },
     snap: { enabled: t.snap.enabled, radius: t.snap.radius },
-    eraser: { kind: t.eraser.kind, radius: t.eraser.radius },
+    eraser: { kind: t.eraser.kind, radius: t.eraser.radius, allLayers: t.eraser.allLayers },
     shape: { kind: t.shape.kind },
     guidesVisible: t.getGuidesVisible(),
     language: getLanguage(),

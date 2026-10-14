@@ -144,3 +144,24 @@ describe('merkez çizgileri ve işaretçi boyutu', () => {
     expect(buildSvg({ paper, strokes, scene: s, theme, centerMark: true }, false)).not.toContain('center-mark');
   });
 });
+
+describe('katmanlar', () => {
+  it('her katman ayrı grup; gizli katman yazılmaz, opaklık gruba uygulanır', () => {
+    const layers = [
+      { id: 'a', name: 'Eskiz', visible: true, locked: false, opacity: 0.5 },
+      { id: 'b', name: '', visible: false, locked: false, opacity: 1 },
+      { id: 'c', name: '', visible: true, locked: false, opacity: 1 },
+    ];
+    const layered = [
+      { ...strokes[0], layerId: 'a' },
+      { ...strokes[1], id: 'gizli', layerId: 'b' },
+      { ...strokes[0], id: 'katmansiz' },
+    ];
+    const svg = buildSvg({ paper, strokes: layered, scene: scene(), theme, layers }, false);
+    expect(svg).toContain('<g id="layer-a" data-name="Eskiz" opacity="0.5">');
+    expect(svg).not.toContain('layer-b');
+    expect(svg).not.toContain('layer-c'); // boş katman yazılmaz
+    // Katmanı olmayan stroke en alttaki (a) katmanda
+    expect(count(svg.match(/<g id="layer-a"[^>]*>(.*?)<\/g>/)![1], /<path /g)).toBe(2);
+  });
+});

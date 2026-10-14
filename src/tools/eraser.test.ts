@@ -143,3 +143,41 @@ describe('EraserTool ve katmanlar', () => {
     expect(doc.strokes.every((s) => s.layerId === 'L2')).toBe(true);
   });
 });
+
+describe('EraserTool katman kapsamı', () => {
+  function layered() {
+    // a: alt katman, b: üst (etkin) katman
+    const bottom = doc.layers[0].id;
+    doc.setLayers([...doc.layers, { id: 'top', name: '', visible: true, locked: false, opacity: 1 }], 'top');
+    doc.replaceAll([{ ...line('a', 50), layerId: bottom }, { ...line('b', 52), layerId: 'top' }]);
+    return bottom;
+  }
+
+  it('varsayılan: yalnızca etkin katman silinir', () => {
+    layered();
+    erase([{ x: 50, y: 40 }, { x: 50, y: 60 }]);
+    expect(doc.strokes.map((s) => s.id)).toEqual(['a']);
+  });
+
+  it('tüm katmanlar: kilitli ve gizli katman yine korunur', () => {
+    const bottom = layered();
+    settings.setAllLayers(true);
+    doc.setLayers(doc.layers.map((l) => (l.id === bottom ? { ...l, locked: true } : l)));
+    erase([{ x: 50, y: 40 }, { x: 50, y: 60 }]);
+    expect(doc.strokes.map((s) => s.id)).toEqual(['a']);
+    doc.setLayers(doc.layers.map((l) => (l.id === bottom ? { ...l, locked: false } : l)));
+    history.undo();
+    erase([{ x: 50, y: 40 }, { x: 50, y: 60 }]);
+    expect(doc.strokes).toHaveLength(0);
+  });
+
+  it('etkin katman kilitliyken bildirir ve silmez', () => {
+    layered();
+    let reason = '';
+    eraser.onLayerBlocked = (r) => (reason = r);
+    doc.setLayers(doc.layers.map((l) => (l.id === 'top' ? { ...l, locked: true } : l)));
+    erase([{ x: 50, y: 40 }, { x: 50, y: 60 }]);
+    expect(reason).toBe('locked');
+    expect(doc.strokes).toHaveLength(2);
+  });
+});

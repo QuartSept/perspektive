@@ -315,3 +315,18 @@ describe('köşe kaçış çizgisine kilit', () => {
     expect(distanceToLine(line, { x: s.points[2], y: s.points[3] })).toBeCloseTo(0);
   });
 });
+
+describe('katmanlar', () => {
+  it('stroke etkin katmana çizilir; kilitli katmanda çizim başlamaz ve bildirilir', () => {
+    let reason = '';
+    brush.onLayerBlocked = (r) => (reason = r);
+    doc.setLayers([...doc.layers, { id: 'top', name: '', visible: true, locked: false, opacity: 1 }], 'top');
+    const s = draw([{ x: 100, y: 100 }, { x: 140, y: 160 }, { x: 180, y: 230 }]);
+    expect(s.layerId).toBe('top');
+    doc.setLayers(doc.layers.map((l) => (l.id === 'top' ? { ...l, locked: true } : l)));
+    const before = doc.strokes.length;
+    draw([{ x: 300, y: 100 }, { x: 340, y: 160 }]);
+    expect(doc.strokes).toHaveLength(before);
+    expect(reason).toBe('locked');
+  });
+});

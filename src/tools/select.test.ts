@@ -228,3 +228,28 @@ describe('klavye ve dokunma', () => {
     expect(verts('r')).toEqual([100, 100, 345, 100, 345, 240, 100, 240]);
   });
 });
+
+describe('katmanlar', () => {
+  it('kilitli ya da gizli katmandaki şekil seçilemez; seçiliyken kilitlenirse seçim düşer', () => {
+    const bottom = doc.layers[0].id;
+    doc.setLayers([{ ...doc.layers[0], locked: true }]);
+    tool.onPointerDown(ev({ x: 200, y: 102 }));
+    tool.onPointerUp(ev({ x: 200, y: 102 }));
+    expect(tool.selected).toBeNull();
+    doc.setLayers([{ ...doc.layers[0], locked: false }]);
+    tool.select('r');
+    expect(tool.selected?.id).toBe('r');
+    doc.setLayers([{ ...doc.layers[0], id: bottom, visible: false }]);
+    expect(tool.selected).toBeNull();
+  });
+
+  it('seçili şekil başka katmana taşınır, sırası korunur, geri alınır', () => {
+    doc.setLayers([...doc.layers, { id: 'top', name: '', visible: true, locked: false, opacity: 1 }]);
+    tool.select('r');
+    tool.moveToLayer('top');
+    expect(doc.getShape('r')!.layerId).toBe('top');
+    expect(doc.shapeIndexOf('r')).toBe(0);
+    history.undo();
+    expect(doc.getShape('r')!.layerId).toBeUndefined();
+  });
+});
