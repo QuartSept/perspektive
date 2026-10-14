@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { DrawingDocument } from '../engine/document';
 import type { Point } from '../engine/geometry';
 import { History } from '../engine/history';
+import { rectToBox } from '../engine/shapes';
 import type { Stroke } from '../engine/stroke';
 import { Viewport } from '../engine/viewport';
 import { EraserSettings, EraserTool } from './eraser';
@@ -307,5 +308,23 @@ describe('parça silgisi ve silinmiş kenarlar', () => {
     // Sol kenar silinmiş: 100–300 arası tek parça, onu sil → yalnızca 300–400 kalır
     erase([{ x: 150, y: 45 }, { x: 150, y: 55 }]);
     expect(doc.strokes.map((s) => [s.points[0], s.points[s.points.length - 2]])).toEqual([[300, 400]]);
+  });
+});
+
+describe('kutu kenarları', () => {
+  it('parça silgisi kutunun tek kenarını siler', () => {
+    settings.setKind('segment');
+    const r = {
+      id: 'k',
+      kind: 'rect' as const,
+      vertices: [200, 0, 300, 0, 300, 100, 200, 100],
+      style: { width: 2, opacity: 1, ink: 'black' as const },
+      cornerLines: true,
+    };
+    doc.replaceAll([], [rectToBox(r, 'vp', { x: 600, y: 50 }, 0.5)]);
+    // Ön sol kenar (3): x = 200
+    erase([{ x: 195, y: 50 }, { x: 205, y: 50 }]);
+    expect(doc.shapes[0].hiddenEdges).toEqual([3]);
+    expect(doc.shapes[0].kind).toBe('box');
   });
 });

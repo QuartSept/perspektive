@@ -1,6 +1,15 @@
 import { createLayer, MAX_LAYERS, type Layer } from '../engine/doc-layers';
 import { ORIENTATIONS, PAPER_KINDS, type Orientation, type PaperKind } from '../engine/paper';
-import { edgeCount, SHAPE_KINDS, vertexCountRange, type Shape, type ShapeKind } from '../engine/shapes';
+import {
+  BOX_BACK_STYLES,
+  edgeCount,
+  rebuildBox,
+  SHAPE_KINDS,
+  vertexCountRange,
+  type BoxBackStyle,
+  type Shape,
+  type ShapeKind,
+} from '../engine/shapes';
 import { INK_IDS, type InkId, type Stroke, type StrokeStyle } from '../engine/stroke';
 import {
   CORNER_TARGETS,
@@ -149,8 +158,21 @@ function parseShape(v: unknown): Shape | null {
   if (count < min || count > max) return null;
   const style = parseStyle(v.style);
   if (!style) return null;
-  const shape: Shape = { id: v.id, kind, vertices: [...vertices], style, cornerLines: v.cornerLines !== false };
+  let shape: Shape = { id: v.id, kind, vertices: [...vertices], style, cornerLines: v.cornerLines !== false };
   if (isString(v.layerId)) shape.layerId = v.layerId;
+  if (kind === 'box') {
+    // Kutu parametreleri zorunlu; arka köşeler ön yüzden yeniden hesaplanır (tutarlılık)
+    const b = v.box;
+    if (!isObject(b) || !isObject(b.vp) || !isFiniteNumber(b.vp.x) || !isFiniteNumber(b.vp.y)) return null;
+    if (!isFiniteNumber(b.depth)) return null;
+    shape.box = {
+      pointId: isString(b.pointId) ? b.pointId : null,
+      vp: { x: b.vp.x, y: b.vp.y },
+      depth: b.depth,
+      back: BOX_BACK_STYLES.includes(b.back as BoxBackStyle) ? (b.back as BoxBackStyle) : 'dashed',
+    };
+    shape = rebuildBox(shape);
+  }
   if (Array.isArray(v.hiddenEdges)) {
     // Geçerli kenar numaraları, tekil ve sıralı; hepsi silinmişse şekil yok sayılır
     const count = edgeCount(shape);

@@ -6,8 +6,30 @@ import { segmentDistance } from './stroke-geometry';
  * Düzenlenebilir geometrik şekiller (V3). Köşe bilgisi korunur; ekranda,
  * çıktılarda ve silgide kenarlardan oluşan düz bir çizgi olarak ele alınır.
  */
-export const SHAPE_KINDS = ['segment', 'rect', 'triangle', 'polygon'] as const;
+export const SHAPE_KINDS = ['segment', 'rect', 'triangle', 'polygon', 'box'] as const;
 export type ShapeKind = (typeof SHAPE_KINDS)[number];
+
+/** Kutunun arkada kalan (görünmeyen) kenarlarının çizimi. */
+export const BOX_BACK_STYLES = ['dashed', 'solid', 'hidden'] as const;
+export type BoxBackStyle = (typeof BOX_BACK_STYLES)[number];
+
+/** Derinlik oranı sınırları (0: ön yüz, 1: kaçış noktası). */
+export const BOX_DEPTH_MIN = 0.02;
+export const BOX_DEPTH_MAX = 0.95;
+export const BOX_DEPTH_DEFAULT = 0.3;
+
+/**
+ * Derinlikli kutu (1 nokta) parametreleri. Köşelerin ilk dördü ön yüz, son
+ * dördü arka yüzdür; arka köşeler türetilir: ön + derinlik · (KN − ön).
+ */
+export interface BoxParams {
+  /** Kutunun gittiği kaçış noktası (silinmişse null: kutu son konumunda kalır). */
+  pointId: string | null;
+  /** Kaçış noktasının son bilinen konumu (nokta taşınınca güncellenir). */
+  vp: Point;
+  depth: number;
+  back: BoxBackStyle;
+}
 
 export interface Shape {
   id: string;
@@ -24,6 +46,8 @@ export interface Shape {
    * son kenar son köşeden ilkine). Köşeler korunur, şekil düzenlenebilir kalır.
    */
   hiddenEdges?: number[];
+  /** Yalnızca `box` türünde. */
+  box?: BoxParams;
 }
 
 export const newShapeId = (): string => `h-${Math.random().toString(36).slice(2, 10)}`;
@@ -39,12 +63,90 @@ export function vertexCountRange(kind: ShapeKind): [min: number, max: number] {
       return [3, 3];
     case 'polygon':
       return [3, Infinity];
+    case 'box':
+      return [8, 8];
   }
 }
 
-/** Doğru parçası dışındaki şekiller kapalıdır (son köşe ilkine bağlanır). */
+/** Doğru parçası dışındaki çokgenler kapalıdır (son köşe ilkine bağlanır); kutunun kenarları ayrı tanımlıdır. */
 export function isClosed(kind: ShapeKind): boolean {
-  return kind !== 'segment';
+  return kind !== 'segment' && kind !== 'box';
+}
+
+/** Kutu kenarları (köşe çiftleri): ön yüz 0–3, arka yüz 4–7, derinlik kenarları 8–11. */
+const BOX_EDGES: readonly [number, number][] = [
+  [0, 1], [1, 2], [2, 3], [3, 0],
+  [4, 5], [5, 6], [6, 7], [7, 4],
+  [0, 4], [1, 5], [2, 6], [3, 7],
+];
+
+/** Kenarlar köşe numarası çiftleri olarak (kenar numarası dizideki sıradır). */
+export function edgePairs(shape: Shape): readonly [number, number][] {
+  if (shape.kind === 'box') return BOX_EDGES;
+  const n = shape.vertices.length / 2;
+  const pairs: [number, number][] = [];
+  for (let i = 0; i + 1 < n; i++) pairs.push([i, i + 1]);
+  if (isClosed(shape.kind) && n > 2) pairs.push([n - 1, 0]);
+  return pairs;
+}
+
+/** Ön köşelerden arka köşeler: kaçış noktasına doğru `depth` oranında. */
+export function boxBackVertices(front: readonly number[], vp: Point, depth: number): number[] {
+  const back: number[] = [];
+  for (let i = 0; i < 8; i += 2) {
+    back.push(front[i] + (vp.x - front[i]) * depth, front[i + 1] + (vp.y - front[i + 1]) * depth);
+  }
+  return back;
+}
+
+/** Kutunun köşelerini parametrelerinden yeniden hesaplar (ön yüz korunur). */
+export function rebuildBox(shape: Shape, patch: Partial<BoxParams> = {}, front?: readonly number[]): Shape {
+  const box = { ...shape.box!, ...patch };
+  box.depth = Math.min(BOX_DEPTH_MAX, Math.max(BOX_DEPTH_MIN, box.depth));
+  const f = (front ?? shape.vertices).slice(0, 8);
+  return { ...shape, box, vertices: [...f, ...boxBackVertices(f, box.vp, box.depth)] };
+}
+
+/** Dikdörtgenden (ön yüz) kutu: aynı kimlik, stil ve katman; kenar silmeleri sıfırlanır. */
+export function rectToBox(rect: Shape, pointId: string, vp: Point, depth = BOX_DEPTH_DEFAULT): Shape {
+  const { hiddenEdges: _drop, ...rest } = rect;
+  return rebuildBox({ ...rest, kind: 'box', box: { pointId, vp, depth, back: 'dashed' } }, {}, rect.vertices);
+}
+
+/**
+ * Arkada kalan kenarlar: bir kenar, değdiği yüzlerden en az biri bakana
+ * dönükse görünür. Ön yüz hep dönük, arka yüz hep arkada; yan yüz, arka
+ * kenarı ön kenarın dış tarafında kalıyorsa (kaçış noktası o taraftaysa) dönük.
+ */
+export function boxOccludedEdges(shape: Shape): Set<number> {
+  const v = shape.vertices;
+  const p = (i: number): Point => ({ x: v[i * 2], y: v[i * 2 + 1] });
+  // Ön yüzün yönü (saat yönü / tersi) iç tarafı belirler
+  let area = 0;
+  for (let i = 0; i < 4; i++) {
+    const a = p(i);
+    const b = p((i + 1) % 4);
+    area += a.x * b.y - b.x * a.y;
+  }
+  const sign = Math.sign(area) || 1;
+  /** Yan yüz i (ön kenar i ile arka kenar 4+i arasında) dönük mü. */
+  const sideVisible = (i: number) => {
+    const a = p(i);
+    const b = p((i + 1) % 4);
+    const m = { x: (p(4 + i).x + p(4 + ((i + 1) % 4)).x) / 2, y: (p(4 + i).y + p(4 + ((i + 1) % 4)).y) / 2 };
+    const cross = (b.x - a.x) * (m.y - a.y) - (b.y - a.y) * (m.x - a.x);
+    // İç taraf ön yüz yönüyle aynı işarette; dış taraftaysa yüz görünür
+    return cross * sign < -1e-9;
+  };
+  const sides = [0, 1, 2, 3].map(sideVisible);
+  const hidden = new Set<number>();
+  for (let i = 0; i < 4; i++) {
+    // Arka kenar 4+i: arka yüz + yan yüz i
+    if (!sides[i]) hidden.add(4 + i);
+    // Derinlik kenarı 8+i (köşe i): yan yüzler i-1 ve i
+    if (!sides[i] && !sides[(i + 3) % 4]) hidden.add(8 + i);
+  }
+  return hidden;
 }
 
 export function shapeVertices(shape: Shape): Point[] {
@@ -90,10 +192,9 @@ export function shapeBounds(shape: Shape): Rect {
   return rect;
 }
 
-/** Kenar sayısı: kapalı şekilde köşe sayısı, açıkta bir eksiği. */
+/** Kenar sayısı: kapalı şekilde köşe sayısı, açıkta bir eksiği; kutuda 12. */
 export function edgeCount(shape: Shape): number {
-  const n = shape.vertices.length / 2;
-  return isClosed(shape.kind) && n > 2 ? n : Math.max(0, n - 1);
+  return edgePairs(shape).length;
 }
 
 /** Kenar görünüyor mu (silinmemiş). */
@@ -101,13 +202,10 @@ export function edgeVisible(shape: Shape, index: number): boolean {
   return !shape.hiddenEdges?.includes(index);
 }
 
-/** Kenarlar (kapalı şekilde son köşeden ilkine giden kenar dahil); `index` kenar numarasıdır. */
-export function shapeEdges(shape: Shape, closed = isClosed(shape.kind)): [Point, Point][] {
+/** Kenarlar (kapalı şekilde son köşeden ilkine giden kenar dahil); dizideki sıra kenar numarasıdır. */
+export function shapeEdges(shape: Shape): [Point, Point][] {
   const pts = shapeVertices(shape);
-  const edges: [Point, Point][] = [];
-  for (let i = 0; i + 1 < pts.length; i++) edges.push([pts[i], pts[i + 1]]);
-  if (closed && pts.length > 2) edges.push([pts[pts.length - 1], pts[0]]);
-  return edges;
+  return edgePairs(shape).map(([i, j]) => [pts[i], pts[j]]);
 }
 
 /** Görünen (silinmemiş) kenarlar ve numaraları. */
@@ -129,6 +227,13 @@ export function visibleRuns(
   const pts = shapeVertices(shape);
   const count = edgeCount(shape);
   const shown = (i: number) => edgeVisible(shape, i) && !skip?.has(i);
+  if (shape.kind === 'box') {
+    // Kutu kenarları ayrı ayrı (zincir değil)
+    return edgePairs(shape)
+      .map(([i, j], k) => ({ k, points: [pts[i], pts[j]] }))
+      .filter((e) => shown(e.k))
+      .map((e) => ({ points: e.points, closed: false }));
+  }
   const all = Array.from({ length: count }, (_, i) => shown(i));
   if (isClosed(shape.kind) && count > 2 && all.every(Boolean)) return [{ points: pts, closed: true }];
   // Kapalı şekilde koşu bir gizli kenardan sonra başlasın ki kapanış kenarı bölünmesin
@@ -154,14 +259,7 @@ export function visibleRuns(
 
 /** Köşeden kaçış çizgisi çıksın mı: köşeye değen en az bir kenar görünüyor. */
 export function cornerHasVisibleEdge(shape: Shape, vertex: number): boolean {
-  const count = edgeCount(shape);
-  const n = shape.vertices.length / 2;
-  const before = isClosed(shape.kind) && n > 2 ? (vertex - 1 + n) % n : vertex - 1;
-  const after = vertex;
-  return (
-    (after >= 0 && after < count && edgeVisible(shape, after)) ||
-    (before >= 0 && before < count && edgeVisible(shape, before))
-  );
+  return edgePairs(shape).some(([i, j], k) => (i === vertex || j === vertex) && edgeVisible(shape, k));
 }
 
 /** `a`→`b` doğru parçası (silgi hareketi) şeklin hangi görünen kenarlarına `tolerance` kadar yaklaşıyor. */
@@ -199,7 +297,7 @@ export function withHiddenEdges(shape: Shape, add: Iterable<number>): Shape | nu
   return { ...shape, hiddenEdges: list };
 }
 
-/** Köşeleri dönüştürülmüş kopya (ör. kâğıt yönü değişimi). */
+/** Köşeleri dönüştürülmüş kopya (ör. kâğıt yönü değişimi); kutunun kaçış noktası da dönüşür. */
 export function mapShape(shape: Shape, map: (p: Point) => Point): Shape {
   const vertices = new Array<number>(shape.vertices.length);
   for (let i = 0; i < shape.vertices.length; i += 2) {
@@ -207,7 +305,14 @@ export function mapShape(shape: Shape, map: (p: Point) => Point): Shape {
     vertices[i] = q.x;
     vertices[i + 1] = q.y;
   }
-  return { ...shape, vertices };
+  const mapped: Shape = { ...shape, vertices };
+  if (shape.box) mapped.box = { ...shape.box, vp: map(shape.box.vp) };
+  return mapped;
+}
+
+/** Kutunun arka kenar kesik deseni (dünya birimi, kalınlıkla ölçeklenir). */
+export function boxDash(width: number): number[] {
+  return [Math.max(4, width * 3), Math.max(3, width * 2)];
 }
 
 /**
@@ -226,6 +331,10 @@ export function drawShape(
 ): void {
   const v = shape.vertices;
   if (v.length < 4) return;
+  if (shape.kind === 'box') {
+    drawBox(ctx, shape, color, alphaFactor, skip);
+    return;
+  }
   ctx.beginPath();
   if (!closed && isClosed(shape.kind) && !shape.hiddenEdges?.length && !skip) {
     // Bitmemiş çokgen önizlemesi: kapanış kenarı yok
@@ -245,4 +354,37 @@ export function drawShape(
   ctx.lineJoin = 'round';
   ctx.stroke();
   ctx.globalAlpha = 1;
+}
+
+/** Kutu: görünen kenarlar düz, arkada kalanlar ayara göre kesikli / düz / hiç. */
+function drawBox(
+  ctx: CanvasRenderingContext2D,
+  shape: Shape,
+  color: string,
+  alphaFactor: number,
+  skip?: ReadonlySet<number>,
+): void {
+  const occluded = shape.box?.back === 'solid' ? new Set<number>() : boxOccludedEdges(shape);
+  const edges = shapeEdges(shape);
+  const stroke = (indices: number[], dash: number[]) => {
+    if (!indices.length) return;
+    ctx.beginPath();
+    for (const k of indices) {
+      const [a, b] = edges[k];
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+    }
+    ctx.setLineDash(dash);
+    ctx.stroke();
+  };
+  const shown = edges.map((_, k) => k).filter((k) => edgeVisible(shape, k) && !skip?.has(k));
+  ctx.save();
+  ctx.globalAlpha = shape.style.opacity * alphaFactor;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = shape.style.width;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  stroke(shown.filter((k) => !occluded.has(k)), []);
+  if (shape.box?.back !== 'hidden') stroke(shown.filter((k) => occluded.has(k)), boxDash(shape.style.width));
+  ctx.restore();
 }

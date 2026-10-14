@@ -1,8 +1,8 @@
-import { ReplaceShapesCommand } from '../engine/commands';
+import { ReplaceShapesCommand, UpdateShapeCommand } from '../engine/commands';
 import type { DrawingDocument } from '../engine/document';
 import type { Point } from '../engine/geometry';
 import type { History } from '../engine/history';
-import { segmentTouchesShape, shapeVertices, type Shape } from '../engine/shapes';
+import { rebuildBox, rectToBox, segmentTouchesShape, shapeVertices, type Shape } from '../engine/shapes';
 import type { Viewport } from '../engine/viewport';
 import { distanceToLine, intersectLines, type SnapLine } from '../perspective/snapping';
 import { EdgeSnapper, type ShapeSnapping } from './shape-tools';
@@ -46,6 +46,8 @@ export class SelectTool implements Tool, ToolOverlay {
   private draft: Shape | null = null;
   private hoverHandle: number | null = null;
   private hoverShape = false;
+  /** `editSelected` dizisinin başındaki hâl (tek geri al adımı için). */
+  private editOriginal: Shape | null = null;
 
   constructor(
     private readonly viewport: Viewport,
@@ -141,6 +143,34 @@ export class SelectTool implements Tool, ToolOverlay {
     return true;
   }
 
+  /** Seçili dikdörtgeni kutuya dönüştürür (aynı kimlik; geri alınabilir). */
+  convertToBox(pointId: string, vp: Point): void {
+    const shape = this.selected;
+    if (!shape || shape.kind !== 'rect' || this.drag) return;
+    this.history.execute(new UpdateShapeCommand(this.doc, shape, rectToBox(shape, pointId, vp)));
+    this.onChange();
+  }
+
+  /**
+   * Seçili şekli adım adım değiştirir (ör. derinlik kaydırıcısı): ara adımlar
+   * doğrudan uygulanır, `final` gelince tek geri al adımı kaydedilir.
+   */
+  editSelected(update: (shape: Shape) => Shape, final: boolean): void {
+    const shape = this.selected;
+    if (!shape || this.drag) return;
+    this.editOriginal ??= shape;
+    const next = update(shape);
+    const index = this.doc.shapeIndexOf(shape.id);
+    if (next !== shape) this.doc.spliceShapes([shape.id], [{ index, shape: next }]);
+    if (final) {
+      const before = this.editOriginal;
+      this.editOriginal = null;
+      const after = this.doc.getShape(shape.id);
+      if (after && after !== before) this.history.record(new UpdateShapeCommand(this.doc, before, after));
+    }
+    this.onChange();
+  }
+
   /** Seçili şeklin köşe çizgilerini açar / kapatır (geri alınabilir). */
   setCornerLines(enabled: boolean): void {
     const shape = this.selected;
@@ -158,7 +188,8 @@ export class SelectTool implements Tool, ToolOverlay {
     const handle = selected ? this.hitHandle(selected, e.screen, touch) : null;
     if (selected && handle !== null) {
       const count = selected.vertices.length / 2;
-      const neighbors = selected.kind === 'rect' ? 0 : selected.kind === 'segment' ? 1 : 2;
+      const neighbors =
+        selected.kind === 'rect' || selected.kind === 'box' ? 0 : selected.kind === 'segment' ? 1 : 2;
       this.drag = {
         kind: 'vertex',
         original: selected,
@@ -264,7 +295,26 @@ export class SelectTool implements Tool, ToolOverlay {
     const snapped = drag.snapper.vertex(first);
     dx += snapped.x - first.x;
     dy += snapped.y - first.y;
-    return { ...drag.original, vertices: v.map((c, i) => c + (i % 2 ? dy : dx)) };
+    const moved = v.map((c, i) => c + (i % 2 ? dy : dx));
+    // Kutu: ön yüz taşınır, arka yüz kaçış noktasına göre yeniden hesaplanır
+    if (drag.original.kind === 'box') return rebuildBox(drag.original, {}, moved);
+    return { ...drag.original, vertices: moved };
+  }
+
+  /**
+   * Dikdörtgen köşesi: karşı köşe sabit; komşular sürüklenen köşeyle paylaştıkları
+   * koordinatı izler. Kenarlar eksenlere paralel kalır: köşe yalnızca ızgaraya yapışır.
+   */
+  private resizedRect(pts: Point[], index: number, p: Point): number[] {
+    const corner = this.newSnapper().vertex(p);
+    const opposite = pts[(index + 2) % 4];
+    const next = pts.map((q) => ({ ...q }));
+    next[index] = corner;
+    for (const j of [(index + 1) % 4, (index + 3) % 4]) {
+      const sharesX = Math.abs(pts[j].x - pts[index].x) <= Math.abs(pts[j].y - pts[index].y);
+      next[j] = sharesX ? { x: corner.x, y: opposite.y } : { x: opposite.x, y: corner.y };
+    }
+    return next.flatMap((q) => [q.x, q.y]);
   }
 
   private movedVertex(drag: Extract<Drag, { kind: 'vertex' }>, p: Point): Shape {
@@ -272,18 +322,23 @@ export class SelectTool implements Tool, ToolOverlay {
     const pts = shapeVertices(original);
     const n = pts.length;
 
-    if (original.kind === 'rect') {
-      // Karşı köşe sabit; komşular sürüklenen köşeyle paylaştıkları koordinatı izler.
-      // Kenarlar eksenlere paralel kalır: köşe yalnızca ızgaraya yapışır.
-      const corner = this.newSnapper().vertex(p);
-      const opposite = pts[(index + 2) % 4];
-      const next = pts.map((q) => ({ ...q }));
-      next[index] = corner;
-      for (const j of [(index + 1) % 4, (index + 3) % 4]) {
-        const sharesX = Math.abs(pts[j].x - pts[index].x) <= Math.abs(pts[j].y - pts[index].y);
-        next[j] = sharesX ? { x: corner.x, y: opposite.y } : { x: opposite.x, y: corner.y };
+    if (original.kind === 'box' && original.box) {
+      if (index >= 4) {
+        // Arka köşe: derinlik, köşeden kaçış noktasına giden doğru üzerinde
+        const f = pts[index - 4];
+        const vp = original.box.vp;
+        const dx = vp.x - f.x;
+        const dy = vp.y - f.y;
+        const len2 = dx * dx + dy * dy;
+        const depth = len2 > 0 ? ((p.x - f.x) * dx + (p.y - f.y) * dy) / len2 : original.box.depth;
+        return rebuildBox(original, { depth });
       }
-      return { ...original, vertices: next.flatMap((q) => [q.x, q.y]) };
+      // Ön köşe: dikdörtgen gibi yeniden boyutlanır, arka yüz izler
+      return rebuildBox(original, {}, this.resizedRect(pts.slice(0, 4), index, p));
+    }
+
+    if (original.kind === 'rect') {
+      return { ...original, vertices: this.resizedRect(pts, index, p) };
     }
 
     const neighbors =

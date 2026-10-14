@@ -164,6 +164,26 @@
           <input type="checkbox" id="shape-corner-lines" />
           <span data-i18n="select.cornerLines">Köşe çizgileri</span>
         </label>
+        <button type="button" class="btn" id="shape-to-box" data-i18n="box.convert" data-i18n-title="box.convertTitle" hidden>Kutuya dönüştür</button>
+        <div class="panel__stack" id="box-options" hidden>
+          <div class="field">
+            <div class="field__row">
+              <label for="box-depth" data-i18n="box.depth">Derinlik</label>
+              <output id="box-depth-value" for="box-depth"></output>
+            </div>
+            <input type="range" id="box-depth" class="range" />
+          </div>
+          <div class="field__label" id="box-back-label" data-i18n="box.back">Arka kenarlar</div>
+          <div class="segmented" id="box-back" role="radiogroup" aria-labelledby="box-back-label">
+            <button type="button" role="radio" data-box-back="dashed" data-i18n="box.backDashed">Kesikli</button>
+            <button type="button" role="radio" data-box-back="solid" data-i18n="box.backSolid">Görünür</button>
+            <button type="button" role="radio" data-box-back="hidden" data-i18n="box.backHidden">Gizli</button>
+          </div>
+          <div class="panel__stack" id="box-point-row" hidden>
+            <div class="field__label" id="box-point-label" data-i18n="box.point">Kaçış noktası</div>
+            <div class="segmented" id="box-point" role="radiogroup" aria-labelledby="box-point-label"></div>
+          </div>
+        </div>
         <button type="button" class="btn" id="delete-shape" data-i18n="select.delete" disabled>Seçili şekli sil</button>
         <p class="panel__hint" id="select-hint"></p>
       </section>

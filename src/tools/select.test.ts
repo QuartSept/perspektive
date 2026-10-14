@@ -253,3 +253,46 @@ describe('katmanlar', () => {
     expect(doc.getShape('r')!.layerId).toBeUndefined();
   });
 });
+
+describe('kutu', () => {
+  it('dikdörtgen kutuya dönüşür (aynı kimlik), arka köşe derinliği, ön köşe ön yüzü değiştirir', () => {
+    tool.select('r');
+    tool.convertToBox('vp', { x: 700, y: 150 });
+    const box = doc.getShape('r')!;
+    expect(box.kind).toBe('box');
+    expect(tool.shapeHandles).toHaveLength(8);
+    // Arka köşe 4 (ön köşe 0'ın karşılığı): kaçış noktasına doğru sürüklenir
+    const b4 = { x: box.vertices[8], y: box.vertices[9] };
+    const toward = { x: 100 + (700 - 100) * 0.6, y: 100 + (150 - 100) * 0.6 };
+    drag(b4, toward);
+    expect(doc.getShape('r')!.box!.depth).toBeCloseTo(0.6);
+    // Ön köşe 2: dikdörtgen gibi (karşı köşe sabit), arka yüz izler
+    drag({ x: 300, y: 200 }, { x: 340, y: 240 });
+    const after = doc.getShape('r')!;
+    expect(after.vertices.slice(0, 8)).toEqual([100, 100, 340, 100, 340, 240, 100, 240]);
+    expect(after.vertices[12]).toBeCloseTo(340 + (700 - 340) * 0.6);
+  });
+
+  it('kutu taşınınca arka yüz kaçış noktasına göre yeniden hesaplanır', () => {
+    tool.select('r');
+    tool.convertToBox('vp', { x: 700, y: 150 });
+    const depth = doc.getShape('r')!.box!.depth;
+    drag({ x: 200, y: 100 }, { x: 230, y: 120 });
+    const box = doc.getShape('r')!;
+    expect(box.vertices.slice(0, 2)).toEqual([130, 120]);
+    expect(box.vertices[8]).toBeCloseTo(130 + (700 - 130) * depth);
+  });
+
+  it('kaydırıcı gibi adım adım düzenleme tek adımda geri alınır', () => {
+    tool.select('r');
+    tool.convertToBox('vp', { x: 700, y: 150 });
+    for (const d of [0.4, 0.5, 0.6]) {
+      tool.editSelected((s) => ({ ...s, box: { ...s.box!, depth: d } }), d === 0.6);
+    }
+    expect(doc.getShape('r')!.box!.depth).toBe(0.6);
+    history.undo();
+    expect(doc.getShape('r')!.box!.depth).toBe(0.3);
+    history.undo();
+    expect(doc.getShape('r')!.kind).toBe('rect');
+  });
+});

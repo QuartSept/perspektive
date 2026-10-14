@@ -2,7 +2,7 @@ import type { Point } from './geometry';
 import { gridLines } from './grid';
 import { PX_PER_MM } from './paper';
 import type { Layer } from './doc-layers';
-import { visibleRuns, type Shape } from './shapes';
+import { boxDash, boxOccludedEdges, edgeVisible, shapeEdges, visibleRuns, type Shape } from './shapes';
 import { strokeOutline, type InkId, type Stroke } from './stroke';
 import type { CornerLine } from '../perspective/corner-lines';
 import { rayAngles } from '../perspective/rays';
@@ -100,7 +100,27 @@ function strokeElement(stroke: Stroke, color: string): string {
   return `<path d="${strokePathData(p)}" fill="none" stroke="${esc(color)}" stroke-width="${num(width)}" stroke-linecap="round" stroke-linejoin="round"${op}/>`;
 }
 
+function boxElement(shape: Shape, color: string): string {
+  const occluded = shape.box?.back === 'solid' ? new Set<number>() : boxOccludedEdges(shape);
+  const edges = shapeEdges(shape);
+  const path = (indices: number[]) =>
+    indices.map((k) => `M${num(edges[k][0].x)} ${num(edges[k][0].y)}L${num(edges[k][1].x)} ${num(edges[k][1].y)}`).join('');
+  const shown = edges.map((_, k) => k).filter((k) => edgeVisible(shape, k));
+  const front = shown.filter((k) => !occluded.has(k));
+  const back = shape.box?.back === 'hidden' ? [] : shown.filter((k) => occluded.has(k));
+  const { width, opacity } = shape.style;
+  const attrs = `fill="none" stroke="${esc(color)}" stroke-width="${num(width)}" stroke-linecap="round" stroke-linejoin="round"`;
+  const parts: string[] = [];
+  if (front.length) parts.push(`<path d="${path(front)}" ${attrs}/>`);
+  if (back.length) {
+    parts.push(`<path d="${path(back)}" ${attrs} stroke-dasharray="${boxDash(width).map(num).join(' ')}"/>`);
+  }
+  const op = opacity < 1 ? ` opacity="${num(opacity)}"` : '';
+  return `<g class="box"${op}>${parts.join('')}</g>`;
+}
+
 function shapeElement(shape: Shape, color: string): string {
+  if (shape.kind === 'box') return boxElement(shape, color);
   // Silinmiş kenarlar yazılmaz: görünen kenarlar ardışık parçalar olarak
   const d = visibleRuns(shape)
     .map(

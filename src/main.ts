@@ -1,7 +1,7 @@
 import './styles/theme.css';
 import './styles/main.css';
 
-import { applyTranslations, onLanguageChange, setLanguage, t, type MessageKey } from './i18n';
+import { applyTranslations, formatPercent, onLanguageChange, setLanguage, t, type MessageKey } from './i18n';
 import { ThemeController } from './ui/theme';
 import { removeItemsCommand, ReplaceStrokesCommand } from './engine/commands';
 import { DrawingDocument } from './engine/document';
@@ -38,6 +38,8 @@ import { EraserSettings, EraserTool } from './tools/eraser';
 import { EraserPanel } from './ui/eraser-panel';
 import { ShapeSettings, ShapeTool, type ShapeSnapping } from './tools/shape-tools';
 import { SelectTool } from './tools/select';
+import { syncBoxes } from './perspective/boxes';
+import { BOX_DEPTH_MAX, BOX_DEPTH_MIN, rebuildBox, type BoxBackStyle, type Shape } from './engine/shapes';
 import { ShapePanel } from './ui/shape-panel';
 import { HandTool } from './tools/hand';
 import { Autosave } from './storage/autosave';
@@ -263,6 +265,83 @@ const shapeCornerRow = document.getElementById('shape-corner-lines-row')!;
 const shapeLayerRow = document.getElementById('shape-layer-row')!;
 const shapeLayer = document.getElementById('shape-layer') as HTMLSelectElement;
 shapeLayer.addEventListener('change', () => selectionTool.moveToLayer(shapeLayer.value));
+
+// ---------- Kutu ----------
+
+const toBoxButton = document.getElementById('shape-to-box') as HTMLButtonElement;
+const boxOptions = document.getElementById('box-options')!;
+const boxDepth = document.getElementById('box-depth') as HTMLInputElement;
+const boxDepthValue = document.getElementById('box-depth-value')!;
+const boxBackButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-box-back]')];
+const boxPointRow = document.getElementById('box-point-row')!;
+const boxPoint = document.getElementById('box-point')!;
+boxDepth.min = String(Math.round(BOX_DEPTH_MIN * 100));
+boxDepth.max = String(Math.round(BOX_DEPTH_MAX * 100));
+boxDepth.step = '1';
+
+/** Yeni kutunun kaçış noktası: köşe çizgisi hedefi "Seçili" ise o, değilse dikdörtgene en yakın nokta. */
+function boxPointFor(shape: Shape) {
+  const points = scene.activePoints;
+  if (!points.length) return null;
+  if (corners.target === 'one') return cornerTargets(scene, corners)[0];
+  const v = shape.vertices;
+  const c = { x: (v[0] + v[4]) / 2, y: (v[1] + v[5]) / 2 };
+  return points.reduce((best, p) => (Math.hypot(p.x - c.x, p.y - c.y) < Math.hypot(best.x - c.x, best.y - c.y) ? p : best));
+}
+
+toBoxButton.addEventListener('click', () => {
+  const shape = selectionTool.selected;
+  const point = shape && boxPointFor(shape);
+  if (point) selectionTool.convertToBox(point.id, { x: point.x, y: point.y });
+});
+const setBoxDepth = (final: boolean) =>
+  selectionTool.editSelected((s) => (s.box ? rebuildBox(s, { depth: Number(boxDepth.value) / 100 }) : s), final);
+boxDepth.addEventListener('input', () => setBoxDepth(false));
+boxDepth.addEventListener('change', () => setBoxDepth(true));
+for (const btn of boxBackButtons) {
+  btn.addEventListener('click', () =>
+    selectionTool.editSelected((s) => (s.box ? rebuildBox(s, { back: btn.dataset.boxBack as BoxBackStyle }) : s), true),
+  );
+}
+boxPoint.addEventListener('click', (e) => {
+  const id = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-point-id]')?.dataset.pointId;
+  const p = id ? scene.getPoint(id) : undefined;
+  if (p) selectionTool.editSelected((s) => (s.box ? rebuildBox(s, { pointId: p.id, vp: { x: p.x, y: p.y } }) : s), true);
+});
+
+function updateBoxControls(selected: Shape | null): void {
+  toBoxButton.hidden = !(selected?.kind === 'rect' && scene.activePoints.length > 0);
+  const box = selected?.kind === 'box' ? selected.box : undefined;
+  boxOptions.hidden = !box;
+  if (!box) return;
+  const pct = String(Math.round(box.depth * 100));
+  if (boxDepth.value !== pct) boxDepth.value = pct;
+  boxDepthValue.textContent = formatPercent(box.depth);
+  for (const btn of boxBackButtons) {
+    const checked = btn.dataset.boxBack === box.back;
+    btn.setAttribute('aria-checked', String(checked));
+    btn.tabIndex = checked ? 0 : -1;
+  }
+  const points = scene.activePoints;
+  boxPointRow.hidden = points.length < 2;
+  boxPoint.replaceChildren(
+    ...points.map((p, i) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.setAttribute('role', 'radio');
+      btn.dataset.pointId = p.id;
+      const checked = p.id === box.pointId;
+      btn.setAttribute('aria-checked', String(checked));
+      btn.tabIndex = checked ? 0 : -1;
+      btn.setAttribute('aria-label', t('corners.pointLabel', { n: i + 1 }));
+      const dot = document.createElement('span');
+      dot.className = 'vp-dot';
+      dot.style.background = `var(--color-vp-${scene.colorIndexOf(p) + 1})`;
+      btn.append(dot, String(i + 1));
+      return btn;
+    }),
+  );
+}
 const shapeCornerLines = document.getElementById('shape-corner-lines') as HTMLInputElement;
 deleteShapeButton.addEventListener('click', () => selectionTool.deleteSelected());
 shapeCornerLines.addEventListener('change', () => selectionTool.setCornerLines(shapeCornerLines.checked));
@@ -285,7 +364,8 @@ function updateSelectPanel(): void {
     shapeLayer.replaceChildren(...options);
     shapeLayer.value = doc.layerOf(selected!).id;
   }
-  selectHint.textContent = t(has ? 'select.hintSelected' : 'select.hintEmpty');
+  selectHint.textContent = t(has ? (selected!.kind === 'box' ? 'select.hintBox' : 'select.hintSelected') : 'select.hintEmpty');
+  updateBoxControls(selected);
 }
 const brushPanel = new BrushPanel(document.getElementById('brush-panel')!, brushSettings, snapSettings);
 
@@ -952,7 +1032,23 @@ eraserSettings.onChange(() => {
   renderer.requestRender('interaction');
 });
 
+/** Kaçış noktası taşınınca kutular uyar (türetilmiş veri; geçmişe yazılmaz). */
+let syncingBoxes = false;
+function keepBoxesInSync(): void {
+  if (syncingBoxes) return;
+  syncingBoxes = true;
+  try {
+    syncBoxes(doc, scene);
+  } finally {
+    syncingBoxes = false;
+  }
+}
+doc.onChange(keepBoxesInSync);
+
 scene.onChange(() => {
+  keepBoxesInSync();
+  // Kutuya dönüştürme ve kutunun kaçış noktası seçimi kurguya bağlı
+  updateSelectPanel();
   autosave.markDirty();
   if (state.selectedPointId && !scene.getPoint(state.selectedPointId)) {
     state.update({ selectedPointId: null, hoveredPointId: null, draggingPointId: null });
