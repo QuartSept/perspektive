@@ -5,7 +5,7 @@ import { drawCenterMark, drawGrid, gridFade, type PaperGrid } from './grid';
 import { fitImage, type ReferenceImage } from './reference';
 import type { EditorState } from './state';
 import { drawShape } from './shapes';
-import { drawDocument } from './doc-render';
+import { drawDocument, FADED_ALPHA } from './doc-render';
 import { drawStroke } from './stroke';
 import type { CanvasTheme } from './theme';
 import type { Viewport } from './viewport';
@@ -167,7 +167,12 @@ export class Renderer {
     const overlay = this.getOverlay();
     if (overlay?.snapLine) drawSnapLine(this.guideView(ctx), overlay.snapLine);
     for (const line of overlay?.guideLines ?? []) drawSnapLine(this.guideView(ctx), line);
-    if (overlay?.preview || overlay?.previewStrokes?.length || overlay?.previewShape) {
+    if (
+      overlay?.preview ||
+      overlay?.previewStrokes?.length ||
+      overlay?.fadedPreviewStrokes?.length ||
+      overlay?.previewShape
+    ) {
       this.viewport.applyTo(ctx, this.layers.dpr);
       // Önizleme kendi katmanının opaklığıyla (bırakınca görünüm değişmesin)
       const alpha = (item: { layerId?: string }) => this.doc.layerOf(item).opacity;
@@ -177,6 +182,9 @@ export class Renderer {
         drawShape(ctx, shape, color, alpha(shape), overlay.previewShapeOpen ? false : undefined);
       }
       for (const s of overlay.previewStrokes ?? []) drawStroke(ctx, s, this.theme.inks[s.style.ink], alpha(s));
+      for (const s of overlay.fadedPreviewStrokes ?? []) {
+        drawStroke(ctx, s, this.theme.inks[s.style.ink], alpha(s) * FADED_ALPHA);
+      }
       if (overlay.preview) {
         drawStroke(ctx, overlay.preview, this.theme.inks[overlay.preview.style.ink], alpha(overlay.preview));
       }

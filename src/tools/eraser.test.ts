@@ -181,3 +181,86 @@ describe('EraserTool katman kapsamı', () => {
     expect(doc.strokes).toHaveLength(2);
   });
 });
+
+describe('parça silgisi (kesişimden kesişime)', () => {
+  const v = (id: string, x: number, y0 = -30, y1 = 130): Stroke => ({
+    id,
+    points: [x, y0, x, y1],
+    style: { width: 2, opacity: 1, ink: 'black' },
+  });
+
+  beforeEach(() => {
+    settings.setKind('segment');
+    // b (y=50) yatay; 30 ve 70'te dikeyler keser
+    doc.replaceAll([line('b', 50), v('p', 30), v('q', 70)]);
+  });
+
+  it('varsayılan tür parça silgisi', () => {
+    expect(new EraserSettings().kind).toBe('segment');
+  });
+
+  it('iki kesişim arası silinir, uçlardaki kuyruklar ve kesen çizgiler kalır; tek adımda geri alınır', () => {
+    erase([{ x: 50, y: 45 }, { x: 50, y: 55 }]);
+    const pieces = doc.strokes.filter((st) => !['p', 'q'].includes(st.id));
+    expect(pieces.map((st) => [st.points[0], st.points[st.points.length - 2]])).toEqual([
+      [0, 30],
+      [70, 100],
+    ]);
+    expect(doc.strokes.some((st) => st.id === 'p')).toBe(true);
+    expect(doc.strokes.some((st) => st.id === 'q')).toBe(true);
+    history.undo();
+    expect(doc.strokes.map((st) => st.id)).toEqual(['b', 'p', 'q']);
+  });
+
+  it('kuyruğa dokununca yalnızca kuyruk silinir', () => {
+    erase([{ x: 10, y: 45 }, { x: 10, y: 55 }]);
+    const b = doc.strokes.filter((st) => !['p', 'q'].includes(st.id));
+    // Kalan 30–70 ve 70–100 silinmediği için yeniden tek çizgi
+    expect(b.map((st) => [st.points[0], st.points[st.points.length - 2]])).toEqual([[30, 100]]);
+  });
+
+  it('kesişimi olmayan çizgi bütünüyle silinir', () => {
+    doc.replaceAll([line('yalniz', 50)]);
+    erase([{ x: 50, y: 45 }, { x: 50, y: 55 }]);
+    expect(doc.strokes).toHaveLength(0);
+  });
+
+  it('T birleşimi: çizginin üstünde biten dikey de bölme noktasıdır', () => {
+    doc.replaceAll([line('b', 50), v('t', 40, -30, 48.5)]);
+    erase([{ x: 70, y: 45 }, { x: 70, y: 55 }]);
+    const b = doc.strokes.filter((st) => st.id !== 't');
+    expect(b).toHaveLength(1);
+    expect(b[0].points[b[0].points.length - 2]).toBeCloseTo(40);
+  });
+
+  it('gizli katmandaki çizgi kesici sayılmaz; kilitli katmandaki sayılır', () => {
+    const bottom = doc.layers[0].id;
+    doc.setLayers([...doc.layers, { id: 'K', name: '', visible: true, locked: true, opacity: 1 }], bottom);
+    doc.replaceAll([{ ...line('b', 50), layerId: bottom }, { ...v('p', 30), layerId: 'K' }]);
+    erase([{ x: 10, y: 45 }, { x: 10, y: 55 }]);
+    expect(doc.strokes.find((st) => st.id !== 'p')!.points[0]).toBeCloseTo(30);
+    history.undo();
+    doc.setLayers(doc.layers.map((l) => (l.id === 'K' ? { ...l, visible: false } : l)), bottom);
+    erase([{ x: 10, y: 45 }, { x: 10, y: 55 }]);
+    expect(doc.strokes.map((st) => st.id)).toEqual(['p']);
+  });
+
+  it('sürüklerken silinecek parça soluk, kalanlar normal önizlenir; iptalde belge değişmez', () => {
+    eraser.onPointerDown(ev({ x: 50, y: 45 }));
+    eraser.onPointerMove(ev({ x: 50, y: 55 }));
+    expect([...(eraser.overlay.hiddenStrokeIds ?? [])]).toEqual(['b']);
+    expect(eraser.overlay.fadedPreviewStrokes).toHaveLength(1);
+    expect(eraser.overlay.previewStrokes).toHaveLength(2);
+    eraser.onPointerCancel();
+    expect(doc.strokes.map((st) => st.id)).toEqual(['b', 'p', 'q']);
+  });
+
+  it('E türü sırayla değiştirir: parça → bütün çizgi → kısmi → parça', () => {
+    settings.cycleKind();
+    expect(settings.kind).toBe('stroke');
+    settings.cycleKind();
+    expect(settings.kind).toBe('pixel');
+    settings.cycleKind();
+    expect(settings.kind).toBe('segment');
+  });
+});

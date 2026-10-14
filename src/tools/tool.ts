@@ -38,6 +38,8 @@ export interface ToolOverlay {
   readonly hiddenStrokeIds?: ReadonlySet<string>;
   /** Etkileşim katmanında gösterilen geçici stroke'lar (ör. piksel silgisinin kalan parçaları). */
   readonly previewStrokes?: readonly Stroke[];
+  /** Soluk gösterilen geçici stroke'lar (ör. parça silgisinin silinecek parçaları). */
+  readonly fadedPreviewStrokes?: readonly Stroke[];
   /** Silinmek üzere işaretlenen şekiller (soluk çizilir). */
   readonly fadedShapeIds?: ReadonlySet<string>;
   /** Geçici olarak çizilmeyen şekiller (ör. düzenlenirken yerine önizleme gösterilir). */

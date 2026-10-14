@@ -1095,7 +1095,7 @@ window.addEventListener('keydown', (e) => {
     case 'E':
       // Silgi zaten etkinse tür değiştirir (bütün çizgi ↔ kısmi)
       if (input.activeTool === eraser) {
-        eraserSettings.setKind(eraserSettings.kind === 'stroke' ? 'pixel' : 'stroke');
+        eraserSettings.cycleKind();
       } else selectTool('eraser');
       break;
     case 'h':

@@ -17,7 +17,7 @@ Hesap ve sunucu yoktur; her şey tarayıcınızda kalır.
 - "Merkeze git" (`C`): görünüm ölçeği koruyarak kâğıdın ortasına kayar; isteğe bağlı merkez çizgileri
 - Ufuk 2 noktada varsayılan olarak kilitli, istenirse serbest bırakılır
 - Mıknatıs: çizgi kaçış noktasına, dikeye (1 noktada yataya da) kilitlenir; `Space` ile geçici serbest çizim
-- Fırça (kalınlık, opaklık, yumuşatma, 8 renk), silgi (bütün çizgi ya da kısmi/piksel), geri al / ileri al
+- Fırça (kalınlık, opaklık, yumuşatma, 8 renk), silgi (kesişimden kesişime parça, bütün çizgi ya da kısmi/piksel), geri al / ileri al
 - Katmanlar (en fazla 20): ekle, çoğalt, sırala, birleştir, sil, göster/gizle, kilitle, opaklık, yeniden adlandır; silgi yalnızca etkin katmanda (isteğe bağlı tümü), kilitli/gizli katmana dokunulmaz; gizli katmanlar çıktıya girmez, SVG'de her katman ayrı grup
 - Şekiller: doğru parçası, dikdörtgen, üçgen, çokgen (tıkla-tıkla); köşeler ızgaraya, kenarlar kaçış ışınlarına / eksenlere yapışır; silgi şekli bütün olarak siler
 - Seç / düzenle: şekle tıkla, köşe tutamacını sürükle (dikdörtgen karşı köşesi sabit yeniden boyutlanır) ya da şekli taşı; Delete ile sil

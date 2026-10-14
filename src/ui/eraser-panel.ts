@@ -63,6 +63,8 @@ export class EraserPanel {
     }
     if (Number(this.radius.value) !== radius) this.radius.value = String(radius);
     this.radiusValue.textContent = `${radius} px`;
-    this.hint.textContent = t(kind === 'pixel' ? 'eraser.hintPixel' : 'eraser.hintStroke');
+    this.hint.textContent = t(
+      kind === 'pixel' ? 'eraser.hintPixel' : kind === 'segment' ? 'eraser.hintSegment' : 'eraser.hintStroke',
+    );
   }
 }
