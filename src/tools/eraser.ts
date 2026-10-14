@@ -3,12 +3,17 @@ import type { DrawingDocument, LayerBlock } from '../engine/document';
 import type { Layered } from '../engine/doc-layers';
 import { clamp, type Point } from '../engine/geometry';
 import { combineCommands, type Command, type History } from '../engine/history';
-import { segmentTouchesShape } from '../engine/shapes';
+import {
+  segmentTouchesShape,
+  touchedEdges,
+  visibleRuns,
+  withHiddenEdges,
+  type Shape,
+} from '../engine/shapes';
 import type { Stroke } from '../engine/stroke';
 import { segmentTouchesStroke } from '../engine/stroke-geometry';
 import { eraseFromStroke } from '../engine/stroke-split';
 import { cutPositions, polylineCutter, splitAtPositions, strokeCutter, type Cutter } from '../engine/stroke-cut';
-import { isClosed, shapeVertices } from '../engine/shapes';
 import type { Viewport } from '../engine/viewport';
 import type { Tool, ToolOverlay, ToolPointerEvent } from './tool';
 
@@ -70,14 +75,35 @@ export class EraserSettings {
 
 /**
  * Sürükleme boyunca silgi hareketini parça parça ileten ortak iskelet.
- * Şekiller her iki türde de komple silinir: dokunulan şekil soluk
- * işaretlenir, bırakınca silinir.
+ * Şekiller: "bütün çizgi" türünde komple, parça ve kısmi türlerinde kenar
+ * kenar silinir (`edgeMode`). Dokunulan şekil / kenar soluk işaretlenir,
+ * bırakınca silinir; bütün kenarları silinen şekil kalkar.
  */
 abstract class SweepingEraser implements Tool, ToolOverlay {
   readonly id = 'eraser';
   readonly cursor = 'none';
   private last: Point | null = null;
   protected markedShapes = new Set<string>();
+  /** Şekil kimliği → silinmek üzere işaretli kenarlar (kenar kipi). */
+  protected markedEdges = new Map<string, Set<number>>();
+  /** Şekilleri kenar kenar mı siler. */
+  protected get edgeMode(): boolean {
+    return false;
+  }
+
+  get fadedShapeEdges(): ReadonlyMap<string, ReadonlySet<number>> {
+    return this.markedEdges;
+  }
+
+  protected resetShapeMarks(): void {
+    this.markedShapes = new Set();
+    this.markedEdges = new Map();
+  }
+
+  protected get hasShapeMarks(): boolean {
+    return this.markedShapes.size > 0 || this.markedEdges.size > 0;
+  }
+
   /** Etkin katman kilitli / gizliyken (yalnızca etkin katman kapsamında) nedeni bildirilir. */
   onLayerBlocked: ((reason: LayerBlock) => void) | null = null;
 
@@ -91,24 +117,47 @@ abstract class SweepingEraser implements Tool, ToolOverlay {
     return this.markedShapes;
   }
 
-  /** Dokunulan şekilleri işaretler; yeni işaret varsa true. */
+  /** Dokunulan şekilleri (kenar kipinde kenarları) işaretler; yeni işaret varsa true. */
   protected sweepShapes(a: Point, b: Point, radius: number): boolean {
     let changed = false;
     for (const shape of this.doc.shapes) {
       if (this.markedShapes.has(shape.id) || !this.erasable(shape)) continue;
-      if (segmentTouchesShape(shape, a, b, radius)) {
-        this.markedShapes.add(shape.id);
-        changed = true;
+      if (!this.edgeMode) {
+        if (segmentTouchesShape(shape, a, b, radius)) {
+          this.markedShapes.add(shape.id);
+          changed = true;
+        }
+        continue;
+      }
+      for (const edge of touchedEdges(shape, a, b, radius)) {
+        let set = this.markedEdges.get(shape.id);
+        if (!set) this.markedEdges.set(shape.id, (set = new Set()));
+        if (!set.has(edge)) {
+          set.add(edge);
+          changed = true;
+        }
       }
     }
     return changed;
   }
 
-  /** İşaretli şekilleri silen komut (yoksa null); işaretler temizlenir. */
+  /**
+   * İşaretli şekilleri silen ya da kenarlarını gizleyen tek komut (yoksa null);
+   * işaretler temizlenir. Bütün kenarları gizlenen şekil kalkar.
+   */
   protected takeShapeRemoval(): Command | null {
-    const ids = [...this.markedShapes];
-    this.markedShapes = new Set();
-    return ids.length ? new ReplaceShapesCommand(this.doc, ids, []) : null;
+    const removeIds = [...this.markedShapes];
+    const added: { index: number; shape: Shape }[] = [];
+    for (const [id, edges] of this.markedEdges) {
+      const shape = this.doc.getShape(id);
+      if (!shape) continue;
+      removeIds.push(id);
+      const next = withHiddenEdges(shape, edges);
+      // Aynı kimlik ve sırayla geri konur: seçim ve köşe düzenleme sürer
+      if (next) added.push({ index: this.doc.shapeIndexOf(id), shape: next });
+    }
+    this.resetShapeMarks();
+    return removeIds.length ? new ReplaceShapesCommand(this.doc, removeIds, added) : null;
   }
 
   constructor(
@@ -181,7 +230,7 @@ export class StrokeEraserTool extends SweepingEraser {
 
   protected begin(): void {
     this.marked = new Set();
-    this.markedShapes = new Set();
+    this.resetShapeMarks();
   }
 
   protected sweep(a: Point, b: Point, radius: number): void {
@@ -203,9 +252,9 @@ export class StrokeEraserTool extends SweepingEraser {
   }
 
   protected discard(): void {
-    const had = this.marked.size > 0 || this.markedShapes.size > 0;
+    const had = this.marked.size > 0 || this.hasShapeMarks;
     this.marked = new Set();
-    this.markedShapes = new Set();
+    this.resetShapeMarks();
     if (had) this.onOverlayChange(true);
   }
 }
@@ -217,6 +266,10 @@ export class StrokeEraserTool extends SweepingEraser {
  * değiştir") olarak uygulanır.
  */
 export class PixelEraserTool extends SweepingEraser {
+  protected override get edgeMode(): boolean {
+    return true;
+  }
+
   /** Özgün stroke kimliği → şu anki kalan parçaları. */
   private pieces = new Map<string, Stroke[]>();
   private hidden = new Set<string>();
@@ -234,7 +287,7 @@ export class PixelEraserTool extends SweepingEraser {
     this.pieces = new Map();
     this.hidden = new Set();
     this.previewCache = [];
-    this.markedShapes = new Set();
+    this.resetShapeMarks();
   }
 
   protected sweep(a: Point, b: Point, radius: number): void {
@@ -275,7 +328,7 @@ export class PixelEraserTool extends SweepingEraser {
   }
 
   protected discard(): void {
-    const had = this.pieces.size > 0 || this.markedShapes.size > 0;
+    const had = this.pieces.size > 0 || this.hasShapeMarks;
     this.begin();
     if (had) this.onOverlayChange(true);
   }
@@ -314,6 +367,10 @@ function strokeSplitCommand(doc: DrawingDocument, pieces: Map<string, Stroke[]>)
  * kalanlar normal gösterilir; bırakınca tek komutla uygulanır.
  */
 export class SegmentEraserTool extends SweepingEraser {
+  protected override get edgeMode(): boolean {
+    return true;
+  }
+
   /** Özgün stroke kimliği → sıralı parçalar ve silinecek olanların sırası. */
   private parts = new Map<string, { pieces: Stroke[]; removed: Set<number> }>();
   private hidden = new Set<string>();
@@ -340,7 +397,7 @@ export class SegmentEraserTool extends SweepingEraser {
     this.keptCache = [];
     this.removedCache = [];
     this.cutters = null;
-    this.markedShapes = new Set();
+    this.resetShapeMarks();
   }
 
   private cutterMap(): Map<string, Cutter> {
@@ -351,7 +408,10 @@ export class SegmentEraserTool extends SweepingEraser {
     }
     for (const shape of this.doc.shapes) {
       if (!this.doc.isVisible(shape)) continue;
-      map.set(shape.id, polylineCutter(shapeVertices(shape), isClosed(shape.kind), shape.style.width));
+      // Silinmiş kenarlar kesici değildir
+      visibleRuns(shape).forEach((run, k) => {
+        map.set(`${shape.id}#${k}`, polylineCutter(run.points, run.closed, shape.style.width));
+      });
     }
     this.cutters = map;
     return map;
@@ -404,7 +464,7 @@ export class SegmentEraserTool extends SweepingEraser {
   }
 
   protected discard(): void {
-    const had = this.parts.size > 0 || this.markedShapes.size > 0;
+    const had = this.parts.size > 0 || this.hasShapeMarks;
     this.begin();
     if (had) this.onOverlayChange(true);
   }

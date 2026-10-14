@@ -19,7 +19,7 @@ Hesap ve sunucu yoktur; her şey tarayıcınızda kalır.
 - Mıknatıs: çizgi kaçış noktasına, dikeye (1 noktada yataya da) kilitlenir; `Space` ile geçici serbest çizim
 - Fırça (kalınlık, opaklık, yumuşatma, 8 renk), silgi (kesişimden kesişime parça, bütün çizgi ya da kısmi/piksel), geri al / ileri al
 - Katmanlar (en fazla 20): ekle, çoğalt, sırala, birleştir, sil, göster/gizle, kilitle, opaklık, yeniden adlandır; silgi yalnızca etkin katmanda (isteğe bağlı tümü), kilitli/gizli katmana dokunulmaz; gizli katmanlar çıktıya girmez, SVG'de her katman ayrı grup
-- Şekiller: doğru parçası, dikdörtgen, üçgen, çokgen (tıkla-tıkla); köşeler ızgaraya, kenarlar kaçış ışınlarına / eksenlere yapışır; silgi şekli bütün olarak siler
+- Şekiller: doğru parçası, dikdörtgen, üçgen, çokgen (tıkla-tıkla); köşeler ızgaraya, kenarlar kaçış ışınlarına / eksenlere yapışır; silgi şekli bütün olarak ya da (parça / kısmi silgide) kenar kenar siler; kenarı silinen şeklin köşeleri düzenlenebilir kalır
 - Seç / düzenle: şekle tıkla, köşe tutamacını sürükle (dikdörtgen karşı köşesi sabit yeniden boyutlanır) ya da şekli taşı; Delete ile sil
 - Köşe kaçış çizgileri: şekil köşelerinden kaçış noktalarına kesikli kılavuzlar (hepsine ya da seçilen noktaya; şekil başına kapatılabilir); fırça bu çizgilere kilitlenir, "kılavuzlarla" çıktılara girer
 - A4, A5, kare ve ekran boyu kâğıt (A4/A5 için dikey ya da yatay, varsayılan dikey; çizim varsa çizgiler ve kaçış noktaları kâğıtla birlikte döner); sonsuz kaydırma ve yakınlaştırma

@@ -137,6 +137,7 @@ export class Renderer {
       hiddenStrokeIds: overlay?.hiddenStrokeIds,
       fadedShapeIds: overlay?.fadedShapeIds,
       hiddenShapeIds: overlay?.hiddenShapeIds,
+      fadedShapeEdges: overlay?.fadedShapeEdges,
     });
   }
 

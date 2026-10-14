@@ -124,3 +124,13 @@ describe('CornerLineSettings', () => {
     expect(other.toSaved()).toEqual({ target: 'one', pointId: 'p' });
   });
 });
+
+describe('silinmiş kenarlar', () => {
+  it('kenarları silinmiş köşeden köşe çizgisi çıkmaz', () => {
+    const s = scene();
+    // Köşe 0'a (400,600) değen kenarlar: 0 (üst) ve 3 (sol)
+    const lines = cornerLines([{ ...rect('a'), hiddenEdges: [0, 3] }], s.activePoints, paper);
+    expect(lines).toHaveLength(6);
+    expect(lines.some((l) => l.corner.x === 400 && l.corner.y === 600)).toBe(false);
+  });
+});

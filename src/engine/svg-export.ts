@@ -2,7 +2,7 @@ import type { Point } from './geometry';
 import { gridLines } from './grid';
 import { PX_PER_MM } from './paper';
 import type { Layer } from './doc-layers';
-import { isClosed, type Shape } from './shapes';
+import { visibleRuns, type Shape } from './shapes';
 import { strokeOutline, type InkId, type Stroke } from './stroke';
 import type { CornerLine } from '../perspective/corner-lines';
 import { rayAngles } from '../perspective/rays';
@@ -101,10 +101,13 @@ function strokeElement(stroke: Stroke, color: string): string {
 }
 
 function shapeElement(shape: Shape, color: string): string {
-  const v = shape.vertices;
-  const parts: string[] = [];
-  for (let i = 0; i < v.length; i += 2) parts.push(`${i === 0 ? 'M' : 'L'}${num(v[i])} ${num(v[i + 1])}`);
-  const d = parts.join('') + (isClosed(shape.kind) ? 'Z' : '');
+  // Silinmiş kenarlar yazılmaz: görünen kenarlar ardışık parçalar olarak
+  const d = visibleRuns(shape)
+    .map(
+      (run) =>
+        run.points.map((q, i) => `${i === 0 ? 'M' : 'L'}${num(q.x)} ${num(q.y)}`).join('') + (run.closed ? 'Z' : ''),
+    )
+    .join('');
   const { width, opacity } = shape.style;
   const op = opacity < 1 ? ` opacity="${num(opacity)}"` : '';
   return `<path d="${d}" fill="none" stroke="${esc(color)}" stroke-width="${num(width)}" stroke-linecap="round" stroke-linejoin="round"${op}/>`;

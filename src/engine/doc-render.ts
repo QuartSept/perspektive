@@ -1,6 +1,6 @@
 import type { DrawingDocument } from './document';
 import { rectsOverlap, type Rect } from './geometry';
-import { drawShape, shapeBounds, type Shape } from './shapes';
+import { drawShape, edgeCount, shapeBounds, type Shape } from './shapes';
 import { drawStroke, type InkId, type Stroke } from './stroke';
 import { strokeBounds } from './stroke-geometry';
 
@@ -14,6 +14,8 @@ export interface DocDrawOptions {
   hiddenStrokeIds?: ReadonlySet<string>;
   fadedShapeIds?: ReadonlySet<string>;
   hiddenShapeIds?: ReadonlySet<string>;
+  /** Şekil kimliği → soluk çizilecek kenarlar (silinmek üzere işaretli). */
+  fadedShapeEdges?: ReadonlyMap<string, ReadonlySet<number>>;
 }
 
 /** Her hedef tuval için bir ara tuval (opaklığı 1 olmayan katmanı ayrı çizip birleştirmek için). */
@@ -55,7 +57,15 @@ export function drawDocument(
       if (options.hiddenShapeIds?.has(shape.id)) continue;
       if (view && !rectsOverlap(shapeBounds(shape), view, shape.style.width / 2)) continue;
       const alpha = options.fadedShapeIds?.has(shape.id) ? FADED_ALPHA : 1;
-      drawShape(target, shape, inks[shape.style.ink], alpha);
+      const fadedEdges = options.fadedShapeEdges?.get(shape.id);
+      if (fadedEdges?.size) {
+        // İşaretli kenarlar soluk, diğerleri normal
+        drawShape(target, shape, inks[shape.style.ink], alpha, undefined, fadedEdges);
+        const only = Array.from({ length: edgeCount(shape) }, (_, i) => i).filter((i) => !fadedEdges.has(i));
+        drawShape(target, { ...shape, hiddenEdges: only }, inks[shape.style.ink], FADED_ALPHA);
+      } else {
+        drawShape(target, shape, inks[shape.style.ink], alpha);
+      }
     }
     for (const stroke of items.strokes) {
       if (options.hiddenStrokeIds?.has(stroke.id)) continue;

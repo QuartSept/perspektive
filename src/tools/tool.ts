@@ -42,6 +42,8 @@ export interface ToolOverlay {
   readonly fadedPreviewStrokes?: readonly Stroke[];
   /** Silinmek üzere işaretlenen şekiller (soluk çizilir). */
   readonly fadedShapeIds?: ReadonlySet<string>;
+  /** Şekil kimliği → silinmek üzere işaretli kenarlar (soluk çizilir). */
+  readonly fadedShapeEdges?: ReadonlyMap<string, ReadonlySet<number>>;
   /** Geçici olarak çizilmeyen şekiller (ör. düzenlenirken yerine önizleme gösterilir). */
   readonly hiddenShapeIds?: ReadonlySet<string>;
   /** Çizilmekte olan şekil. */

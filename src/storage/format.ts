@@ -1,6 +1,6 @@
 import { createLayer, MAX_LAYERS, type Layer } from '../engine/doc-layers';
 import { ORIENTATIONS, PAPER_KINDS, type Orientation, type PaperKind } from '../engine/paper';
-import { SHAPE_KINDS, vertexCountRange, type Shape, type ShapeKind } from '../engine/shapes';
+import { edgeCount, SHAPE_KINDS, vertexCountRange, type Shape, type ShapeKind } from '../engine/shapes';
 import { INK_IDS, type InkId, type Stroke, type StrokeStyle } from '../engine/stroke';
 import {
   CORNER_TARGETS,
@@ -151,6 +151,14 @@ function parseShape(v: unknown): Shape | null {
   if (!style) return null;
   const shape: Shape = { id: v.id, kind, vertices: [...vertices], style, cornerLines: v.cornerLines !== false };
   if (isString(v.layerId)) shape.layerId = v.layerId;
+  if (Array.isArray(v.hiddenEdges)) {
+    // Geçerli kenar numaraları, tekil ve sıralı; hepsi silinmişse şekil yok sayılır
+    const count = edgeCount(shape);
+    const hidden = [...new Set(v.hiddenEdges.filter((i): i is number => Number.isInteger(i) && i >= 0 && i < count))]
+      .sort((a, b) => a - b);
+    if (hidden.length >= count) return null;
+    if (hidden.length) shape.hiddenEdges = hidden;
+  }
   return shape;
 }
 

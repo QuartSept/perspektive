@@ -226,3 +226,23 @@ describe('sürüm 3: katmanlar', () => {
     expect(empty.strokes[0].layerId).toBe(empty.layers[0].id);
   });
 });
+
+describe('şekil kenarları', () => {
+  const style = { width: 2, opacity: 1, ink: 'blue' };
+  const base = { ...valid, version: 3, layers: [{ id: 'a', name: '', visible: true, locked: false, opacity: 1 }], activeLayerId: 'a' };
+  const rect = (hiddenEdges: unknown) => ({
+    id: 'r',
+    kind: 'rect',
+    vertices: [0, 0, 10, 0, 10, 5, 0, 5],
+    style,
+    cornerLines: true,
+    layerId: 'a',
+    hiddenEdges,
+  });
+
+  it('geçerli kenar numaraları tekil ve sıralı; geçersizler atlanır; hepsi silinmişse şekil atlanır', () => {
+    expect(parseSavedDrawing({ ...base, shapes: [rect([3, 1, 1, 9, -1, 'x'])] })!.shapes[0].hiddenEdges).toEqual([1, 3]);
+    expect(parseSavedDrawing({ ...base, shapes: [rect([])] })!.shapes[0].hiddenEdges).toBeUndefined();
+    expect(parseSavedDrawing({ ...base, shapes: [rect([0, 1, 2, 3])] })!.shapes).toEqual([]);
+  });
+});

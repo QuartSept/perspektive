@@ -103,27 +103,53 @@ describe('EraserTool ve şekiller', () => {
     cornerLines: true,
   };
 
-  it('iki türde de şekil komple silinir; stroke ile tek adımda geri alınır', () => {
-    for (const kind of ['stroke', 'pixel'] as const) {
+  it('bütün çizgi türünde şekil komple silinir; stroke ile tek adımda geri alınır', () => {
+    settings.setKind('stroke');
+    doc.replaceAll([line('a', 0)], [rect]);
+    // Önce stroke'a, sonra dikdörtgenin sol kenarına dokunan hareket
+    erase([{ x: 50, y: -5 }, { x: 50, y: 5 }, { x: 200, y: 50 }]);
+    expect(doc.shapes).toHaveLength(0);
+    expect(doc.strokes.some((s) => s.id === 'a')).toBe(false);
+    history.undo();
+    expect(doc.shapes.map((s) => s.id)).toEqual(['r']);
+    expect(doc.strokes.map((s) => s.id)).toEqual(['a']);
+  });
+
+  it('parça ve kısmi türlerinde yalnızca dokunulan kenar silinir; köşeler korunur', () => {
+    for (const kind of ['segment', 'pixel'] as const) {
       settings.setKind(kind);
-      doc.replaceAll([line('a', 0)], [rect]);
+      doc.replaceAll([], [rect]);
       history.clear();
-      // Önce stroke'a, sonra dikdörtgenin sol kenarına dokunan hareket
-      erase([{ x: 50, y: -5 }, { x: 50, y: 5 }, { x: 200, y: 50 }]);
-      expect(doc.shapes).toHaveLength(0);
-      expect(doc.strokes.some((s) => s.id === 'a')).toBe(false);
+      // Sol kenar (kapanış kenarı, numara 3)
+      erase([{ x: 195, y: 50 }, { x: 205, y: 50 }]);
+      expect(doc.shapes).toHaveLength(1);
+      expect(doc.shapes[0].id).toBe('r');
+      expect(doc.shapes[0].hiddenEdges).toEqual([3]);
+      expect(doc.shapes[0].vertices).toEqual(rect.vertices);
       history.undo();
-      expect(doc.shapes.map((s) => s.id)).toEqual(['r']);
-      expect(doc.strokes.map((s) => s.id)).toEqual(['a']);
+      expect(doc.shapes[0].hiddenEdges).toBeUndefined();
     }
   });
 
-  it('sürüklerken şekil soluk işaretlenir, iptalde belge değişmez', () => {
+  it('bütün kenarları silinen şekil kalkar; silinmiş kenar yeniden silinemez', () => {
+    doc.replaceAll([], [{ ...rect, hiddenEdges: [0, 1, 2] }]);
+    // Silinmiş üst kenardan geçmek bir şey yapmaz
+    erase([{ x: 250, y: -5 }, { x: 250, y: 5 }]);
+    expect(doc.shapes).toHaveLength(1);
+    erase([{ x: 195, y: 50 }, { x: 205, y: 50 }]);
+    expect(doc.shapes).toHaveLength(0);
+  });
+
+  it('sürüklerken kenar soluk işaretlenir (bütün çizgi türünde şekil); iptalde belge değişmez', () => {
     doc.replaceAll([], [rect]);
+    eraser.onPointerDown(ev({ x: 300, y: 40 }));
+    expect([...(eraser.overlay.fadedShapeEdges?.get('r') ?? [])]).toEqual([1]);
+    eraser.onPointerCancel();
+    expect(eraser.overlay.fadedShapeEdges?.size ?? 0).toBe(0);
+    settings.setKind('stroke');
     eraser.onPointerDown(ev({ x: 300, y: 40 }));
     expect([...(eraser.overlay.fadedShapeIds ?? [])]).toEqual(['r']);
     eraser.onPointerCancel();
-    expect(eraser.overlay.fadedShapeIds?.size ?? 0).toBe(0);
     expect(doc.shapes).toHaveLength(1);
   });
 
@@ -262,5 +288,24 @@ describe('parça silgisi (kesişimden kesişime)', () => {
     expect(settings.kind).toBe('pixel');
     settings.cycleKind();
     expect(settings.kind).toBe('segment');
+  });
+});
+
+describe('parça silgisi ve silinmiş kenarlar', () => {
+  it('silinmiş şekil kenarı kesici sayılmaz', () => {
+    settings.setKind('segment');
+    // b (y=50) dikdörtgenin sol (x=200) ve sağ (x=300) kenarlarını keser
+    const r = {
+      id: 'r',
+      kind: 'rect' as const,
+      vertices: [200, 0, 300, 0, 300, 100, 200, 100],
+      style: { width: 2, opacity: 1, ink: 'black' as const },
+      cornerLines: true,
+      hiddenEdges: [3],
+    };
+    doc.replaceAll([{ id: 'b', points: [100, 50, 400, 50], style: { width: 2, opacity: 1, ink: 'black' } }], [r]);
+    // Sol kenar silinmiş: 100–300 arası tek parça, onu sil → yalnızca 300–400 kalır
+    erase([{ x: 150, y: 45 }, { x: 150, y: 55 }]);
+    expect(doc.strokes.map((s) => [s.points[0], s.points[s.points.length - 2]])).toEqual([[300, 400]]);
   });
 });

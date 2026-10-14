@@ -165,3 +165,20 @@ describe('katmanlar', () => {
     expect(count(svg.match(/<g id="layer-a"[^>]*>(.*?)<\/g>/)![1], /<path /g)).toBe(2);
   });
 });
+
+describe('silinmiş şekil kenarları', () => {
+  it('yalnızca görünen kenarlar yazılır (açık parça, Z yok)', () => {
+    const shapes = [
+      {
+        id: 'r',
+        kind: 'rect' as const,
+        vertices: [0, 0, 10, 0, 10, 5, 0, 5],
+        style: { width: 3, opacity: 1, ink: 'black' as const },
+        cornerLines: true,
+        hiddenEdges: [0],
+      },
+    ];
+    const svg = buildSvg({ paper, strokes: [], shapes, scene: scene(), theme }, false);
+    expect(svg).toContain('<path d="M10 0L10 5L0 5L0 0" fill="none"');
+  });
+});
