@@ -17,6 +17,8 @@ export interface Shape {
   style: StrokeStyle;
   /** Bu şeklin köşelerinden kaçış noktalarına kılavuz çizgi çizilsin mi. */
   cornerLines: boolean;
+  /** Katman kimliği (yoksa ya da bilinmiyorsa en alttaki katman). */
+  layerId?: string;
 }
 
 export const newShapeId = (): string => `h-${Math.random().toString(36).slice(2, 10)}`;

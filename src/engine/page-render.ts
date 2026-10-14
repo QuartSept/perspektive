@@ -2,8 +2,7 @@ import type { DrawingDocument } from './document';
 import { drawCenterMark, drawGrid } from './grid';
 import type { Paper } from './paper';
 import { EditorState } from './state';
-import { drawShape } from './shapes';
-import { drawStroke } from './stroke';
+import { drawDocument } from './doc-render';
 import { toPrintTheme, type CanvasTheme } from './theme';
 import { Viewport } from './viewport';
 import { cornerLines, cornerTargets, type CornerLineSettings } from '../perspective/corner-lines';
@@ -86,17 +85,14 @@ export function renderPage(src: PageSources, options: PageRenderOptions): HTMLCa
     };
     drawGuides(view);
     if (src.corners) {
-      drawCornerLines(view, cornerLines(doc.shapes, cornerTargets(scene, src.corners), paper.rect));
+      const shapes = doc.shapes.filter((s) => doc.isVisible(s));
+      drawCornerLines(view, cornerLines(shapes, cornerTargets(scene, src.corners), paper.rect));
     }
     drawMarkers(view);
   }
 
   viewport.applyTo(ctx, k);
-  for (const shape of doc.shapes) {
-    drawShape(ctx, shape, theme.inks[shape.style.ink]);
-  }
-  for (const stroke of doc.strokes) {
-    drawStroke(ctx, stroke, theme.inks[stroke.style.ink]);
-  }
+  // Gizli katmanlar çıktıya girmez; sıra ve opaklık korunur
+  drawDocument(ctx, doc, theme.inks);
   return canvas;
 }

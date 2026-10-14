@@ -30,6 +30,8 @@ export interface Stroke {
    * stroke'larda). Varsa kalınlık noktadan noktaya değişir.
    */
   pressures?: number[];
+  /** Katman kimliği (yoksa ya da bilinmiyorsa en alttaki katman). */
+  layerId?: string;
 }
 
 /** Basınç → kalınlık çarpanı: tam basınçta ayarlanan kalınlık, hafifte %20'si. */

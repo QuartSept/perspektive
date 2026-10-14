@@ -259,7 +259,7 @@ export class ShapeTool implements Tool, ToolOverlay {
   }
 
   private makeShape(kind: ShapeKind, vertices: number[], style: StrokeStyle): Shape {
-    return { id: newShapeId(), kind, vertices, style, cornerLines: true };
+    return { id: newShapeId(), kind, vertices, style, cornerLines: true, layerId: this.doc.activeLayerId };
   }
 
   /** Sürüklemeden köşeler; şekil çok küçükse null. */

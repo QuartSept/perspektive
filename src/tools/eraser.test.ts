@@ -133,3 +133,13 @@ describe('EraserTool ve şekiller', () => {
     expect(doc.shapes).toHaveLength(1);
   });
 });
+
+describe('EraserTool ve katmanlar', () => {
+  it('kısmi silgide parçalar özgün stroke’un katmanında kalır', () => {
+    settings.setKind('pixel');
+    doc.replaceAll([{ ...line('k', 50), layerId: 'L2' }]);
+    erase([{ x: 50, y: 40 }, { x: 50, y: 60 }]);
+    expect(doc.strokes).toHaveLength(2);
+    expect(doc.strokes.every((s) => s.layerId === 'L2')).toBe(true);
+  });
+});

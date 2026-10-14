@@ -5,6 +5,7 @@ import { applyTranslations, onLanguageChange, setLanguage, t, type MessageKey } 
 import { ThemeController } from './ui/theme';
 import { removeItemsCommand, ReplaceStrokesCommand } from './engine/commands';
 import { DrawingDocument } from './engine/document';
+import { createLayer } from './engine/doc-layers';
 import { OrientationCommand } from './engine/orientation';
 import { History } from './engine/history';
 import { InputController } from './engine/input';
@@ -455,6 +456,8 @@ async function openProjectFile(file: File): Promise<void> {
 /** Şablonun kâğıt/kurgu/çizimi (o anki kâğıt boyutu ve yönüyle). */
 function templateDrawing(id: TemplateId) {
   const tpl = buildTemplate(id, paper);
+  // Şablon yeni bir çalışmadır: tek katman
+  const layer = createLayer();
   return {
     ...buildSavedDrawing(drawingSources),
     scene: {
@@ -464,8 +467,10 @@ function templateDrawing(id: TemplateId) {
       rayCount: scene.rayCount,
       points: tpl.points,
     },
-    strokes: tpl.strokes,
+    strokes: tpl.strokes.map((s) => ({ ...s, layerId: layer.id })),
     shapes: [],
+    layers: [layer],
+    activeLayerId: layer.id,
   };
 }
 
@@ -534,7 +539,8 @@ const gridDialog = new GridDialog({
       new ReplaceStrokesCommand(
         doc,
         [],
-        strokes.map((stroke, i) => ({ index: start + i, stroke })),
+        // Perspektif ızgarası etkin katmana eklenir
+        strokes.map((stroke, i) => ({ index: start + i, stroke: { ...stroke, layerId: doc.activeLayerId } })),
       ),
     );
     return true;

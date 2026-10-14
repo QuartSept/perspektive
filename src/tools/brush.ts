@@ -133,7 +133,12 @@ export class BrushTool implements Tool, ToolOverlay {
         : [];
     const start = straight || candidates.length ? snapped : e.world;
     this.withPressure = this.settings.pressure && e.pointerType === 'pen';
-    this.stroke = { id: newStrokeId(), points: [start.x, start.y], style: this.settings.toStyle() };
+    this.stroke = {
+      id: newStrokeId(),
+      points: [start.x, start.y],
+      style: this.settings.toStyle(),
+      layerId: this.doc.activeLayerId,
+    };
     if (this.withPressure) this.stroke.pressures = [e.pressure];
     this.tip = start;
     if (straight) {

@@ -32,9 +32,10 @@ export function rotateStroke(stroke: Stroke, rotation: ContentRotation): Stroke 
     points[i] = q.x;
     points[i + 1] = q.y;
   }
-  return stroke.pressures
-    ? { id: stroke.id, points, style: stroke.style, pressures: [...stroke.pressures] }
-    : { id: stroke.id, points, style: stroke.style };
+  const rotated: Stroke = { id: stroke.id, points, style: stroke.style };
+  if (stroke.pressures) rotated.pressures = [...stroke.pressures];
+  if (stroke.layerId) rotated.layerId = stroke.layerId;
+  return rotated;
 }
 
 function rotateSnapshot(snap: SceneSnapshot, rotation: ContentRotation): SceneSnapshot {

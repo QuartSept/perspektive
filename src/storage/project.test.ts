@@ -47,8 +47,12 @@ describe('proje dosyası', () => {
     expect(parsed.paper.orientation).toBe('landscape');
     expect(parsed.scene.rayCount).toBe(40);
     expect(parsed.scene.horizonLocked).toBe(false);
-    expect(parsed.strokes).toEqual(a.doc.strokes);
-    expect(parsed.shapes).toEqual(a.doc.shapes);
+    // Katmanı belirtilmemiş nesneler en alttaki katmana atanır
+    const bottom = a.doc.layers[0].id;
+    expect(parsed.strokes).toEqual(a.doc.strokes.map((s) => ({ ...s, layerId: bottom })));
+    expect(parsed.shapes).toEqual(a.doc.shapes.map((s) => ({ ...s, layerId: bottom })));
+    expect(parsed.layers).toEqual(a.doc.layers);
+    expect(parsed.activeLayerId).toBe(a.doc.activeLayerId);
     expect(parsed.grid).toEqual({ visible: true, snap: true, spacingMm: 5, centerMark: false });
     expect(parsed.cornerLines).toEqual({ target: 'one', pointId: a.scene.points[1].id });
   });

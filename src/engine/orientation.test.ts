@@ -114,3 +114,11 @@ describe('3 nokta döndürme', () => {
     expect(rotateStroke(s, contentRotation('landscape', 200, 300)).pressures).toEqual([0.2, 0.9]);
   });
 });
+
+describe('katman', () => {
+  it('döndürülen stroke katmanını korur', () => {
+    const r = contentRotation('landscape', 200, 300);
+    const s = { ...stroke('a', [0, 0, 10, 10]), layerId: 'L2' };
+    expect(rotateStroke(s, r).layerId).toBe('L2');
+  });
+});

@@ -119,6 +119,8 @@ export function eraseFromStroke(stroke: Stroke, a: Point, b: Point, radius: numb
     .map((pc) => {
       const piece: Stroke = { id: newStrokeId(), points: pc.pts, style: { ...stroke.style } };
       if (pr) piece.pressures = pc.prs;
+      // Parça özgün stroke'un katmanında kalır
+      if (stroke.layerId) piece.layerId = stroke.layerId;
       return piece;
     });
 }

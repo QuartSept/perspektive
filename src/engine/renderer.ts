@@ -4,10 +4,9 @@ import type { Paper } from './paper';
 import { drawCenterMark, drawGrid, gridFade, type PaperGrid } from './grid';
 import { fitImage, type ReferenceImage } from './reference';
 import type { EditorState } from './state';
-import { drawShape, shapeBounds } from './shapes';
+import { drawShape } from './shapes';
+import { drawDocument } from './doc-render';
 import { drawStroke } from './stroke';
-import { strokeBounds } from './stroke-geometry';
-import { rectsOverlap } from './geometry';
 import type { CanvasTheme } from './theme';
 import type { Viewport } from './viewport';
 import { cornerLines, cornerTargets, type CornerLineSettings } from '../perspective/corner-lines';
@@ -21,8 +20,6 @@ import {
 import type { PerspectiveScene } from '../perspective/scene';
 import type { ToolOverlay } from '../tools/tool';
 
-/** Silinmek üzere işaretli stroke'ların opaklık çarpanı. */
-const FADED_ALPHA = 0.2;
 /** Şekil köşe tutamacı kenar uzunluğu, CSS piksel. */
 const HANDLE_SIZE = 8;
 
@@ -134,25 +131,13 @@ export class Renderer {
     const ctx = this.layers.clear('drawing');
     this.viewport.applyTo(ctx, this.layers.dpr);
     const overlay = this.getOverlay();
-    const faded = overlay?.fadedStrokeIds;
-    const hidden = overlay?.hiddenStrokeIds;
-    const view = this.viewport.visibleWorldRect();
-    const fadedShapes = overlay?.fadedShapeIds;
-    const hiddenShapes = overlay?.hiddenShapeIds;
-    // Şekiller stroke'ların altında
-    for (const shape of this.doc.shapes) {
-      if (hiddenShapes?.has(shape.id)) continue;
-      if (!rectsOverlap(shapeBounds(shape), view, shape.style.width / 2)) continue;
-      const alpha = fadedShapes?.has(shape.id) ? FADED_ALPHA : 1;
-      drawShape(ctx, shape, this.theme.inks[shape.style.ink], alpha);
-    }
-    for (const stroke of this.doc.strokes) {
-      if (hidden?.has(stroke.id)) continue;
-      // Görünür alanın dışındaki stroke'ları atla (yakınlaştırılmış büyük çizimlerde kazanç)
-      if (!rectsOverlap(strokeBounds(stroke), view, stroke.style.width / 2)) continue;
-      const alpha = faded?.has(stroke.id) ? FADED_ALPHA : 1;
-      drawStroke(ctx, stroke, this.theme.inks[stroke.style.ink], alpha);
-    }
+    drawDocument(ctx, this.doc, this.theme.inks, {
+      view: this.viewport.visibleWorldRect(),
+      fadedStrokeIds: overlay?.fadedStrokeIds,
+      hiddenStrokeIds: overlay?.hiddenStrokeIds,
+      fadedShapeIds: overlay?.fadedShapeIds,
+      hiddenShapeIds: overlay?.hiddenShapeIds,
+    });
   }
 
   private drawGuides(): void {
@@ -171,7 +156,8 @@ export class Renderer {
     if (!this.corners) return [];
     const overlay = this.getOverlay();
     const hidden = overlay?.hiddenShapeIds;
-    const shapes = this.doc.shapes.filter((s) => !hidden?.has(s.id));
+    // Gizli katmandaki şekillerin köşe çizgileri de gizli
+    const shapes = this.doc.shapes.filter((s) => !hidden?.has(s.id) && this.doc.isVisible(s));
     if (overlay?.previewShape) shapes.push(overlay.previewShape);
     return cornerLines(shapes, cornerTargets(this.scene, this.corners), this.paper.rect);
   }
@@ -183,13 +169,17 @@ export class Renderer {
     for (const line of overlay?.guideLines ?? []) drawSnapLine(this.guideView(ctx), line);
     if (overlay?.preview || overlay?.previewStrokes?.length || overlay?.previewShape) {
       this.viewport.applyTo(ctx, this.layers.dpr);
+      // Önizleme kendi katmanının opaklığıyla (bırakınca görünüm değişmesin)
+      const alpha = (item: { layerId?: string }) => this.doc.layerOf(item).opacity;
       const shape = overlay.previewShape;
       if (shape) {
         const color = this.theme.inks[shape.style.ink];
-        drawShape(ctx, shape, color, 1, overlay.previewShapeOpen ? false : undefined);
+        drawShape(ctx, shape, color, alpha(shape), overlay.previewShapeOpen ? false : undefined);
       }
-      for (const s of overlay.previewStrokes ?? []) drawStroke(ctx, s, this.theme.inks[s.style.ink]);
-      if (overlay.preview) drawStroke(ctx, overlay.preview, this.theme.inks[overlay.preview.style.ink]);
+      for (const s of overlay.previewStrokes ?? []) drawStroke(ctx, s, this.theme.inks[s.style.ink], alpha(s));
+      if (overlay.preview) {
+        drawStroke(ctx, overlay.preview, this.theme.inks[overlay.preview.style.ink], alpha(overlay.preview));
+      }
     }
     if (overlay?.shapeHandles?.length) {
       this.drawHandles(ctx, overlay.shapeHandles, overlay.activeHandle ?? null);
