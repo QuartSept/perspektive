@@ -799,9 +799,11 @@ history.onChange(() => toolbar.setHistory(history.canUndo, history.canRedo));
 input.onHover((pointer) => state.update({ pointer }));
 
 let initialized = false;
+/** Tuval bundan küçükken (gizli sekme, küçültülmüş pencere) ilk sığdırma ertelenir. */
+const MIN_FIT_SIZE = 120;
 layers.onResize((width, height) => {
   viewport.resize(width, height);
-  if (!initialized) {
+  if (!initialized && width >= MIN_FIT_SIZE && height >= MIN_FIT_SIZE) {
     initialized = true;
     fitToPaper();
   }
