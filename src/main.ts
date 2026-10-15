@@ -56,6 +56,7 @@ import { GridDialog } from './ui/grid-dialog';
 import { PaperGridPanel } from './ui/paper-grid-panel';
 import { SidebarDock } from './ui/sidebar';
 import { Toast } from './ui/toast';
+import { Compass } from './ui/compass';
 import { layerDisplayName, LayersPanel } from './ui/layers-panel';
 import {
   addLayerCommand,
@@ -995,7 +996,14 @@ function onPaperChanged(): void {
   autosave.markDirty();
 }
 
+/** Döndürmeyi ekran merkezi etrafında sıfırlar. */
+function resetRotation(): void {
+  viewport.setRotation(0);
+}
+const compass = new Compass(document.getElementById('app')!, resetRotation);
+
 viewport.onChange(() => {
+  compass.update(viewport.rotation);
   toolbar.setZoom(viewport.scale);
   renderer.requestRender();
 });
@@ -1039,6 +1047,7 @@ brushSettings.onChange(schedulePrefsSave);
 brushSettings.onChange(updatePanel);
 onLanguageChange(() => {
   toolbar.refreshLanguage();
+  compass.refreshLanguage();
   brushPanel.update();
   eraserPanel.update();
   referencePanel.update();
@@ -1172,7 +1181,24 @@ window.addEventListener('keyup', (e) => {
   if (!isTextEntry(e.target)) e.preventDefault();
   state.update({ temporaryFree: false });
 });
-window.addEventListener('blur', () => state.update({ temporaryFree: false }));
+window.addEventListener('blur', () => {
+  state.update({ temporaryFree: false });
+  input.setRotateKey(false);
+});
+
+// R basılı tutulunca sol tuşla sürükleme görünümü döndürür
+window.addEventListener('keydown', (e) => {
+  if (e.code !== 'KeyR' || e.ctrlKey || e.metaKey || e.altKey || isTextEntry(e.target) || dialogOpen()) return;
+  e.preventDefault();
+  if (e.shiftKey) {
+    if (!e.repeat) resetRotation();
+    return;
+  }
+  input.setRotateKey(true);
+});
+window.addEventListener('keyup', (e) => {
+  if (e.code === 'KeyR') input.setRotateKey(false);
+});
 
 window.addEventListener('keydown', (e) => {
   // Diyalog açıkken kısayollar kapalı (Esc diyaloğu kapatır)

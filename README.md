@@ -15,6 +15,7 @@ Hesap ve sunucu yoktur; her şey tarayıcınızda kalır.
 - Hayalet ışınlar (12–72), imleç yaklaştıkça ilgili noktanın ışınları belirginleşir
 - Kaçış noktası her araçta (fırça, şekil, seç) tutulup taşınabilir; boyutu ayarlanabilir, "Merkeze al" ile kâğıt merkezine yerleşir, taşırken merkez eksenlerine yapışır (`Shift` ile kapalı)
 - "Merkeze git" (`C`): görünüm ölçeği koruyarak kâğıdın ortasına kayar; isteğe bağlı merkez çizgileri
+- Görünümü döndürme (kâğıdı masada çevirmek gibi; çizim ve çıktılar etkilenmez): iki parmakla ya da `R` + sürükle (`Shift`: 15°), düz hizaya hafif yapışma; dönükken pusula, tıklayınca ya da `Shift+R` ile sıfırlanır
 - Ufuk 2 noktada varsayılan olarak kilitli, istenirse serbest bırakılır
 - Mıknatıs: çizgi kaçış noktasına, dikeye (1 noktada yataya da) kilitlenir; `Space` ile geçici serbest çizim
 - Fırça (kalınlık, opaklık, yumuşatma, 8 renk), silgi (kesişimden kesişime parça, bütün çizgi ya da kısmi/piksel), geri al / ileri al

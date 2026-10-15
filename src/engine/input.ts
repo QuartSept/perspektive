@@ -1,4 +1,5 @@
 import type { Point } from './geometry';
+import { angleDelta, snapRotation } from './rotation';
 import type { Viewport } from './viewport';
 import type { Tool, ToolPointerEvent } from '../tools/tool';
 
@@ -22,6 +23,18 @@ interface Pinch {
   ids: [number, number];
   lastMid: Point;
   lastDist: number;
+  /** Parmaklar arası doğrunun son açısı. */
+  lastAngle: number;
+  /** Yapıştırılmamış birikmiş görünüm açısı (yapışma bunun üstüne uygulanır). */
+  rawRotation: number;
+}
+
+/** R basılıyken fareyle döndürme. */
+interface RotateDrag {
+  pointerId: number;
+  /** Ekran merkezine göre imlecin başlangıç açısı. */
+  startAngle: number;
+  startRotation: number;
 }
 
 /**
@@ -29,7 +42,8 @@ interface Pinch {
  *  - Orta / sağ tuş sürükleme: her araçta kaydırma
  *  - Sol tuş, kalem ucu, tek parmak: etkin araca iletilir
  *  - Tekerlek: imleç noktasında yakınlaştırma
- *  - İki parmak: kaydırma + sıkıştırarak yakınlaştırma (başlamış çizim iptal olur)
+ *  - İki parmak: kaydırma + sıkıştırarak yakınlaştırma + döndürme (başlamış çizim iptal olur)
+ *  - R basılıyken sol tuşla sürükleme: görünümü döndürür (Shift: 15° adım)
  *  - Avuç içi koruması: kalem bir kez kullanıldıktan sonra tek parmak çizmez, kaydırır
  */
 export class InputController {
@@ -41,6 +55,9 @@ export class InputController {
   /** Tutucunun üzerine gelme imleci. */
   private grabCursor: string | null = null;
   private pan: { pointerId: number; last: Point } | null = null;
+  private rotate: RotateDrag | null = null;
+  /** R basılı: sol tuşla sürükleme görünümü döndürür. */
+  private rotateKey = false;
   private hoverListeners = new Set<(screen: Point | null) => void>();
   /** Ekrana değen parmaklar (CSS piksel). */
   private touches = new Map<number, Point>();
@@ -74,7 +91,18 @@ export class InputController {
 
   /** Sürmekte olan bir araç, kaydırma ya da sıkıştırma hareketi var mı. */
   get busy(): boolean {
-    return this.pan !== null || this.toolPointer !== null || this.pinch !== null;
+    return this.pan !== null || this.toolPointer !== null || this.pinch !== null || this.rotate !== null;
+  }
+
+  /** R tuşu basılı mı (main.ts klavyeden bildirir). */
+  setRotateKey(held: boolean): void {
+    if (held === this.rotateKey) return;
+    this.rotateKey = held;
+    this.updateCursor();
+  }
+
+  private get center(): Point {
+    return { x: this.viewport.width / 2, y: this.viewport.height / 2 };
   }
 
   /** Bazı ortamlarda (sentetik olaylar, kaybolmuş işaretçi) yakalama başarısız olabilir. */
@@ -108,7 +136,9 @@ export class InputController {
   updateCursor(): void {
     const tool = this.gestureTool ?? this.tool;
     const cursor = this.gestureTool ? tool?.cursor : (this.grabCursor ?? tool?.cursor);
-    this.stage.style.cursor = this.pan ? 'grabbing' : (cursor ?? 'default');
+    if (this.pan || this.rotate) this.stage.style.cursor = 'grabbing';
+    else if (this.rotateKey) this.stage.style.cursor = 'grab';
+    else this.stage.style.cursor = cursor ?? 'default';
   }
 
   /** Tutucu bu araçta geçerli mi. */
@@ -135,8 +165,23 @@ export class InputController {
   private onPointerDown = (e: PointerEvent): void => {
     if (e.pointerType === 'touch' && this.touchDown(e)) return;
     if (e.pointerType === 'pen') this.penSeen = true;
-    if (this.pan || this.toolPointer !== null || this.pinch) return;
+    if (this.pan || this.toolPointer !== null || this.pinch || this.rotate) return;
     this.stage.focus({ preventScroll: true });
+
+    if (e.button === 0 && this.rotateKey) {
+      // R + sürükle: ekran merkezi etrafında döndür
+      e.preventDefault();
+      this.capture(e.pointerId);
+      const p = this.localPoint(e);
+      const c = this.center;
+      this.rotate = {
+        pointerId: e.pointerId,
+        startAngle: Math.atan2(p.y - c.y, p.x - c.x),
+        startRotation: this.viewport.rotation,
+      };
+      this.updateCursor();
+      return;
+    }
 
     if (e.button === 1 || e.button === 2) {
       e.preventDefault();
@@ -172,6 +217,8 @@ export class InputController {
         ids: [a[0], b[0]],
         lastMid: { x: (a[1].x + b[1].x) / 2, y: (a[1].y + b[1].y) / 2 },
         lastDist: Math.max(1, Math.hypot(a[1].x - b[1].x, a[1].y - b[1].y)),
+        lastAngle: Math.atan2(b[1].y - a[1].y, b[1].x - a[1].x),
+        rawRotation: this.viewport.rotation,
       };
       this.updateCursor();
       return true;
@@ -213,6 +260,13 @@ export class InputController {
       }
     }
     this.emitHover(this.localPoint(e));
+    if (this.rotate && e.pointerId === this.rotate.pointerId) {
+      const p = this.localPoint(e);
+      const c = this.center;
+      const raw = this.rotate.startRotation + angleDelta(this.rotate.startAngle, Math.atan2(p.y - c.y, p.x - c.x));
+      this.viewport.setRotation(snapRotation(raw, e.shiftKey), c);
+      return;
+    }
     if (this.pan && e.pointerId === this.pan.pointerId) {
       const p = this.localPoint(e);
       this.viewport.panBy(p.x - this.pan.last.x, p.y - this.pan.last.y);
@@ -237,6 +291,11 @@ export class InputController {
 
   private onPointerUp = (e: PointerEvent): void => {
     if (e.pointerType === 'touch') this.touchUp(e);
+    if (this.rotate && e.pointerId === this.rotate.pointerId) {
+      this.rotate = null;
+      this.updateCursor();
+      return;
+    }
     if (this.pan && e.pointerId === this.pan.pointerId) {
       this.pan = null;
       this.updateCursor();
@@ -253,6 +312,10 @@ export class InputController {
 
   private onPointerCancel = (e: PointerEvent): void => {
     if (e.pointerType === 'touch') this.touchUp(e);
+    if (this.rotate && e.pointerId === this.rotate.pointerId) {
+      this.rotate = null;
+      this.updateCursor();
+    }
     if (this.pan && e.pointerId === this.pan.pointerId) {
       this.pan = null;
       this.updateCursor();
@@ -268,10 +331,15 @@ export class InputController {
     if (!a || !b) return;
     const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
     const dist = Math.max(1, Math.hypot(a.x - b.x, a.y - b.y));
+    const angle = Math.atan2(b.y - a.y, b.x - a.x);
     this.viewport.panBy(mid.x - pinch.lastMid.x, mid.y - pinch.lastMid.y);
     this.viewport.zoomAt(mid, dist / pinch.lastDist);
+    // Döndürme: parmaklar arası doğrunun açısı kadar, iki parmak ortası etrafında
+    pinch.rawRotation += angleDelta(pinch.lastAngle, angle);
+    this.viewport.setRotation(snapRotation(pinch.rawRotation), mid);
     pinch.lastMid = mid;
     pinch.lastDist = dist;
+    pinch.lastAngle = angle;
   }
 
   private cancelToolGesture(): void {
