@@ -221,9 +221,8 @@ export class VanishingPointTool implements Tool, ToolOverlay {
     const horizon = this.scene.horizon();
     if (!horizon) return false;
     const o = this.viewport.worldToScreen(horizon.origin);
-    const dist = Math.abs(
-      (screen.x - o.x) * Math.sin(horizon.angle) - (screen.y - o.y) * Math.cos(horizon.angle),
-    );
+    const angle = this.viewport.screenAngle(horizon.angle);
+    const dist = Math.abs((screen.x - o.x) * Math.sin(angle) - (screen.y - o.y) * Math.cos(angle));
     return dist <= HORIZON_HIT_DISTANCE;
   }
 }

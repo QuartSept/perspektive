@@ -64,7 +64,8 @@ export function drawGuides(view: GuideView): void {
     theme.guideOpacityStrong,
     theme.guideOpacityDim,
   );
-  const angles = rayAngles(scene.rayCount, baseAngle);
+  // Işınlar ekranda çizilir: görünüm dönükse açılar da döner
+  const angles = rayAngles(scene.rayCount, viewport.screenAngle(baseAngle));
 
   screens.forEach((s, i) => {
     const reach = reachToCorners(s, width, height);
@@ -83,8 +84,9 @@ export function drawGuides(view: GuideView): void {
   if (horizon) {
     const o = viewport.worldToScreen(horizon.origin);
     const reach = reachToCorners(o, width, height);
-    const dx = Math.cos(horizon.angle) * reach;
-    const dy = Math.sin(horizon.angle) * reach;
+    const angle = viewport.screenAngle(horizon.angle);
+    const dx = Math.cos(angle) * reach;
+    const dy = Math.sin(angle) * reach;
     const active = state.horizonHovered;
     ctx.beginPath();
     ctx.moveTo(o.x - dx, o.y - dy);
@@ -133,8 +135,9 @@ export function drawSnapLine(view: GuideView, line: SnapLine): void {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const o = viewport.worldToScreen(line.origin);
   const reach = reachToCorners(o, viewport.width, viewport.height);
-  const dx = line.direction.x * reach;
-  const dy = line.direction.y * reach;
+  const dir = viewport.screenDirection(line.direction);
+  const dx = dir.x * reach;
+  const dy = dir.y * reach;
   ctx.beginPath();
   ctx.moveTo(o.x - dx, o.y - dy);
   ctx.lineTo(o.x + dx, o.y + dy);
