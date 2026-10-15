@@ -5,6 +5,9 @@ import type { Tool, ToolPointerEvent } from '../tools/tool';
 
 const WHEEL_ZOOM_SPEED = 0.0015;
 const LINE_HEIGHT_PX = 16;
+/** Bu süreden kısa ve bu kadar kıpırdamayan çok parmaklı dokunuş "dokunma" sayılır. */
+const TAP_MS = 350;
+const TAP_SLOP_PX = 12;
 
 /**
  * Etkin araçtan bağımsız olarak bazı basışları üstlenen yardımcı (ör. her
@@ -39,9 +42,10 @@ interface RotateDrag {
 
 /**
  * Tuval üzerindeki Pointer Events girdisini yönetir.
- *  - Orta / sağ tuş sürükleme: her araçta kaydırma
+ *  - Orta / sağ tuş sürükleme ya da Space + sol tuş: her araçta kaydırma
  *  - Sol tuş, kalem ucu, tek parmak: etkin araca iletilir
- *  - Tekerlek: imleç noktasında yakınlaştırma
+ *  - Tekerlek: kaydırma (Shift: yatay); Ctrl + tekerlek ve dokunmatik yüzeyde sıkıştırma: yakınlaştırma
+ *  - İki / üç parmakla kısa dokunuş: geri al / ileri al (main.ts dinler)
  *  - İki parmak: kaydırma + sıkıştırarak yakınlaştırma + döndürme (başlamış çizim iptal olur)
  *  - R basılıyken sol tuşla sürükleme: görünümü döndürür (Shift: 15° adım)
  *  - Avuç içi koruması: kalem bir kez kullanıldıktan sonra tek parmak çizmez, kaydırır
@@ -58,6 +62,13 @@ export class InputController {
   private rotate: RotateDrag | null = null;
   /** R basılı: sol tuşla sürükleme görünümü döndürür. */
   private rotateKey = false;
+  /** Space basılı: sol tuşla sürükleme görünümü kaydırır. */
+  private panKey = false;
+  /** true: düz tekerlek yakınlaştırır (eski davranış); false: kaydırır, Ctrl ile yakınlaştırır. */
+  wheelZooms = false;
+  /** Çok parmaklı dokunuş (geri al / ileri al için): başlangıç zamanı, en çok parmak, kıpırdadı mı. */
+  private tap: { start: number; max: number; origins: Map<number, Point>; moved: boolean } | null = null;
+  private tapListeners = new Set<(fingers: number) => void>();
   private hoverListeners = new Set<(screen: Point | null) => void>();
   /** Ekrana değen parmaklar (CSS piksel). */
   private touches = new Map<number, Point>();
@@ -92,6 +103,18 @@ export class InputController {
   /** Sürmekte olan bir araç, kaydırma ya da sıkıştırma hareketi var mı. */
   get busy(): boolean {
     return this.pan !== null || this.toolPointer !== null || this.pinch !== null || this.rotate !== null;
+  }
+
+  /** Space basılı mı (main.ts klavyeden bildirir). */
+  setPanKey(held: boolean): void {
+    if (held === this.panKey) return;
+    this.panKey = held;
+    this.updateCursor();
+  }
+
+  /** İki ya da üç parmakla kısa dokunuş (kaydırmadan): parmak sayısıyla bildirilir. */
+  onMultiTap(fn: (fingers: number) => void): void {
+    this.tapListeners.add(fn);
   }
 
   /** R tuşu basılı mı (main.ts klavyeden bildirir). */
@@ -137,7 +160,7 @@ export class InputController {
     const tool = this.gestureTool ?? this.tool;
     const cursor = this.gestureTool ? tool?.cursor : (this.grabCursor ?? tool?.cursor);
     if (this.pan || this.rotate) this.stage.style.cursor = 'grabbing';
-    else if (this.rotateKey) this.stage.style.cursor = 'grab';
+    else if (this.rotateKey || this.panKey) this.stage.style.cursor = 'grab';
     else this.stage.style.cursor = cursor ?? 'default';
   }
 
@@ -183,7 +206,7 @@ export class InputController {
       return;
     }
 
-    if (e.button === 1 || e.button === 2) {
+    if (e.button === 1 || e.button === 2 || (e.button === 0 && this.panKey)) {
       e.preventDefault();
       this.capture(e.pointerId);
       this.pan = { pointerId: e.pointerId, last: this.localPoint(e) };
@@ -208,6 +231,11 @@ export class InputController {
   private touchDown(e: PointerEvent): boolean {
     const p = this.localPoint(e);
     this.touches.set(e.pointerId, p);
+    if (this.touches.size === 1) this.tap = { start: performance.now(), max: 1, origins: new Map(), moved: false };
+    if (this.tap) {
+      this.tap.max = Math.max(this.tap.max, this.touches.size);
+      this.tap.origins.set(e.pointerId, p);
+    }
     this.capture(e.pointerId);
     if (this.touches.size === 2) {
       if (this.toolPointer !== null && this.touches.has(this.toolPointer)) this.cancelToolGesture();
@@ -234,6 +262,14 @@ export class InputController {
 
   private touchUp(e: PointerEvent): void {
     if (!this.touches.delete(e.pointerId)) return;
+    if (this.touches.size === 0 && this.tap) {
+      const tap = this.tap;
+      this.tap = null;
+      // Kısa, kıpırdamadan iki / üç parmak: geri al / ileri al (Procreate alışkanlığı)
+      if (!tap.moved && tap.max >= 2 && performance.now() - tap.start < TAP_MS) {
+        for (const fn of this.tapListeners) fn(tap.max);
+      }
+    }
     if (this.pinch?.ids.includes(e.pointerId)) {
       this.pinch = null;
       this.updateCursor();
@@ -253,7 +289,10 @@ export class InputController {
 
   private onPointerMove = (e: PointerEvent): void => {
     if (e.pointerType === 'touch' && this.touches.has(e.pointerId)) {
-      this.touches.set(e.pointerId, this.localPoint(e));
+      const p = this.localPoint(e);
+      this.touches.set(e.pointerId, p);
+      const origin = this.tap?.origins.get(e.pointerId);
+      if (origin && Math.hypot(p.x - origin.x, p.y - origin.y) > TAP_SLOP_PX) this.tap!.moved = true;
       if (this.pinch) {
         this.updatePinch();
         return;
@@ -359,6 +398,24 @@ export class InputController {
         : e.deltaMode === WheelEvent.DOM_DELTA_PAGE
           ? e.deltaY * this.viewport.height
           : e.deltaY;
-    this.viewport.zoomAt(this.localPoint(e), Math.exp(-delta * WHEEL_ZOOM_SPEED));
+    // Dokunmatik yüzeyde sıkıştırma Ctrl + tekerlek olarak gelir
+    if (this.wheelZooms || e.ctrlKey || e.metaKey) {
+      this.viewport.zoomAt(this.localPoint(e), Math.exp(-delta * WHEEL_ZOOM_SPEED));
+      return;
+    }
+    const unit =
+      e.deltaMode === WheelEvent.DOM_DELTA_LINE
+        ? LINE_HEIGHT_PX
+        : e.deltaMode === WheelEvent.DOM_DELTA_PAGE
+          ? this.viewport.height
+          : 1;
+    let dx = e.deltaX * unit;
+    let dy = e.deltaY * unit;
+    // Shift + tekerlek: yatay kaydırma (bazı sistemler zaten deltaX verir)
+    if (e.shiftKey && dx === 0) {
+      dx = dy;
+      dy = 0;
+    }
+    this.viewport.panBy(-dx, -dy);
   };
 }

@@ -39,7 +39,9 @@ export class Toolbar {
   private readonly undoButton: HTMLButtonElement;
   private readonly redoButton: HTMLButtonElement;
   private readonly magnetButton: HTMLButtonElement;
-  private readonly clearButton: HTMLButtonElement;
+  private readonly clearButtons: HTMLButtonElement[];
+  private readonly more: HTMLElement;
+  private readonly moreToggle: HTMLButtonElement;
   private readonly saveStatus: HTMLElement;
   private readonly langSelect: HTMLSelectElement;
   private zoom = 1;
@@ -53,7 +55,18 @@ export class Toolbar {
     this.undoButton = root.querySelector('[data-action="undo"]')!;
     this.redoButton = root.querySelector('[data-action="redo"]')!;
     this.magnetButton = root.querySelector('#magnet-toggle')!;
-    this.clearButton = root.querySelector('[data-action="clear"]')!;
+    this.clearButtons = [...root.querySelectorAll<HTMLButtonElement>('[data-action="clear"]')];
+    this.more = root.querySelector('#toolbar-more')!;
+    this.moreToggle = root.querySelector('#toolbar-more-toggle')!;
+    this.moreToggle.addEventListener('click', () => this.setMoreOpen(!this.more.classList.contains('is-open')));
+    // Menüde bir eylem seçilince ya da dışarı tıklanınca kapanır
+    this.more.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('[data-action]')) this.setMoreOpen(false);
+    });
+    document.addEventListener('pointerdown', (e) => {
+      const target = e.target as Node;
+      if (!this.more.contains(target) && !this.moreToggle.contains(target)) this.setMoreOpen(false);
+    });
     this.saveStatus = root.querySelector('#save-status')!;
     this.langSelect = root.querySelector('#lang-select')!;
     this.langSelect.value = getLanguage();
@@ -114,7 +127,17 @@ export class Toolbar {
   }
 
   setCanClear(canClear: boolean): void {
-    this.clearButton.disabled = !canClear;
+    for (const btn of this.clearButtons) btn.disabled = !canClear;
+  }
+
+  /** Dar ekrandaki "⋯" menüsü (Esc de kapatır). */
+  setMoreOpen(open: boolean): void {
+    this.more.classList.toggle('is-open', open);
+    this.moreToggle.setAttribute('aria-expanded', String(open));
+  }
+
+  get moreOpen(): boolean {
+    return this.more.classList.contains('is-open');
   }
 
   setSaveStatus(status: SaveStatus): void {

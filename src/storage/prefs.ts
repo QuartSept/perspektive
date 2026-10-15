@@ -30,6 +30,8 @@ interface Prefs {
   theme?: string;
   sidebarPinned?: boolean;
   markerScale?: number;
+  wheelZoom?: boolean;
+  tool?: string;
 }
 
 export interface PrefsTargets {
@@ -46,6 +48,10 @@ export interface PrefsTargets {
   setSidebarPinned(pinned: boolean): void;
   getMarkerScale(): number;
   setMarkerScale(scale: number): void;
+  getWheelZoom(): boolean;
+  setWheelZoom(zoom: boolean): void;
+  getTool(): string;
+  setTool(id: string): void;
 }
 
 const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
@@ -80,6 +86,8 @@ export function loadPrefs(t: PrefsTargets): void {
   if (prefs.onboardingDismissed === true) t.setOnboardingDismissed(true);
   if (typeof prefs.sidebarPinned === 'boolean') t.setSidebarPinned(prefs.sidebarPinned);
   if (num(prefs.markerScale)) t.setMarkerScale(prefs.markerScale);
+  if (typeof prefs.wheelZoom === 'boolean') t.setWheelZoom(prefs.wheelZoom);
+  if (typeof prefs.tool === 'string') t.setTool(prefs.tool);
   if (THEME_PREFERENCES.includes(prefs.theme as ThemePreference)) {
     t.theme.set(prefs.theme as ThemePreference);
   }
@@ -105,6 +113,8 @@ export function savePrefs(t: PrefsTargets): void {
     theme: t.theme.preference,
     sidebarPinned: t.getSidebarPinned(),
     markerScale: t.getMarkerScale(),
+    wheelZoom: t.getWheelZoom(),
+    tool: t.getTool(),
   };
   try {
     localStorage.setItem(KEY, JSON.stringify(prefs));

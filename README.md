@@ -35,7 +35,10 @@ Hesap ve sunucu yoktur; her şey tarayıcınızda kalır.
 - Türkçe ve İngilizce arayüz; açık, koyu ya da sistem teması (çıktılar her zaman beyaz kâğıtta)
 - Kalem basıncı (değişken kalınlık), dokunmatik: tek parmak çizer, iki parmak kaydırır ve yakınlaştırır; kalem kullanılınca avuç içi koruması
 
-Klavye kısayolları uygulama içinde `?` ile açılır. Başlıcaları: `V` seç / düzenle, `B` fırça, `E` silgi,
+Klavye kısayolları uygulama içinde `?` ile açılır. `Space` + sürükle görünümü kaydırır, `Alt` basılıyken
+mıknatıs geçici kapalıdır (serbest çizim); fare tekerleği kaydırır, `Ctrl` + tekerlek yakınlaştırır
+(yardım penceresinden "tekerlek yakınlaştırsın" seçilebilir). Dokunmatikte iki parmakla dokunmak geri alır,
+üç parmakla ileri alır. Başlıcaları: `V` seç / düzenle, `B` fırça, `E` silgi,
 `S` şekil (tekrar basınca tür değişir), `P` kaçış noktası, `H` kaydır, `M` mıknatıs, `G` kılavuzlar,
 `#` kâğıt ızgarası, ok tuşları seçili şekli kaydırır.
 

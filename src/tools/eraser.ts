@@ -106,6 +106,15 @@ abstract class SweepingEraser implements Tool, ToolOverlay {
 
   /** Etkin katman kilitli / gizliyken (yalnızca etkin katman kapsamında) nedeni bildirilir. */
   onLayerBlocked: ((reason: LayerBlock) => void) | null = null;
+  /** Bir silme uygulandı (bildirim için). */
+  onErased: (() => void) | null = null;
+
+  /** Silme komutunu uygular ve bildirir. */
+  protected executeErase(command: Command | null): void {
+    if (!command) return;
+    this.history.execute(command);
+    this.onErased?.();
+  }
 
   /** Silgi bu nesneye dokunabilir mi: katmanı düzenlenebilir ve kapsamda. */
   protected erasable(item: Layered): boolean {
@@ -248,7 +257,7 @@ export class StrokeEraserTool extends SweepingEraser {
   protected commit(): void {
     const command = removeItemsCommand(this.doc, [...this.marked], [...this.markedShapes]);
     this.discard();
-    if (command) this.history.execute(command);
+    this.executeErase(command);
   }
 
   protected discard(): void {
@@ -324,7 +333,7 @@ export class PixelEraserTool extends SweepingEraser {
     const command = combineCommands(
       [strokeSplitCommand(this.doc, pieces), shapeRemoval].filter((c): c is Command => c !== null),
     );
-    if (command) this.history.execute(command);
+    this.executeErase(command);
   }
 
   protected discard(): void {
@@ -460,7 +469,7 @@ export class SegmentEraserTool extends SweepingEraser {
     const command = combineCommands(
       [strokeSplitCommand(this.doc, pieces), shapeRemoval].filter((c): c is Command => c !== null),
     );
-    if (command) this.history.execute(command);
+    this.executeErase(command);
   }
 
   protected discard(): void {
@@ -493,6 +502,12 @@ export class EraserTool implements Tool {
     this.pixelEraser = new PixelEraserTool(viewport, doc, history, settings, onOverlayChange);
     this.segmentEraser = new SegmentEraserTool(viewport, doc, history, settings, onOverlayChange);
     this.active = this.current();
+  }
+
+  set onErased(fn: (() => void) | null) {
+    this.strokeEraser.onErased = fn;
+    this.pixelEraser.onErased = fn;
+    this.segmentEraser.onErased = fn;
   }
 
   set onLayerBlocked(fn: ((reason: LayerBlock) => void) | null) {

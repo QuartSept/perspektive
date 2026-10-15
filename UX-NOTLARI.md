@@ -65,3 +65,15 @@ Plan değişmeden yürüyebilir; denetimden çıkan eklemeler:
   O4 bildirimler → O3 Delete → O5 dokunma jestleri → O6/O7/O8 metin ve hedefler → D maddeleri.
 - Y1 telefon kullanılabilirliğini doğrudan etkilediği için istenirse Aşama 2'nin hemen ardından,
   katmanlardan önce yapılabilir.
+
+## 5. Durum (V4 Aşama 11 sonrası)
+
+- **Çözüldü:** Y1 (dar ekranda "⋯" menüsü; El aracı da menüde), Y2 (Aşama 5), Y3 (Aşama 2), Y4 (Aşama 1),
+  O1 (Space + sürükle = kaydır, Alt = geçici serbest çizim), O2 (tekerlek kaydırır, Ctrl + tekerlek / sıkıştırma
+  yakınlaştırır; yardımda "tekerlek yakınlaştırsın" tercihi), O3 (seçimsiz Delete bir şey yapmaz), O4 (geri al /
+  ileri al / silme / temizleme / Ctrl+S bildirimleri, silmede "Geri al"), O5 (iki / üç parmakla dokunma),
+  O6 (dokunmatikte ipucu metni; dar ekranda ipucu düğmeleri alt satırda), O8 (dokunmatikte 36 px düğme, nokta
+  isabeti 22 px), O9 (Aşama 2), D1 (El aracında çift tıklama = sığdır), D2 (Aşama 2), D4 (son araç hatırlanır).
+- **Kısmen:** O7 (araç değişince paneli kısa süre açılıyor; simgeler hâlâ etiketsiz, mıknatıs simgesi aynı).
+- **Ertelendi:** D3 (bağlamsal seçenek çubuğu; panelin kısa süre açılması bu ihtiyacı büyük ölçüde karşılıyor),
+  D5 ("Kaydet" metinleri; menüde dosya işlemleri simgeli).

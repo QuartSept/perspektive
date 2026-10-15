@@ -386,7 +386,11 @@ function updateBoxControls(selected: Shape | null): void {
   );
 }
 const shapeCornerLines = document.getElementById('shape-corner-lines') as HTMLInputElement;
-deleteShapeButton.addEventListener('click', () => selectionTool.deleteSelected());
+deleteShapeButton.addEventListener('click', () => deleteSelectedShape());
+
+function deleteSelectedShape(): void {
+  if (selectionTool.deleteSelected()) toastWithUndo('toast.shapeDeleted');
+}
 shapeCornerLines.addEventListener('change', () => selectionTool.setCornerLines(shapeCornerLines.checked));
 
 function updateSelectPanel(): void {
@@ -446,6 +450,7 @@ function showLayerBlocked(reason: LayerBlock): void {
 brush.onLayerBlocked = showLayerBlocked;
 shapeTool.onLayerBlocked = showLayerBlocked;
 eraser.onLayerBlocked = showLayerBlocked;
+eraser.onErased = () => toastWithUndo('toast.erased');
 
 const displayName = (id: string) => {
   const index = doc.layerIndex(id);
@@ -509,7 +514,11 @@ async function deleteActiveLayer(): Promise<void> {
     });
     if (!ok) return;
   }
-  runCommand(removeLayerCommand(doc, id));
+  const command = removeLayerCommand(doc, id);
+  if (command && !input.busy) {
+    history.execute(command);
+    toastWithUndo('toast.layerDeleted');
+  }
 }
 
 /** Katman listesi yalnızca katmanlar ya da referans değişince yeniden çizilir (her çizgide değil). */
@@ -571,6 +580,7 @@ function selectTool(id: string): void {
   }
   renderer.requestRender('drawing', 'interaction');
   toolbar.setActiveTool(id);
+  if (changed && !starting) schedulePrefsSave();
   syncMarkers();
   updatePanel();
 }
@@ -864,15 +874,27 @@ async function clearDrawing(): Promise<void> {
     doc.strokes.filter((s) => doc.isEditable(s)).map((s) => s.id),
     doc.shapes.filter((s) => doc.isEditable(s)).map((s) => s.id),
   );
-  if (command) history.execute(command);
+  if (command) {
+    history.execute(command);
+    toastWithUndo('toast.cleared');
+  }
 }
 
 function undo(): void {
-  if (!input.busy) history.undo();
+  if (input.busy || !history.canUndo) return;
+  history.undo();
+  toast.show(t('toast.undo'));
 }
 
 function redo(): void {
-  if (!input.busy) history.redo();
+  if (input.busy || !history.canRedo) return;
+  history.redo();
+  toast.show(t('toast.redo'));
+}
+
+/** Silme sonrası bildirim; "Geri al" ile tek dokunuşta döner. */
+function toastWithUndo(key: MessageKey): void {
+  toast.show(t(key), { label: t('toast.undoAction'), run: undo });
 }
 
 function updatePanel(): void {
@@ -1036,8 +1058,45 @@ const prefsTargets: PrefsTargets = {
   setSidebarPinned: (pinned) => sidebarDock.setPinned(pinned),
   getMarkerScale: () => state.markerScale,
   setMarkerScale,
+  getWheelZoom: () => input.wheelZooms,
+  setWheelZoom: (zoom) => {
+    input.wheelZooms = zoom;
+    wheelZoomInput.checked = zoom;
+  },
+  getTool: () => input.activeTool?.id ?? 'brush',
+  setTool: (id) => {
+    // Açılışta son araç: panel kendiliğinden açılmasın
+    const wasStarting = starting;
+    starting = true;
+    selectTool(id);
+    starting = wasStarting;
+  },
 };
 sidebarDock.onChange(schedulePrefsSave);
+
+const wheelZoomInput = document.getElementById('wheel-zoom') as HTMLInputElement;
+wheelZoomInput.addEventListener('change', () => {
+  input.wheelZooms = wheelZoomInput.checked;
+  schedulePrefsSave();
+});
+
+// İki parmakla dokun: geri al, üç parmakla dokun: ileri al
+input.onMultiTap((fingers) => {
+  if (dialogOpen()) return;
+  if (fingers === 2) undo();
+  else if (fingers >= 3) redo();
+});
+
+// El aracında çift tıklama sayfayı sığdırır
+stage.addEventListener('dblclick', () => {
+  if (input.activeTool === tools.hand) fitToPaper();
+});
+
+// Dokunmatik cihazda ilk kullanım ipucu klavyeden değil dokunuştan söz eder
+if (window.matchMedia('(pointer: coarse)').matches) {
+  document.querySelector('#onboarding .onboarding__text')?.setAttribute('data-i18n', 'onboarding.textTouch');
+  applyTranslations();
+}
 let prefsTimer = 0;
 function schedulePrefsSave(): void {
   window.clearTimeout(prefsTimer);
@@ -1169,21 +1228,33 @@ function isTextEntry(target: EventTarget | null): boolean {
   return false;
 }
 
-// Space basılı tutulunca geçici serbest mod. Odaktaki düğmenin Space ile
-// tetiklenmesini de engeller.
+// Space basılı tutulunca sol tuşla sürükleme görünümü kaydırır (Photoshop / Figma
+// alışkanlığı); odaktaki düğmenin Space ile tetiklenmesini de engeller.
+// Alt basılı tutulunca geçici serbest çizim (mıknatıs, eksen, ızgara kapalı).
 window.addEventListener('keydown', (e) => {
-  if (e.code !== 'Space' || isTextEntry(e.target) || dialogOpen()) return;
-  e.preventDefault();
-  state.update({ temporaryFree: true });
+  if (isTextEntry(e.target) || dialogOpen()) return;
+  if (e.code === 'Space') {
+    e.preventDefault();
+    input.setPanKey(true);
+  } else if (e.key === 'Alt') {
+    // Windows'ta tarayıcı menüsüne odaklanmasın
+    e.preventDefault();
+    state.update({ temporaryFree: true });
+  }
 });
 window.addEventListener('keyup', (e) => {
-  if (e.code !== 'Space') return;
-  if (!isTextEntry(e.target)) e.preventDefault();
-  state.update({ temporaryFree: false });
+  if (e.code === 'Space') {
+    if (!isTextEntry(e.target)) e.preventDefault();
+    input.setPanKey(false);
+  } else if (e.key === 'Alt') {
+    e.preventDefault();
+    state.update({ temporaryFree: false });
+  }
 });
 window.addEventListener('blur', () => {
   state.update({ temporaryFree: false });
   input.setRotateKey(false);
+  input.setPanKey(false);
 });
 
 // R basılı tutulunca sol tuşla sürükleme görünümü döndürür
@@ -1219,7 +1290,7 @@ window.addEventListener('keydown', (e) => {
 
   if ((e.ctrlKey || e.metaKey) && !e.altKey) {
     const key = e.key.toLowerCase();
-    if (key === 's') void autosave.flush();
+    if (key === 's') void autosave.flush().then(() => toast.show(t('toast.saved')));
     else if (key === 'p') openOutput('print');
     else if (key === 'o') {
       if (!dialogOpen()) projectFile.click();
@@ -1304,10 +1375,9 @@ window.addEventListener('keydown', (e) => {
       break;
     case 'Delete':
     case 'Backspace':
-      if (input.activeTool === selectionTool && selectionTool.selected) selectionTool.deleteSelected();
+      // Seçim yoksa bir şey yapmaz (temizleme yalnızca çöp kutusu düğmesinden)
+      if (input.activeTool === selectionTool && selectionTool.selected) deleteSelectedShape();
       else if (state.selectedPointId) deleteSelectedPoint();
-      // Seçili nokta yoksa Delete çizimi temizler (onaylı); Backspace yanlışlıkla basılmaya açık, temizlemez
-      else if (e.key === 'Delete' && !doc.isEmpty) void clearDrawing();
       else return;
       break;
     case 'ArrowLeft':
@@ -1323,6 +1393,7 @@ window.addEventListener('keydown', (e) => {
       break;
     }
     case 'Escape':
+      toolbar.setMoreOpen(false);
       sidebarDock.close();
       state.update({ selectedPointId: null });
       selectionTool.select(null);
