@@ -105,6 +105,33 @@ export function lastPoint(stroke: Stroke): Point | null {
   return n >= 2 ? { x: stroke.points[n - 2], y: stroke.points[n - 1] } : null;
 }
 
+/** Basınçlı stroke'un dünya koordinatlı dış hattı (her karede yeniden hesaplanmasın diye). */
+const outlineCache = new WeakMap<Stroke, { path: Path2D; length: number; width: number; lastX: number; lastY: number }>();
+
+/**
+ * Basınçlı stroke'un önbellekteki dış hat yolu. Çizilmekte olan stroke'a
+ * nokta eklendikçe (uzunluk / son nokta / kalınlık değişince) yenilenir.
+ * Path2D yoksa (test ortamı) null.
+ */
+function outlinePath(stroke: Stroke): Path2D | null {
+  if (typeof Path2D === 'undefined' || !stroke.pressures) return null;
+  const p = stroke.points;
+  const { width } = stroke.style;
+  const lastX = p[p.length - 2];
+  const lastY = p[p.length - 1];
+  const hit = outlineCache.get(stroke);
+  if (hit && hit.length === p.length && hit.width === width && hit.lastX === lastX && hit.lastY === lastY) {
+    return hit.path;
+  }
+  const outline = strokeOutline(p, stroke.pressures, width);
+  const path = new Path2D();
+  path.moveTo(outline[0].x, outline[0].y);
+  for (let i = 1; i < outline.length; i++) path.lineTo(outline[i].x, outline[i].y);
+  path.closePath();
+  outlineCache.set(stroke, { path, length: p.length, width, lastX, lastY });
+  return path;
+}
+
 /**
  * Stroke'u bağlamın mevcut (dünya) dönüşümüyle çizer.
  * Ara noktalar orta noktalardan geçen ikinci derece eğrilerle yumuşatılır.
@@ -122,13 +149,18 @@ export function drawStroke(
 
   ctx.globalAlpha = opacity * alphaFactor;
   if (stroke.pressures) {
-    const outline = strokeOutline(p, stroke.pressures, width);
-    ctx.beginPath();
-    ctx.moveTo(outline[0].x, outline[0].y);
-    for (let i = 1; i < outline.length; i++) ctx.lineTo(outline[i].x, outline[i].y);
-    ctx.closePath();
     ctx.fillStyle = color;
-    ctx.fill();
+    const path = outlinePath(stroke);
+    if (path) {
+      ctx.fill(path);
+    } else {
+      const outline = strokeOutline(p, stroke.pressures, width);
+      ctx.beginPath();
+      ctx.moveTo(outline[0].x, outline[0].y);
+      for (let i = 1; i < outline.length; i++) ctx.lineTo(outline[i].x, outline[i].y);
+      ctx.closePath();
+      ctx.fill();
+    }
     ctx.globalAlpha = 1;
     return;
   }

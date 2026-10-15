@@ -442,6 +442,7 @@ const panel = new PerspectivePanel(panelEl, {
   onHorizonFreeChange: (free) => editScene(history, scene, () => scene.setHorizonLocked(!free)),
   onRayCountChange: (count) => scene.setRayCount(count),
   onGuidesVisibleChange: setGuidesVisible,
+  onCursorRaysChange: setCursorRays,
   onDeletePoint: deleteSelectedPoint,
   onCenterPoint: centerScenePoint,
   onMarkerScaleChange: setMarkerScale,
@@ -916,6 +917,16 @@ const reference = new ReferenceImage();
 renderer.reference = reference;
 renderer.grid = paperGrid;
 renderer.corners = corners;
+/** İmleçten kaçış noktalarına çizgiler (fırça seçiliyken; kılavuzlar gizliyken de). */
+let cursorRays = true;
+renderer.cursorRays = () => cursorRays && input.activeTool === brush && !brush.preview;
+function setCursorRays(enabled: boolean): void {
+  if (enabled === cursorRays) return;
+  cursorRays = enabled;
+  renderer.requestRender('interaction');
+  updatePanel();
+  schedulePrefsSave();
+}
 reference.onChange(() => {
   renderer.requestRender('paper');
   updateLayersPanel();
@@ -998,6 +1009,7 @@ function updatePanel(): void {
     straightLines: brushSettings.straightLines,
     axisSnap: brushSettings.axisSnap,
     guidesVisible: state.guidesVisible,
+    cursorRays,
     hasSelection: state.selectedPointId !== null,
     pointToolActive: input.activeTool === tools.point,
     markerScale: state.markerScale,
@@ -1159,6 +1171,8 @@ const prefsTargets: PrefsTargets = {
     input.wheelZooms = zoom;
     wheelZoomInput.checked = zoom;
   },
+  getCursorRays: () => cursorRays,
+  setCursorRays,
   getTutorialDone: () => tutorialDone,
   setTutorialDone: (done) => {
     tutorialDone = done;

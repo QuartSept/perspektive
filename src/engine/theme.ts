@@ -27,6 +27,8 @@ export interface CanvasTheme {
   grid: string;
   /** Kâğıt merkezi kılavuzu. */
   centerMark: string;
+  /** İmleçten kaçış noktalarına giden çizgilerin opaklığı. */
+  cursorRayOpacity: number;
   /** Köşe kaçış çizgileri: nokta renginde, kesikli, bu opaklıkta. */
   cornerLineOpacity: number;
   /** PNG / SVG / yazdırma: temadan bağımsız renkler. */
@@ -88,6 +90,7 @@ export function readCanvasTheme(el: Element = document.documentElement): CanvasT
     cursorHalo: v('--color-cursor-halo'),
     grid: v('--color-grid'),
     centerMark: v('--color-center-mark'),
+    cursorRayOpacity: n('--cursor-ray-opacity', 0.35),
     cornerLineOpacity: n('--corner-line-opacity', 0.55),
     printPaper: v('--color-print-paper'),
     printGuideOpacity: n('--print-guide-opacity', 0.35),

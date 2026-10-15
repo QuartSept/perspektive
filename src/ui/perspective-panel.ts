@@ -16,6 +16,7 @@ export interface PerspectivePanelHandlers {
   onHorizonFreeChange(free: boolean): void;
   onRayCountChange(count: number): void;
   onGuidesVisibleChange(visible: boolean): void;
+  onCursorRaysChange(enabled: boolean): void;
   onDeletePoint(): void;
   onCenterPoint(): void;
   onMarkerScaleChange(scale: number): void;
@@ -28,6 +29,7 @@ export interface PerspectivePanelView {
   straightLines: boolean;
   axisSnap: boolean;
   guidesVisible: boolean;
+  cursorRays: boolean;
   hasSelection: boolean;
   pointToolActive: boolean;
   markerScale: number;
@@ -43,6 +45,7 @@ export class PerspectivePanel {
   private readonly rayCount: HTMLInputElement;
   private readonly rayCountValue: HTMLOutputElement;
   private readonly guidesVisible: HTMLInputElement;
+  private readonly cursorRays: HTMLInputElement;
   private readonly deleteButton: HTMLButtonElement;
   private readonly centerButton: HTMLButtonElement;
   private readonly markerSize: HTMLInputElement;
@@ -63,6 +66,8 @@ export class PerspectivePanel {
     this.rayCount = root.querySelector('#ray-count')!;
     this.rayCountValue = root.querySelector('#ray-count-value')!;
     this.guidesVisible = root.querySelector('#guides-visible')!;
+    this.cursorRays = root.querySelector('#cursor-rays')!;
+    this.cursorRays.addEventListener('change', () => handlers.onCursorRaysChange(this.cursorRays.checked));
     this.deleteButton = root.querySelector('#delete-point')!;
     this.centerButton = root.querySelector('#center-point')!;
     this.markerSize = root.querySelector('#marker-size')!;
@@ -164,6 +169,8 @@ export class PerspectivePanel {
     this.rayCountValue.textContent = count;
 
     this.guidesVisible.checked = view.guidesVisible;
+    this.cursorRays.checked = view.cursorRays;
+    this.cursorRays.disabled = scene.mode === 0;
     this.deleteButton.disabled = !view.hasSelection;
     this.updateCorners(view);
 

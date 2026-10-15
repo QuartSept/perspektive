@@ -12,6 +12,7 @@ import type { Viewport } from './viewport';
 import { cornerLines, cornerTargets, type CornerLineSettings } from '../perspective/corner-lines';
 import {
   drawCornerLines,
+  drawCursorRays,
   drawGuides,
   drawMarkers,
   drawSnapLine,
@@ -33,6 +34,8 @@ export class Renderer {
   grid: PaperGrid | null = null;
   /** Köşe kaçış çizgisi ayarı (yoksa çizilmez). */
   corners: CornerLineSettings | null = null;
+  /** İmleçten kaçış noktalarına çizgiler şu an çizilsin mi (fırça etkin, ayar açık, çizilmiyor). */
+  cursorRays: () => boolean = () => false;
 
   constructor(
     private readonly layers: LayerStack,
@@ -166,6 +169,8 @@ export class Renderer {
   private drawInteraction(): void {
     const ctx = this.layers.clear('interaction');
     const overlay = this.getOverlay();
+    // Kılavuzlardan bağımsız: G ile gizlenmez
+    if (this.state.pointer && this.cursorRays()) drawCursorRays(this.guideView(ctx), this.state.pointer);
     if (overlay?.snapLine) drawSnapLine(this.guideView(ctx), overlay.snapLine);
     for (const line of overlay?.guideLines ?? []) drawSnapLine(this.guideView(ctx), line);
     if (

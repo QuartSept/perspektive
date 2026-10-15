@@ -33,6 +33,7 @@ interface Prefs {
   wheelZoom?: boolean;
   tool?: string;
   tutorialDone?: boolean;
+  cursorRays?: boolean;
 }
 
 export interface PrefsTargets {
@@ -55,6 +56,8 @@ export interface PrefsTargets {
   setTool(id: string): void;
   getTutorialDone(): boolean;
   setTutorialDone(done: boolean): void;
+  getCursorRays(): boolean;
+  setCursorRays(enabled: boolean): void;
 }
 
 const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
@@ -92,6 +95,7 @@ export function loadPrefs(t: PrefsTargets): void {
   if (typeof prefs.wheelZoom === 'boolean') t.setWheelZoom(prefs.wheelZoom);
   if (typeof prefs.tool === 'string') t.setTool(prefs.tool);
   if (prefs.tutorialDone === true) t.setTutorialDone(true);
+  if (typeof prefs.cursorRays === 'boolean') t.setCursorRays(prefs.cursorRays);
   if (THEME_PREFERENCES.includes(prefs.theme as ThemePreference)) {
     t.theme.set(prefs.theme as ThemePreference);
   }
@@ -120,6 +124,7 @@ export function savePrefs(t: PrefsTargets): void {
     wheelZoom: t.getWheelZoom(),
     tool: t.getTool(),
     tutorialDone: t.getTutorialDone(),
+    cursorRays: t.getCursorRays(),
   };
   try {
     localStorage.setItem(KEY, JSON.stringify(prefs));

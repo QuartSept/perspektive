@@ -97,6 +97,29 @@ export function drawGuides(view: GuideView): void {
   }
 }
 
+/**
+ * İmleç çizgileri: fırçanın bulunduğu yerden her kaçış noktasına ince,
+ * soluk çizgi (nokta renginde). Kılavuzlar gizliyken de çizilir.
+ */
+export function drawCursorRays(view: GuideView, pointer: Point): void {
+  const { ctx, dpr, viewport, scene, theme } = view;
+  const points = scene.activePoints;
+  if (!points.length) return;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.save();
+  ctx.lineWidth = 1;
+  ctx.globalAlpha = theme.cursorRayOpacity;
+  for (const p of points) {
+    const s = viewport.worldToScreen(p);
+    ctx.beginPath();
+    ctx.moveTo(pointer.x, pointer.y);
+    ctx.lineTo(s.x, s.y);
+    ctx.strokeStyle = vanishingPointColor(theme, scene.colorIndexOf(p));
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 /** Köşe çizgisi kesik deseni, CSS piksel. */
 export const CORNER_LINE_DASH = [5, 4];
 
