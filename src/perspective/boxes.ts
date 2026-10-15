@@ -11,12 +11,20 @@ import type { PerspectiveScene } from './scene';
  */
 export function syncBoxes(doc: DrawingDocument, scene: PerspectiveScene): boolean {
   const updates: { index: number; shape: Shape }[] = [];
+  const moved = (id: string | null, vp: { x: number; y: number }) => {
+    const p = id ? scene.activePoints.find((q) => q.id === id) : undefined;
+    return p && (p.x !== vp.x || p.y !== vp.y) ? { x: p.x, y: p.y } : null;
+  };
   doc.shapes.forEach((shape, index) => {
     const box = shape.box;
-    if (shape.kind !== 'box' || !box?.pointId) return;
-    const p = scene.activePoints.find((q) => q.id === box.pointId);
-    if (!p || (p.x === box.vp.x && p.y === box.vp.y)) return;
-    updates.push({ index, shape: rebuildBox(shape, { vp: { x: p.x, y: p.y } }) });
+    if (shape.kind !== 'box' || !box) return;
+    const first = moved(box.pointId, box.vp);
+    const second = box.second ? moved(box.second.pointId, box.second.vp) : null;
+    if (!first && !second) return;
+    const patch: Partial<typeof box> = {};
+    if (first) patch.vp = first;
+    if (second) patch.second = { ...box.second!, vp: second };
+    updates.push({ index, shape: rebuildBox(shape, patch) });
   });
   if (!updates.length) return false;
   doc.spliceShapes(

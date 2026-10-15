@@ -21,7 +21,7 @@ Hesap ve sunucu yoktur; her şey tarayıcınızda kalır.
 - Katmanlar (en fazla 20): ekle, çoğalt, sırala, birleştir, sil, göster/gizle, kilitle, opaklık, yeniden adlandır; silgi yalnızca etkin katmanda (isteğe bağlı tümü), kilitli/gizli katmana dokunulmaz; gizli katmanlar çıktıya girmez, SVG'de her katman ayrı grup
 - Şekiller: doğru parçası, dikdörtgen, üçgen, çokgen (tıkla-tıkla); köşeler ızgaraya, kenarlar kaçış ışınlarına / eksenlere yapışır; silgi şekli bütün olarak ya da (parça / kısmi silgide) kenar kenar siler; kenarı silinen şeklin köşeleri düzenlenebilir kalır
 - Seç / düzenle: şekle tıkla, köşe tutamacını sürükle (dikdörtgen karşı köşesi sabit yeniden boyutlanır) ya da şekli taşı; Delete ile sil
-- Derinlikli kutu (1 nokta): seçili dikdörtgen "Kutuya dönüştür" ile kaçış noktasına doğru kutu olur; derinlik kaydırıcı ya da arka köşeden, arka kenarlar kesikli / görünür / gizli; kaçış noktası taşınınca kutu uyar
+- Derinlikli kutu: seçili dikdörtgen bir kaçış noktasına (1 nokta), seçili dikey doğru parçası iki ufuk noktasına (2 nokta) doğru "Kutuya dönüştür" ile kutu olur; derinlik kaydırıcılardan ya da köşelerden, arka kenarlar kesikli / görünür / gizli; kaçış noktaları taşınınca kutu uyar; "Çizgilere dönüştür" şekli düz çizgilere çevirir
 - Köşe kaçış çizgileri: şekil köşelerinden kaçış noktalarına kesikli kılavuzlar (hepsine ya da seçilen noktaya; şekil başına kapatılabilir); fırça bu çizgilere kilitlenir, "kılavuzlarla" çıktılara girer
 - A4, A5, kare ve ekran boyu kâğıt (A4/A5 için dikey ya da yatay, varsayılan dikey; çizim varsa çizgiler ve kaçış noktaları kâğıtla birlikte döner); sonsuz kaydırma ve yakınlaştırma
 - Otomatik kayıt (IndexedDB), PNG ve SVG (gerçek ölçek) dışa aktarma, A4 yazdırma (yalnızca çizim / kılavuzlarla)

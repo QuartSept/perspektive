@@ -29,6 +29,18 @@ export interface BoxParams {
   vp: Point;
   depth: number;
   back: BoxBackStyle;
+  /**
+   * Varsa 2 noktalı kutu: ön dikey kenardan (köşe 0 üst, köşe 4 alt) ilk
+   * noktaya `depth`, bu ikinci noktaya `second.depth` oranında derinlik.
+   * Köşeler: 0 A, 1 A1 (ilk yön), 2 C (arka), 3 A2 (ikinci yön); 4–7 alttakiler.
+   */
+  second?: BoxDirection;
+}
+
+export interface BoxDirection {
+  pointId: string | null;
+  vp: Point;
+  depth: number;
 }
 
 export interface Shape {
@@ -99,12 +111,105 @@ export function boxBackVertices(front: readonly number[], vp: Point, depth: numb
   return back;
 }
 
-/** Kutunun köşelerini parametrelerinden yeniden hesaplar (ön yüz korunur). */
-export function rebuildBox(shape: Shape, patch: Partial<BoxParams> = {}, front?: readonly number[]): Shape {
-  const box = { ...shape.box!, ...patch };
-  box.depth = Math.min(BOX_DEPTH_MAX, Math.max(BOX_DEPTH_MIN, box.depth));
-  const f = (front ?? shape.vertices).slice(0, 8);
+const clampDepth = (d: number) => Math.min(BOX_DEPTH_MAX, Math.max(BOX_DEPTH_MIN, d));
+
+/** `p` + s·`d` doğrusu ile `q` + u·`e` doğrusunun kesişimi; neredeyse paralelse null. */
+function lineIntersection(p: Point, d: Point, q: Point, e: Point): Point | null {
+  const den = d.x * e.y - d.y * e.x;
+  const scale = Math.hypot(d.x, d.y) * Math.hypot(e.x, e.y);
+  if (scale === 0 || Math.abs(den) / scale < 1e-6) return null;
+  const s = ((q.x - p.x) * e.y - (q.y - p.y) * e.x) / den;
+  return { x: p.x + d.x * s, y: p.y + d.y * s };
+}
+
+/**
+ * 2 noktalı kutunun bir yatay katı (üst ya da alt): ön köşe `a`'dan iki
+ * yöne derinlik, arka köşe iki yandan karşı noktalara giden doğruların
+ * kesişimi. Doğrular neredeyse paralelse (çok uzak nokta) paralelkenar
+ * yaklaşımı kullanılır.
+ */
+function twoPointLevel(a: Point, vp1: Point, t1: number, vp2: Point, t2: number): Point[] {
+  const a1 = { x: a.x + (vp1.x - a.x) * t1, y: a.y + (vp1.y - a.y) * t1 };
+  const a2 = { x: a.x + (vp2.x - a.x) * t2, y: a.y + (vp2.y - a.y) * t2 };
+  const c =
+    lineIntersection(a1, { x: vp2.x - a1.x, y: vp2.y - a1.y }, a2, { x: vp1.x - a2.x, y: vp1.y - a2.y }) ??
+    { x: a1.x + a2.x - a.x, y: a1.y + a2.y - a.y };
+  return [a, a1, c, a2];
+}
+
+/** 2 noktalı kutunun 8 köşesi (ön dikey kenar A üst, B alt). */
+export function twoPointBoxVertices(a: Point, b: Point, box: BoxParams): number[] {
+  const second = box.second!;
+  const top = twoPointLevel(a, box.vp, box.depth, second.vp, second.depth);
+  const bottom = twoPointLevel(b, box.vp, box.depth, second.vp, second.depth);
+  return [...top, ...bottom].flatMap((q) => [q.x, q.y]);
+}
+
+/**
+ * Kutunun köşelerini parametrelerinden yeniden hesaplar. 1 noktada ön yüz
+ * (`source`'un ilk 4 köşesi), 2 noktada ön dikey kenar (köşe 0 ve 4) korunur.
+ */
+export function rebuildBox(shape: Shape, patch: Partial<BoxParams> = {}, source?: readonly number[]): Shape {
+  const box: BoxParams = { ...shape.box!, ...patch };
+  box.depth = clampDepth(box.depth);
+  const v = source ?? shape.vertices;
+  if (box.second) {
+    box.second = { ...box.second, depth: clampDepth(box.second.depth) };
+    const a = { x: v[0], y: v[1] };
+    const b = { x: v[8], y: v[9] };
+    return { ...shape, box, vertices: twoPointBoxVertices(a, b, box) };
+  }
+  const f = v.slice(0, 8);
   return { ...shape, box, vertices: [...f, ...boxBackVertices(f, box.vp, box.depth)] };
+}
+
+/**
+ * Dikey doğru parçasından (ön kenar) 2 noktalı kutu: kenar dikey tutulur
+ * (x ortalanır), üst uç A, alt uç B. İlk nokta soldaki olmalı.
+ */
+export function segmentToBox(
+  segment: Shape,
+  first: { id: string; x: number; y: number },
+  second: { id: string; x: number; y: number },
+  depth = 0.25,
+): Shape {
+  const [x0, y0, x1, y1] = segment.vertices;
+  const x = (x0 + x1) / 2;
+  const top = Math.min(y0, y1);
+  const bottom = Math.max(y0, y1);
+  const { hiddenEdges: _drop, ...rest } = segment;
+  const box: BoxParams = {
+    pointId: first.id,
+    vp: { x: first.x, y: first.y },
+    depth,
+    back: 'dashed',
+    second: { pointId: second.id, vp: { x: second.x, y: second.y }, depth },
+  };
+  const source = [x, top, 0, 0, 0, 0, 0, 0, x, bottom];
+  return rebuildBox({ ...rest, kind: 'box', box, vertices: [] }, {}, source);
+}
+
+/**
+ * 2 noktalı kutuda arkada kalan kenarlar: arka dikey kenar hep arkada; üst
+ * yüz kutu göz hizasının altındaysa, alt yüz üstündeyse görünür (ikisi de
+ * değilse üst ve alt arka kenarlar arkada kalır). Göz hizası iki noktadan geçer.
+ */
+function twoPointOccluded(shape: Shape): Set<number> {
+  const box = shape.box!;
+  const h1 = box.vp;
+  const h2 = box.second!.vp;
+  const v = shape.vertices;
+  const side = (x: number, y: number) => (h2.x - h1.x) * (y - h1.y) - (h2.y - h1.y) * (x - h1.x);
+  const sa = side(v[0], v[1]);
+  const sb = side(v[8], v[9]);
+  const sameSide = sa * sb > 0;
+  // Alt uç ufka daha uzaksa kutu göz hizasının altındadır
+  const below = sameSide && Math.abs(sb) > Math.abs(sa);
+  const above = sameSide && Math.abs(sa) > Math.abs(sb);
+  const hidden = new Set<number>([10]);
+  if (!below) [1, 2].forEach((k) => hidden.add(k));
+  if (!above) [5, 6].forEach((k) => hidden.add(k));
+  return hidden;
 }
 
 /** Dikdörtgenden (ön yüz) kutu: aynı kimlik, stil ve katman; kenar silmeleri sıfırlanır. */
@@ -119,6 +224,7 @@ export function rectToBox(rect: Shape, pointId: string, vp: Point, depth = BOX_D
  * kenarı ön kenarın dış tarafında kalıyorsa (kaçış noktası o taraftaysa) dönük.
  */
 export function boxOccludedEdges(shape: Shape): Set<number> {
+  if (shape.box?.second) return twoPointOccluded(shape);
   const v = shape.vertices;
   const p = (i: number): Point => ({ x: v[i * 2], y: v[i * 2 + 1] });
   // Ön yüzün yönü (saat yönü / tersi) iç tarafı belirler
@@ -306,7 +412,10 @@ export function mapShape(shape: Shape, map: (p: Point) => Point): Shape {
     vertices[i + 1] = q.y;
   }
   const mapped: Shape = { ...shape, vertices };
-  if (shape.box) mapped.box = { ...shape.box, vp: map(shape.box.vp) };
+  if (shape.box) {
+    mapped.box = { ...shape.box, vp: map(shape.box.vp) };
+    if (shape.box.second) mapped.box.second = { ...shape.box.second, vp: map(shape.box.second.vp) };
+  }
   return mapped;
 }
 

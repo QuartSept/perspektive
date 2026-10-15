@@ -296,3 +296,58 @@ describe('kutu', () => {
     expect(doc.getShape('r')!.kind).toBe('rect');
   });
 });
+
+describe('2 noktalı kutu ve çizgiye dönüştürme', () => {
+  const L = { id: 'L', x: 0, y: 200 };
+  const R = { id: 'R', x: 1000, y: 200 };
+
+  function twoPointBox() {
+    doc.replaceAll([], [shape('s', 'segment', [400, 300, 400, 500])]);
+    tool.select('s');
+    tool.convertSegmentToBox(L, R);
+    return doc.getShape('s')!;
+  }
+
+  it('segment kutuya dönüşür; yan köşe o yöndeki, arka köşe iki derinliği değiştirir', () => {
+    const box = twoPointBox();
+    expect(box.kind).toBe('box');
+    expect(box.box!.second!.depth).toBe(0.25);
+    // Köşe 1 (A1): L yönünde %50'ye
+    const a1 = { x: box.vertices[2], y: box.vertices[3] };
+    drag(a1, { x: 400 + (0 - 400) * 0.5, y: 300 + (200 - 300) * 0.5 });
+    expect(doc.getShape('s')!.box!.depth).toBeCloseTo(0.5);
+    expect(doc.getShape('s')!.box!.second!.depth).toBeCloseTo(0.25);
+    // Köşe 2 (C): arka köşeyi bir noktaya taşı → C o noktaya oturur
+    const b = doc.getShape('s')!;
+    const target = { x: b.vertices[4] + 10, y: b.vertices[5] - 4 };
+    drag({ x: b.vertices[4], y: b.vertices[5] }, target);
+    const c = doc.getShape('s')!;
+    expect(c.vertices[4]).toBeCloseTo(target.x, 0);
+    expect(c.vertices[5]).toBeCloseTo(target.y, 0);
+  });
+
+  it('ön kenarın üst ucu yalnızca yüksekliği değiştirir', () => {
+    twoPointBox();
+    drag({ x: 400, y: 300 }, { x: 430, y: 260 });
+    const v = doc.getShape('s')!.vertices;
+    expect([v[0], v[1], v[8], v[9]]).toEqual([400, 260, 400, 500]);
+  });
+
+  it('çizgilere dönüştür: dikdörtgen 4 çizgi; kesikli kutuda arkada kalan kenarlar aktarılmaz; geri alınır', () => {
+    tool.select('r');
+    tool.convertToStrokes();
+    expect(doc.getShape('r')).toBeUndefined();
+    expect(doc.strokes.filter((st) => st.points.length === 4)).toHaveLength(4);
+    expect(tool.selected).toBeNull();
+    history.undo();
+    expect(doc.getShape('r')).toBeDefined();
+    expect(doc.strokes).toHaveLength(0);
+
+    const box = twoPointBox();
+    const before = doc.strokes.length;
+    tool.select(box.id);
+    tool.convertToStrokes();
+    // 12 kenardan 3'ü arkada (kutu göz hizasının altında): 9 çizgi
+    expect(doc.strokes.length - before).toBe(9);
+  });
+});

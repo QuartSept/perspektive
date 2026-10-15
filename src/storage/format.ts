@@ -171,6 +171,16 @@ function parseShape(v: unknown): Shape | null {
       depth: b.depth,
       back: BOX_BACK_STYLES.includes(b.back as BoxBackStyle) ? (b.back as BoxBackStyle) : 'dashed',
     };
+    const s2 = b.second;
+    if (s2 !== undefined) {
+      if (!isObject(s2) || !isObject(s2.vp) || !isFiniteNumber(s2.vp.x) || !isFiniteNumber(s2.vp.y)) return null;
+      if (!isFiniteNumber(s2.depth)) return null;
+      shape.box.second = {
+        pointId: isString(s2.pointId) ? s2.pointId : null,
+        vp: { x: s2.vp.x, y: s2.vp.y },
+        depth: s2.depth,
+      };
+    }
     shape = rebuildBox(shape);
   }
   if (Array.isArray(v.hiddenEdges)) {

@@ -168,10 +168,17 @@
         <div class="panel__stack" id="box-options" hidden>
           <div class="field">
             <div class="field__row">
-              <label for="box-depth" data-i18n="box.depth">Derinlik</label>
+              <label for="box-depth" id="box-depth-label" data-i18n="box.depth">Derinlik</label>
               <output id="box-depth-value" for="box-depth"></output>
             </div>
             <input type="range" id="box-depth" class="range" />
+          </div>
+          <div class="field" id="box-depth2-row" hidden>
+            <div class="field__row">
+              <label for="box-depth2" data-i18n="box.depthRight">Derinlik (sağ)</label>
+              <output id="box-depth2-value" for="box-depth2"></output>
+            </div>
+            <input type="range" id="box-depth2" class="range" />
           </div>
           <div class="field__label" id="box-back-label" data-i18n="box.back">Arka kenarlar</div>
           <div class="segmented" id="box-back" role="radiogroup" aria-labelledby="box-back-label">
@@ -184,6 +191,7 @@
             <div class="segmented" id="box-point" role="radiogroup" aria-labelledby="box-point-label"></div>
           </div>
         </div>
+        <button type="button" class="btn" id="shape-to-strokes" data-i18n="select.toStrokes" data-i18n-title="select.toStrokesTitle" hidden>Çizgilere dönüştür</button>
         <button type="button" class="btn" id="delete-shape" data-i18n="select.delete" disabled>Seçili şekli sil</button>
         <p class="panel__hint" id="select-hint"></p>
       </section>

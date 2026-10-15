@@ -274,6 +274,30 @@ const boxDepth = document.getElementById('box-depth') as HTMLInputElement;
 const boxDepthValue = document.getElementById('box-depth-value')!;
 const boxBackButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-box-back]')];
 const boxPointRow = document.getElementById('box-point-row')!;
+const boxDepthLabel = document.getElementById('box-depth-label')!;
+const boxDepth2Row = document.getElementById('box-depth2-row')!;
+const boxDepth2 = document.getElementById('box-depth2') as HTMLInputElement;
+const boxDepth2Value = document.getElementById('box-depth2-value')!;
+const toStrokesButton = document.getElementById('shape-to-strokes') as HTMLButtonElement;
+toStrokesButton.addEventListener('click', () => selectionTool.convertToStrokes());
+boxDepth2.min = String(Math.round(BOX_DEPTH_MIN * 100));
+boxDepth2.max = String(Math.round(BOX_DEPTH_MAX * 100));
+boxDepth2.step = '1';
+const setBoxDepth2 = (final: boolean) =>
+  selectionTool.editSelected(
+    (s) => (s.box?.second ? rebuildBox(s, { second: { ...s.box.second, depth: Number(boxDepth2.value) / 100 } }) : s),
+    final,
+  );
+boxDepth2.addEventListener('input', () => setBoxDepth2(false));
+boxDepth2.addEventListener('change', () => setBoxDepth2(true));
+
+/** 2 noktalı kutu için ufuk noktaları soldan sağa (yoksa null). */
+function horizonPair() {
+  const hp = scene.horizonPoints;
+  if (hp.length < 2) return null;
+  const [a, b] = hp;
+  return a.x <= b.x ? [a, b] : [b, a];
+}
 const boxPoint = document.getElementById('box-point')!;
 boxDepth.min = String(Math.round(BOX_DEPTH_MIN * 100));
 boxDepth.max = String(Math.round(BOX_DEPTH_MAX * 100));
@@ -291,6 +315,11 @@ function boxPointFor(shape: Shape) {
 
 toBoxButton.addEventListener('click', () => {
   const shape = selectionTool.selected;
+  if (shape?.kind === 'segment') {
+    const pair = horizonPair();
+    if (pair) selectionTool.convertSegmentToBox(pair[0], pair[1]);
+    return;
+  }
   const point = shape && boxPointFor(shape);
   if (point) selectionTool.convertToBox(point.id, { x: point.x, y: point.y });
 });
@@ -310,10 +339,22 @@ boxPoint.addEventListener('click', (e) => {
 });
 
 function updateBoxControls(selected: Shape | null): void {
-  toBoxButton.hidden = !(selected?.kind === 'rect' && scene.activePoints.length > 0);
+  toBoxButton.hidden = !(
+    (selected?.kind === 'rect' && scene.activePoints.length > 0) ||
+    (selected?.kind === 'segment' && horizonPair() !== null)
+  );
+  toStrokesButton.hidden = !selected;
   const box = selected?.kind === 'box' ? selected.box : undefined;
   boxOptions.hidden = !box;
   if (!box) return;
+  const two = box.second;
+  boxDepthLabel.textContent = t(two ? 'box.depthLeft' : 'box.depth');
+  boxDepth2Row.hidden = !two;
+  if (two) {
+    const pct2 = String(Math.round(two.depth * 100));
+    if (boxDepth2.value !== pct2) boxDepth2.value = pct2;
+    boxDepth2Value.textContent = formatPercent(two.depth);
+  }
   const pct = String(Math.round(box.depth * 100));
   if (boxDepth.value !== pct) boxDepth.value = pct;
   boxDepthValue.textContent = formatPercent(box.depth);
@@ -323,7 +364,8 @@ function updateBoxControls(selected: Shape | null): void {
     btn.tabIndex = checked ? 0 : -1;
   }
   const points = scene.activePoints;
-  boxPointRow.hidden = points.length < 2;
+  // 2 noktalı kutunun yönleri iki ufuk noktasına sabit
+  boxPointRow.hidden = points.length < 2 || !!two;
   boxPoint.replaceChildren(
     ...points.map((p, i) => {
       const btn = document.createElement('button');
@@ -364,7 +406,14 @@ function updateSelectPanel(): void {
     shapeLayer.replaceChildren(...options);
     shapeLayer.value = doc.layerOf(selected!).id;
   }
-  selectHint.textContent = t(has ? (selected!.kind === 'box' ? 'select.hintBox' : 'select.hintSelected') : 'select.hintEmpty');
+  const hintKey: MessageKey = !has
+    ? 'select.hintEmpty'
+    : selected!.kind === 'box'
+      ? selected!.box?.second
+        ? 'select.hintBox2'
+        : 'select.hintBox'
+      : 'select.hintSelected';
+  selectHint.textContent = t(hintKey);
   updateBoxControls(selected);
 }
 const brushPanel = new BrushPanel(document.getElementById('brush-panel')!, brushSettings, snapSettings);

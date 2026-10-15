@@ -1,8 +1,21 @@
-import { ReplaceShapesCommand, UpdateShapeCommand } from '../engine/commands';
+import { ReplaceShapesCommand, ReplaceStrokesCommand, UpdateShapeCommand } from '../engine/commands';
+import { CompositeCommand } from '../engine/history';
+import { newStrokeId, type Stroke } from '../engine/stroke';
 import type { DrawingDocument } from '../engine/document';
 import type { Point } from '../engine/geometry';
 import type { History } from '../engine/history';
-import { rebuildBox, rectToBox, segmentTouchesShape, shapeVertices, type Shape } from '../engine/shapes';
+import {
+  boxOccludedEdges,
+  rebuildBox,
+  rectToBox,
+  segmentToBox,
+  segmentTouchesShape,
+  shapeEdges,
+  shapeVertices,
+  visibleEdges,
+  visibleRuns,
+  type Shape,
+} from '../engine/shapes';
 import type { Viewport } from '../engine/viewport';
 import { distanceToLine, intersectLines, type SnapLine } from '../perspective/snapping';
 import { EdgeSnapper, type ShapeSnapping } from './shape-tools';
@@ -141,6 +154,37 @@ export class SelectTool implements Tool, ToolOverlay {
     );
     this.onChange();
     return true;
+  }
+
+  /** Seçili dikey doğru parçasını 2 noktalı kutuya dönüştürür (ilk nokta soldaki). */
+  convertSegmentToBox(first: { id: string; x: number; y: number }, second: { id: string; x: number; y: number }): void {
+    const shape = this.selected;
+    if (!shape || shape.kind !== 'segment' || this.drag) return;
+    this.history.execute(new UpdateShapeCommand(this.doc, shape, segmentToBox(shape, first, second)));
+    this.onChange();
+  }
+
+  /**
+   * Seçili şekli çizgilere dönüştürür (düzenlenemez): görünen kenarlar aynı
+   * katmanda stroke olur; kutunun arkada kalan kenarları yalnızca "Görünür"
+   * ayarında aktarılır (stroke kesikli olamaz). Tek adımda geri alınır.
+   */
+  convertToStrokes(): void {
+    const shape = this.selected;
+    if (!shape || this.drag) return;
+    const strokes = shapeToStrokes(shape);
+    const start = this.doc.strokes.length;
+    this.history.execute(
+      new CompositeCommand([
+        new ReplaceShapesCommand(this.doc, [shape.id], []),
+        new ReplaceStrokesCommand(
+          this.doc,
+          [],
+          strokes.map((stroke, i) => ({ index: start + i, stroke })),
+        ),
+      ]),
+    );
+    this.select(null);
   }
 
   /** Seçili dikdörtgeni kutuya dönüştürür (aynı kimlik; geri alınabilir). */
@@ -302,6 +346,48 @@ export class SelectTool implements Tool, ToolOverlay {
   }
 
   /**
+   * 2 noktalı kutu: ön uçlar (0, 4) yüksekliği değiştirir (kenar dikey kalır),
+   * yan köşeler o yöndeki derinliği, arka köşeler (2, 6) iki derinliği birden.
+   */
+  private movedTwoPointBox(original: Shape, index: number, p: Point): Shape {
+    const box = original.box!;
+    const second = box.second!;
+    const v = original.vertices;
+    const a = { x: v[0], y: v[1] };
+    const b = { x: v[8], y: v[9] };
+    const base = index < 4 ? a : b;
+    /** `x`'ten `vp`'ye giden doğru üzerindeki `q` noktasının oranı. */
+    const ratio = (x: Point, vp: Point, q: Point) => {
+      const dx = vp.x - x.x;
+      const dy = vp.y - x.y;
+      const len2 = dx * dx + dy * dy;
+      return len2 > 0 ? ((q.x - x.x) * dx + (q.y - x.y) * dy) / len2 : 0;
+    };
+    switch (index % 4) {
+      case 0: {
+        // Ön uç: yalnızca yükseklik (x kenar boyunca sabit)
+        const y = this.newSnapper().vertex(p).y;
+        const next = [...v];
+        next[index === 0 ? 1 : 9] = y;
+        return rebuildBox(original, {}, next);
+      }
+      case 1:
+        return rebuildBox(original, { depth: ratio(base, box.vp, p) });
+      case 3:
+        return rebuildBox(original, { second: { ...second, depth: ratio(base, second.vp, p) } });
+      default: {
+        // Arka köşe: imleç iki yandaki doğruların kesişimi olacak şekilde iki derinlik
+        const t1 = crossRatio(base, box.vp, second.vp, p);
+        const t2 = crossRatio(base, second.vp, box.vp, p);
+        return rebuildBox(original, {
+          depth: t1 ?? box.depth,
+          second: { ...second, depth: t2 ?? second.depth },
+        });
+      }
+    }
+  }
+
+  /**
    * Dikdörtgen köşesi: karşı köşe sabit; komşular sürüklenen köşeyle paylaştıkları
    * koordinatı izler. Kenarlar eksenlere paralel kalır: köşe yalnızca ızgaraya yapışır.
    */
@@ -321,6 +407,8 @@ export class SelectTool implements Tool, ToolOverlay {
     const { original, index } = drag;
     const pts = shapeVertices(original);
     const n = pts.length;
+
+    if (original.kind === 'box' && original.box?.second) return this.movedTwoPointBox(original, index, p);
 
     if (original.kind === 'box' && original.box) {
       if (index >= 4) {
@@ -366,4 +454,38 @@ export class SelectTool implements Tool, ToolOverlay {
     vertices[index * 2 + 1] = corner.y;
     return { ...original, vertices };
   }
+}
+
+/**
+ * `base`'den `vpA`'ya giden doğru ile `vpB`'den `p`'ye giden doğrunun
+ * kesişiminin, ilk doğru üzerindeki oranı (paralelse null).
+ */
+function crossRatio(base: Point, vpA: Point, vpB: Point, p: Point): number | null {
+  const d = { x: vpA.x - base.x, y: vpA.y - base.y };
+  const e = { x: p.x - vpB.x, y: p.y - vpB.y };
+  const den = d.x * e.y - d.y * e.x;
+  if (Math.abs(den) < 1e-9) return null;
+  return ((vpB.x - base.x) * e.y - (vpB.y - base.y) * e.x) / den;
+}
+
+/** Şeklin görünen kenarlarından stroke'lar (bkz. `SelectTool.convertToStrokes`). */
+export function shapeToStrokes(shape: Shape): Stroke[] {
+  const make = (pts: Point[]): Stroke => {
+    const stroke: Stroke = { id: newStrokeId(), points: pts.flatMap((q) => [q.x, q.y]), style: { ...shape.style } };
+    if (shape.layerId) stroke.layerId = shape.layerId;
+    return stroke;
+  };
+  if (shape.kind === 'box') {
+    // Kutu kenarları ayrı ayrı; arkada kalanlar yalnızca "Görünür" ayarında
+    const occluded = shape.box?.back === 'solid' ? new Set<number>() : boxOccludedEdges(shape);
+    const edges = shapeEdges(shape);
+    return visibleEdges(shape)
+      .filter((e) => !occluded.has(e.index))
+      .map((e) => make([edges[e.index][0], edges[e.index][1]]));
+  }
+  // Ardışık kenarlar tek çizgi (köşeler keskin kalsın diye iki noktalı parçalar halinde)
+  return visibleRuns(shape).flatMap((run) => {
+    const pts = run.closed ? [...run.points, run.points[0]] : run.points;
+    return pts.slice(1).map((q, i) => make([pts[i], q]));
+  });
 }

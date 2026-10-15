@@ -10,6 +10,7 @@ import {
   rebuildBox,
   rectToBox,
   rectVertices,
+  segmentToBox,
   shapeEdges,
   BOX_DEPTH_MAX,
   BOX_DEPTH_MIN,
@@ -156,5 +157,67 @@ describe('geri al', () => {
     expect(doc.shapes[0].kind).toBe('box');
     history.undo();
     expect(doc.shapes[0].kind).toBe('rect');
+  });
+});
+
+describe('2 noktalı kutu', () => {
+  const seg = (): Shape => ({ id: 's', kind: 'segment', vertices: [400, 500, 402, 300], style, cornerLines: true });
+  const L = { id: 'L', x: 0, y: 200 };
+  const R = { id: 'R', x: 1000, y: 200 };
+
+  it('ön kenar dikey (x ortalanır, üst uç A); yan köşeler noktalara doğru, arka kenar dikey', () => {
+    const box = segmentToBox(seg(), L, R, 0.25);
+    const v = box.vertices;
+    expect([v[0], v[1], v[8], v[9]]).toEqual([401, 300, 401, 500]);
+    // A1 = A + 0.25·(L − A)
+    expect(v[2]).toBeCloseTo(401 + (0 - 401) * 0.25);
+    expect(v[3]).toBeCloseTo(300 + (200 - 300) * 0.25);
+    // Arka köşeler C (üst) ve D (alt) aynı dikeyde
+    expect(v[4]).toBeCloseTo(v[12]);
+    // C: A1→R ile A2→L doğrularının kesişimi
+    const A1 = { x: v[2], y: v[3] };
+    const C = { x: v[4], y: v[5] };
+    const cross = (R.x - A1.x) * (C.y - A1.y) - (R.y - A1.y) * (C.x - A1.x);
+    expect(Math.abs(cross)).toBeLessThan(1e-6);
+  });
+
+  it('çok uzak nokta: köşeler sonlu (paralelkenar yaklaşımı)', () => {
+    const box = segmentToBox(seg(), { id: 'L', x: -1e12, y: 200 }, { id: 'R', x: 1e12, y: 200 }, 0.25);
+    expect(box.vertices.every(Number.isFinite)).toBe(true);
+  });
+
+  it('görünürlük: göz hizasının altındaki kutuda üst yüz, üstündekinde alt yüz görünür', () => {
+    const below = segmentToBox(seg(), L, R);
+    expect([...boxOccludedEdges(below)].sort((a, b) => a - b)).toEqual([5, 6, 10]);
+    const above = segmentToBox({ ...seg(), vertices: [400, 100, 400, 0] }, L, R);
+    expect([...boxOccludedEdges(above)].sort((a, b) => a - b)).toEqual([1, 2, 10]);
+    const across = segmentToBox({ ...seg(), vertices: [400, 100, 400, 300] }, L, R);
+    expect([...boxOccludedEdges(across)].sort((a, b) => a - b)).toEqual([1, 2, 5, 6, 10]);
+  });
+
+  it('iki nokta da eşlenir; kayıt gidiş-dönüş', () => {
+    const scene = new PerspectiveScene();
+    scene.reset({ x: 0, y: 0, width: 1000, height: 1000 });
+    const [a, b] = scene.points;
+    const doc = new DrawingDocument();
+    doc.replaceAll([], [segmentToBox(seg(), a, b)]);
+    scene.movePoint(b.id, { x: 1200, y: 400 });
+    expect(syncBoxes(doc, scene)).toBe(true);
+    expect(doc.shapes[0].box!.second!.vp).toEqual({ x: 1200, y: 400 });
+    expect(doc.shapes[0].box!.vp.y).toBe(400); // kilitli ufuk: diğer nokta da indi
+
+    const saved = {
+      version: 3,
+      savedAt: 1,
+      paper: { kind: 'a4', width: 800, height: 1000, orientation: 'portrait' },
+      scene: { mode: 2, horizonLocked: true, horizonAngle: 0, rayCount: 24, points: [] },
+      strokes: [],
+      shapes: [doc.shapes[0]],
+      layers: [{ id: 'a', name: '', visible: true, locked: false, opacity: 1 }],
+      activeLayerId: 'a',
+    };
+    const parsed = parseSavedDrawing(saved)!.shapes[0];
+    expect(parsed.box).toEqual(doc.shapes[0].box);
+    expect(parsed.vertices.map((x) => Math.round(x * 1e6))).toEqual(doc.shapes[0].vertices.map((x) => Math.round(x * 1e6)));
   });
 });
