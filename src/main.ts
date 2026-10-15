@@ -1,7 +1,15 @@
 import './styles/theme.css';
 import './styles/main.css';
 
-import { applyTranslations, formatPercent, onLanguageChange, setLanguage, t, type MessageKey } from './i18n';
+import {
+  applyTranslations,
+  formatPercent,
+  getLanguage,
+  onLanguageChange,
+  setLanguage,
+  t,
+  type MessageKey,
+} from './i18n';
 import { ThemeController } from './ui/theme';
 import { removeItemsCommand, ReplaceStrokesCommand } from './engine/commands';
 import { DrawingDocument } from './engine/document';
@@ -57,6 +65,10 @@ import { PaperGridPanel } from './ui/paper-grid-panel';
 import { SidebarDock } from './ui/sidebar';
 import { Toast } from './ui/toast';
 import { Compass } from './ui/compass';
+import { Tutorial } from './ui/tutorial/tutorial';
+import { idbDelete, idbGet, idbPut } from './storage/idb';
+import { DEFAULT_GRID, parseSavedDrawing, type SavedDrawing } from './storage/format';
+import { DEFAULT_CORNER_LINES } from './perspective/corner-lines';
 import { layerDisplayName, LayersPanel } from './ui/layers-panel';
 import {
   addLayerCommand,
@@ -450,7 +462,10 @@ function showLayerBlocked(reason: LayerBlock): void {
 brush.onLayerBlocked = showLayerBlocked;
 shapeTool.onLayerBlocked = showLayerBlocked;
 eraser.onLayerBlocked = showLayerBlocked;
-eraser.onErased = () => toastWithUndo('toast.erased');
+eraser.onErased = () => {
+  toastWithUndo('toast.erased');
+  tutorial.notify('erased');
+};
 
 const displayName = (id: string) => {
   const index = doc.layerIndex(id);
@@ -771,9 +786,10 @@ function openTemplates(): void {
 const onboardingEl = document.getElementById('onboarding')!;
 let onboardingDismissed = false;
 
-/** Boş tuvalde, kapatılmadıysa görünür. */
+/** Boş tuvalde, kapatılmadıysa ve tur sürmüyorsa görünür. */
 function syncOnboarding(): void {
-  onboardingEl.hidden = onboardingDismissed || !doc.isEmpty;
+  onboardingEl.hidden = onboardingDismissed || !doc.isEmpty || tutorial.active;
+  onboardingTour.hidden = tutorialDone;
 }
 
 function setOnboardingDismissed(dismissed: boolean): void {
@@ -782,6 +798,85 @@ function setOnboardingDismissed(dismissed: boolean): void {
 }
 
 document.getElementById('onboarding-templates')!.addEventListener('click', openTemplates);
+
+// ---------- Öğretici ----------
+
+/** Turun boş sayfada yürüdüğü sırada kullanıcının çiziminin yedeği (sekme kapanırsa kurtarılır). */
+const TUTORIAL_BACKUP_KEY = 'tutorial-backup';
+const onboardingTour = document.getElementById('onboarding-tour') as HTMLButtonElement;
+let tutorialDone = false;
+let tutorialBackup: SavedDrawing | null = null;
+const tutorial = new Tutorial(
+  document.getElementById('app')!,
+  {
+    onFinish: (clearPractice) => void finishTour(clearPractice),
+    onToggleLanguage: () => setLanguage(getLanguage() === 'tr' ? 'en' : 'tr'),
+  },
+  window.matchMedia('(pointer: coarse)').matches,
+);
+
+/** Boş çalışma: aynı kâğıt, varsayılan kurgu, tek katman, çizim yok. */
+function blankDrawing(): SavedDrawing {
+  const s = new PerspectiveScene();
+  s.reset(paper.rect);
+  const layer = createLayer();
+  return {
+    ...buildSavedDrawing(drawingSources),
+    scene: { ...s.snapshot(), rayCount: scene.rayCount },
+    strokes: [],
+    shapes: [],
+    grid: { ...DEFAULT_GRID },
+    cornerLines: { ...DEFAULT_CORNER_LINES },
+    layers: [layer],
+    activeLayerId: layer.id,
+  };
+}
+
+function loadDrawing(saved: SavedDrawing): void {
+  applySavedDrawing(drawingSources, saved);
+  history.clear();
+  onPaperChanged();
+}
+
+/** Turu başlatır; çizim varsa yedeklenip boş sayfada yürür (bitince geri gelir). */
+async function startTour(): Promise<void> {
+  if (tutorial.active || input.busy) return;
+  if (helpDialog.open) helpDialog.close();
+  if (!doc.isEmpty) {
+    const ok = await confirmDialog.ask({ message: t('tutorial.sandboxConfirm'), confirmLabel: t('tutorial.start') });
+    if (!ok || tutorial.active) return;
+    tutorialBackup = buildSavedDrawing(drawingSources);
+    try {
+      await idbPut(TUTORIAL_BACKUP_KEY, tutorialBackup);
+    } catch {
+      // Yedek yalnızca bellekte kalır; sekme açık kaldıkça yine geri gelir
+    }
+    loadDrawing(blankDrawing());
+  }
+  tutorial.sandbox = tutorialBackup !== null;
+  selectTool('brush');
+  tutorial.start();
+  syncOnboarding();
+}
+
+async function finishTour(clearPractice: boolean): Promise<void> {
+  tutorialDone = true;
+  schedulePrefsSave();
+  if (tutorialBackup) {
+    loadDrawing(tutorialBackup);
+    tutorialBackup = null;
+    toast.show(t('tutorial.restored'));
+    // Geri gelen çizim kayda yazılmadan yedek silinmez
+    await autosave.flush();
+    void idbDelete(TUTORIAL_BACKUP_KEY).catch(() => {});
+  } else if (clearPractice) {
+    loadDrawing(blankDrawing());
+  }
+  syncOnboarding();
+}
+
+onboardingTour.addEventListener('click', () => void startTour());
+document.getElementById('help-tour')!.addEventListener('click', () => void startTour());
 document.getElementById('onboarding-help')!.addEventListener('click', () => openHelp());
 document.getElementById('onboarding-close')!.addEventListener('click', () => {
   setOnboardingDismissed(true);
@@ -1026,6 +1121,7 @@ const compass = new Compass(document.getElementById('app')!, resetRotation);
 
 viewport.onChange(() => {
   compass.update(viewport.rotation);
+  if (tutorial.active) tutorial.notify('viewChanged');
   toolbar.setZoom(viewport.scale);
   renderer.requestRender();
 });
@@ -1062,6 +1158,11 @@ const prefsTargets: PrefsTargets = {
   setWheelZoom: (zoom) => {
     input.wheelZooms = zoom;
     wheelZoomInput.checked = zoom;
+  },
+  getTutorialDone: () => tutorialDone,
+  setTutorialDone: (done) => {
+    tutorialDone = done;
+    syncOnboarding();
   },
   getTool: () => input.activeTool?.id ?? 'brush',
   setTool: (id) => {
@@ -1107,6 +1208,7 @@ brushSettings.onChange(updatePanel);
 onLanguageChange(() => {
   toolbar.refreshLanguage();
   compass.refreshLanguage();
+  tutorial.refreshLanguage();
   brushPanel.update();
   eraserPanel.update();
   referencePanel.update();
@@ -1164,6 +1266,7 @@ doc.onChange(keepBoxesInSync);
 
 scene.onChange(() => {
   keepBoxesInSync();
+  if (tutorial.active) tutorial.notify('pointMoved');
   // Kutuya dönüştürme ve kutunun kaçış noktası seçimi kurguya bağlı
   updateSelectPanel();
   autosave.markDirty();
@@ -1202,6 +1305,27 @@ doc.onChange(() => {
 });
 
 history.onChange(() => toolbar.setHistory(history.canUndo, history.canRedo));
+
+// Öğretici: çizgi / şekil eklendi, imleç bir kaçış noktasına yaklaştı
+let strokeCount = 0;
+let shapeCount = 0;
+doc.onChange(() => {
+  if (tutorial.active) {
+    if (doc.strokes.length > strokeCount) tutorial.notify('strokeAdded');
+    if (doc.shapes.length > shapeCount) tutorial.notify('shapeAdded');
+  }
+  strokeCount = doc.strokes.length;
+  shapeCount = doc.shapes.length;
+});
+state.onChange((changed) => {
+  const pointer = state.pointer;
+  if (!tutorial.active || !changed.has('pointer') || !pointer) return;
+  const near = scene.activePoints.some((p) => {
+    const s = viewport.worldToScreen(p);
+    return Math.hypot(s.x - pointer.x, s.y - pointer.y) < 90;
+  });
+  if (near) tutorial.notify('nearPoint');
+});
 
 input.onHover((pointer) => state.update({ pointer }));
 
@@ -1409,7 +1533,15 @@ async function restore(): Promise<void> {
   scene.reset(paper.rect);
   loadPrefs(prefsTargets);
 
-  const saved = await autosave.load();
+  // Yarım kalan turun yedeği varsa (tur sırasında sekme kapandı) o çizim geri gelir
+  let recovered: SavedDrawing | null = null;
+  try {
+    recovered = parseSavedDrawing(await idbGet(TUTORIAL_BACKUP_KEY));
+  } catch {
+    recovered = null;
+  }
+  const saved = recovered ?? (await autosave.load());
+  if (recovered) toast.show(t('tutorial.recovered'));
   if (saved) {
     applySavedDrawing(drawingSources, saved);
     toolbar.setPaper(paper.kind, paper.orientation);
@@ -1419,6 +1551,12 @@ async function restore(): Promise<void> {
   }
   syncOnboarding();
   autosave.start();
+  if (recovered) {
+    // Kurtarılan çizim önce kayda yazılır, yedek ancak sonra silinir (yoksa bir yenilemede kaybolurdu)
+    autosave.markDirty();
+    await autosave.flush();
+    void idbDelete(TUTORIAL_BACKUP_KEY).catch(() => {});
+  }
   await referenceStore.load();
   referenceStore.start();
 }

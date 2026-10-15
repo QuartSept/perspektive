@@ -602,6 +602,104 @@ body {
   outline-offset: -1px;
 }
 
+/* ---------- Öğretici ---------- */
+
+.tutorial-card {
+  position: absolute;
+  z-index: 40;
+  left: 50%;
+  bottom: 16px;
+  width: min(440px, calc(100% - 24px));
+  padding: 12px 14px;
+  transform: translateX(-50%);
+  background: var(--color-ui-bg);
+  border: 1px solid var(--color-ui-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-ui);
+  backdrop-filter: blur(8px);
+}
+
+.tutorial-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tutorial-card__progress {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.tutorial-card__close {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.tutorial-card__close:hover {
+  background: var(--color-ui-hover);
+  color: var(--color-text);
+}
+
+.tutorial-card__title {
+  margin: 2px 0 6px;
+  font-size: 15px;
+}
+
+.tutorial-card__text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.tutorial-card__hint,
+.tutorial-card__done {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.tutorial-card__done {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.tutorial-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.tutorial-ring {
+  position: fixed;
+  z-index: 39;
+  border: 2px solid var(--color-accent);
+  border-radius: 10px;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 25%, transparent);
+  pointer-events: none;
+  animation: tutorial-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes tutorial-pulse {
+  50% {
+    box-shadow: 0 0 0 8px color-mix(in srgb, var(--color-accent) 10%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tutorial-ring {
+    animation: none;
+  }
+}
+
 /* ---------- Pusula ---------- */
 
 .compass {

@@ -32,6 +32,7 @@ interface Prefs {
   markerScale?: number;
   wheelZoom?: boolean;
   tool?: string;
+  tutorialDone?: boolean;
 }
 
 export interface PrefsTargets {
@@ -52,6 +53,8 @@ export interface PrefsTargets {
   setWheelZoom(zoom: boolean): void;
   getTool(): string;
   setTool(id: string): void;
+  getTutorialDone(): boolean;
+  setTutorialDone(done: boolean): void;
 }
 
 const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
@@ -88,6 +91,7 @@ export function loadPrefs(t: PrefsTargets): void {
   if (num(prefs.markerScale)) t.setMarkerScale(prefs.markerScale);
   if (typeof prefs.wheelZoom === 'boolean') t.setWheelZoom(prefs.wheelZoom);
   if (typeof prefs.tool === 'string') t.setTool(prefs.tool);
+  if (prefs.tutorialDone === true) t.setTutorialDone(true);
   if (THEME_PREFERENCES.includes(prefs.theme as ThemePreference)) {
     t.theme.set(prefs.theme as ThemePreference);
   }
@@ -115,6 +119,7 @@ export function savePrefs(t: PrefsTargets): void {
     markerScale: t.getMarkerScale(),
     wheelZoom: t.getWheelZoom(),
     tool: t.getTool(),
+    tutorialDone: t.getTutorialDone(),
   };
   try {
     localStorage.setItem(KEY, JSON.stringify(prefs));

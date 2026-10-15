@@ -28,7 +28,7 @@ Hesap ve sunucu yoktur; her şey tarayıcınızda kalır.
 - Otomatik kayıt (IndexedDB), PNG ve SVG (gerçek ölçek) dışa aktarma, A4 yazdırma (yalnızca çizim / kılavuzlarla)
 - Proje dosyası (.json) kaydet / aç; dosyayı tuvale sürükleyip bırakarak da açılır
 - Şablonlar: küp, yol, oda, oda köşesi (üzerinden geçilecek açık gri kılavuzlarla) ve boş 1/2 nokta
-- İlk kullanımda boş tuvalde tek satırlık ipucu
+- İlk kullanımda boş tuvalde tek satırlık ipucu ve 8 adımlık etkileşimli tur (kaçış noktası, ışınlar, mıknatıslı çizgi, şekil / kutu, parça silgisi, gezinme, kaydetme); yardımdan yeniden başlatılır, çizim varsa yedeklenip tur bitince geri gelir
 - Paneller solda ince bir şeride daralır: fareyle üstüne gelince açılır, dokunmatikte dokununca açılıp kapanır; istenirse sabitlenir
 - Perspektif ızgarası: kaçış noktalarına göre zemin, sol duvar ya da sağ duvar (kareler perspektifte doğru kısalır)
 - Referans görsel altlığı: fotoğraf yükle ya da sürükle-bırak; opaklık, sığdır/kapla (çıktılara girmez)
