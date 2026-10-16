@@ -6,5 +6,8 @@
   "compatibility_date": "2026-09-01",
   "assets": {
     "directory": "./dist"
-  }
+  },
+  // main dışı dallar (ör. v4) `npx wrangler preview` ile önizleme adresine yüklenir;
+  // komut bu bloğu ister (boş olabilir, assets üstte kalır)
+  "previews": {}
 }
