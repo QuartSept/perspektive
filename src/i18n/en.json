@@ -34,7 +34,7 @@
   "perspective.rayCount": "Ray count",
   "perspective.showGuides": "Guides (G)",
   "perspective.cursorRays": "Cursor lines",
-  "perspective.cursorRaysTitle": "With the brush, thin lines from the pointer to the vanishing points (shown even when guides are hidden)",
+  "perspective.cursorRaysTitle": "With the brush, thin lines from each vanishing point through the pointer to the edge of the screen (shown even when guides are hidden)",
   "perspective.deletePoint": "Delete selected point",
   "perspective.markerSize": "Point size",
   "perspective.centerPoint": "Centre",

@@ -13,7 +13,7 @@ Hesap ve sunucu yoktur; her şey tarayıcınızda kalır.
 - Perspektif kapatılabilir: her yöne düz çizgi (başlangıç → bitiş), yatay/dikeye yapışma; kurgu saklanır
 - Kâğıt ızgarası (5 / 10 / 20 mm, gerçek ölçek): göster ve ızgaraya yapış ayrı; gizliyken yapışma açıksa görünmez cetvel. Ayar çizimle kaydedilir, "kılavuzlarla" çıktılara girer
 - Hayalet ışınlar (12–72), imleç yaklaştıkça ilgili noktanın ışınları belirginleşir
-- İmleç çizgileri: fırça seçiliyken imleçten her kaçış noktasına ince, soluk çizgi (kılavuzlar `G` ile gizliyken de görünür; panelden kapatılabilir)
+- İmleç çizgileri: fırça seçiliyken her kaçış noktasından imlecin üzerinden geçip ekran kenarına uzanan ince, soluk çizgi (kılavuzlar `G` ile gizliyken de görünür; panelden kapatılabilir)
 - Kaçış noktası her araçta (fırça, şekil, seç) tutulup taşınabilir; boyutu ayarlanabilir, "Merkeze al" ile kâğıt merkezine yerleşir, taşırken merkez eksenlerine yapışır (`Shift` ile kapalı)
 - "Merkeze git" (`C`): görünüm ölçeği koruyarak kâğıdın ortasına kayar; isteğe bağlı merkez çizgileri
 - Görünümü döndürme (kâğıdı masada çevirmek gibi; çizim ve çıktılar etkilenmez): iki parmakla ya da `R` + sürükle (`Shift`: 15°), düz hizaya hafif yapışma; dönükken pusula, tıklayınca ya da `Shift+R` ile sıfırlanır

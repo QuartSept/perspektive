@@ -34,7 +34,7 @@
   "perspective.rayCount": "Işın sayısı",
   "perspective.showGuides": "Kılavuzlar (G)",
   "perspective.cursorRays": "İmleç çizgileri",
-  "perspective.cursorRaysTitle": "Fırça seçiliyken imleçten kaçış noktalarına ince çizgiler (kılavuzlar gizliyken de görünür)",
+  "perspective.cursorRaysTitle": "Fırça seçiliyken kaçış noktalarından imlecin üzerinden geçip ekran kenarına uzanan ince çizgiler (kılavuzlar gizliyken de görünür)",
   "perspective.deletePoint": "Seçili noktayı sil",
   "perspective.markerSize": "Nokta boyutu",
   "perspective.centerPoint": "Merkeze al",
