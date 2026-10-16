@@ -5,7 +5,7 @@ import { PX_PER_MM } from './paper';
 describe('PaperGrid', () => {
   it('varsayılan kapalı, 10 mm; aralık dünya biriminde', () => {
     const g = new PaperGrid();
-    expect(g.toSaved()).toEqual({ visible: false, snap: false, spacingMm: 10 });
+    expect(g.toSaved()).toEqual({ visible: false, snap: false, spacingMm: 10, centerMark: false });
     expect(g.spacing).toBeCloseTo(10 * PX_PER_MM);
   });
 
@@ -19,8 +19,8 @@ describe('PaperGrid', () => {
     g.setSpacing(7 as never);
     expect(n).toBe(2);
     expect(g.spacingMm).toBe(20);
-    g.restore({ visible: false, snap: true, spacingMm: 5 });
-    expect(g.toSaved()).toEqual({ visible: false, snap: true, spacingMm: 5 });
+    g.restore({ visible: false, snap: true, spacingMm: 5, centerMark: true });
+    expect(g.toSaved()).toEqual({ visible: false, snap: true, spacingMm: 5, centerMark: true });
   });
 });
 

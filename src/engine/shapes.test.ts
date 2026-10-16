@@ -5,13 +5,19 @@ import { History } from './history';
 import { OrientationCommand } from './orientation';
 import { Paper } from './paper';
 import {
+  cornerHasVisibleEdge,
+  edgeCount,
   isClosed,
   mapShape,
   rectVertices,
   segmentTouchesShape,
   shapeBounds,
   shapeEdges,
+  shapeVertices,
+  touchedEdges,
   triangleVertices,
+  visibleRuns,
+  withHiddenEdges,
   type Shape,
 } from './shapes';
 import { PerspectiveScene } from '../perspective/scene';
@@ -88,5 +94,45 @@ describe('belge ve komutlar', () => {
     expect(doc.shapes[0].vertices).toEqual([H - 20, 10, H - 40, 30]);
     history.undo();
     expect(doc.shapes[0].vertices).toEqual([10, 20, 30, 40]);
+  });
+});
+
+describe('silinmiş kenarlar', () => {
+  const rect = shape('r', 'rect', rectVertices({ x: 0, y: 0 }, { x: 100, y: 50 }));
+
+  it('görünen kenarlar ardışık parçalar; hiç silinmemiş kapalı şekil tek kapalı parça', () => {
+    expect(visibleRuns(rect)).toEqual([{ points: shapeVertices(rect), closed: true }]);
+    // Üst kenar (0) silinmiş: sağ, alt, sol tek parça (kapanış kenarı bölünmez)
+    const r = visibleRuns({ ...rect, hiddenEdges: [0] });
+    expect(r).toHaveLength(1);
+    expect(r[0].closed).toBe(false);
+    expect(r[0].points).toEqual([
+      { x: 100, y: 0 },
+      { x: 100, y: 50 },
+      { x: 0, y: 50 },
+      { x: 0, y: 0 },
+    ]);
+    // Karşılıklı iki kenar silinmiş: iki ayrı parça
+    expect(visibleRuns({ ...rect, hiddenEdges: [0, 2] })).toHaveLength(2);
+  });
+
+  it('kenar sayısı ve köşe kuralı: köşeye değen bir kenar görünüyorsa köşe çizgisi çıkar', () => {
+    expect(edgeCount(rect)).toBe(4);
+    expect(edgeCount(shape('s', 'segment', [0, 0, 1, 1]))).toBe(1);
+    const r = { ...rect, hiddenEdges: [0, 3] }; // köşe 0'a değen iki kenar da silinmiş
+    expect(cornerHasVisibleEdge(r, 0)).toBe(false);
+    expect(cornerHasVisibleEdge(r, 1)).toBe(true);
+  });
+
+  it('withHiddenEdges: tekil ve sıralı; hepsi silinirse null', () => {
+    expect(withHiddenEdges(rect, [2, 0, 2])!.hiddenEdges).toEqual([0, 2]);
+    expect(withHiddenEdges({ ...rect, hiddenEdges: [0, 1] }, [2, 3])).toBeNull();
+  });
+
+  it('silgi ve seçim yalnızca görünen kenarlara bakar', () => {
+    const r = { ...rect, hiddenEdges: [0] };
+    expect(touchedEdges(r, { x: 50, y: -2 }, { x: 50, y: 2 }, 1)).toEqual([]);
+    expect(touchedEdges(r, { x: 98, y: 25 }, { x: 102, y: 25 }, 1)).toEqual([1]);
+    expect(segmentTouchesShape(r, { x: 50, y: -2 }, { x: 50, y: 2 }, 1)).toBe(false);
   });
 });

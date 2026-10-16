@@ -104,3 +104,29 @@ export function removeItemsCommand(
   if (shapeIds.length) commands.push(new ReplaceShapesCommand(doc, shapeIds, []));
   return combineCommands(commands);
 }
+
+/**
+ * Şeklin önceki ve sonraki hâli arasında geçiş (aynı kimlik ve sıra). Sürükleme
+ * ya da kaydırıcı gibi adım adım uygulanmış değişikliği sonradan kaydetmek için.
+ */
+export class UpdateShapeCommand implements Command {
+  constructor(
+    private readonly doc: DrawingDocument,
+    private readonly before: Shape,
+    private readonly after: Shape,
+  ) {}
+
+  apply(): void {
+    this.swap(this.after);
+  }
+
+  revert(): void {
+    this.swap(this.before);
+  }
+
+  private swap(shape: Shape): void {
+    const index = this.doc.shapeIndexOf(shape.id);
+    if (index < 0) return;
+    this.doc.spliceShapes([shape.id], [{ index, shape }]);
+  }
+}

@@ -41,6 +41,8 @@
   --color-cursor: rgba(43, 42, 39, 0.85);
   --color-cursor-halo: rgba(253, 252, 248, 0.9);
   --color-grid: rgba(43, 42, 39, 0.12);
+  --color-center-mark: rgba(194, 85, 61, 0.45);
+  --cursor-ray-opacity: 0.32;
   --corner-line-opacity: 0.55;
 
   /* Çıktı (PNG / SVG / yazdırma) — temadan bağımsız */
@@ -52,6 +54,7 @@
   --print-horizon: rgba(194, 85, 61, 0.5);
   --print-marker-fill: #fdfcf8;
   --print-grid: rgba(43, 42, 39, 0.26);
+  --print-center-mark: rgba(194, 85, 61, 0.5);
   --print-corner-line-opacity: 0.6;
   --print-ink-black: #1f1e1c;
   --print-ink-gray-dark: #55524c;
@@ -115,6 +118,8 @@
   --color-cursor: rgba(240, 238, 233, 0.9);
   --color-cursor-halo: rgba(20, 19, 17, 0.9);
   --color-grid: rgba(255, 255, 255, 0.09);
+  --color-center-mark: rgba(232, 134, 107, 0.5);
+  --cursor-ray-opacity: 0.38;
   --corner-line-opacity: 0.6;
 
   --ink-black: #f0eee8;

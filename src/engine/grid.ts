@@ -24,6 +24,8 @@ export class PaperGrid {
   visible = DEFAULT_GRID.visible;
   snap = DEFAULT_GRID.snap;
   spacingMm: GridSpacingMm = DEFAULT_GRID.spacingMm;
+  /** Kâğıdın merkezinden geçen yatay ve dikey kılavuz. */
+  centerMark = DEFAULT_GRID.centerMark;
   private listeners = new Set<() => void>();
 
   /** Aralık, dünya biriminde. */
@@ -54,15 +56,27 @@ export class PaperGrid {
     this.emit();
   }
 
+  setCenterMark(on: boolean): void {
+    if (on === this.centerMark) return;
+    this.centerMark = on;
+    this.emit();
+  }
+
   restore(saved: SavedGrid): void {
     this.visible = saved.visible;
     this.snap = saved.snap;
     this.spacingMm = saved.spacingMm;
+    this.centerMark = saved.centerMark;
     this.emit();
   }
 
   toSaved(): SavedGrid {
-    return { visible: this.visible, snap: this.snap, spacingMm: this.spacingMm };
+    return {
+      visible: this.visible,
+      snap: this.snap,
+      spacingMm: this.spacingMm,
+      centerMark: this.centerMark,
+    };
   }
 
   private emit(): void {
@@ -200,6 +214,34 @@ export function drawGrid(
   ctx.strokeStyle = color;
   ctx.lineWidth = lineWidth;
   ctx.lineCap = 'butt';
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** Merkez işareti kesik deseni, dünya birimi değil çizim birimi (`lineWidth` ile ölçeklenir). */
+const CENTER_DASH = [6, 4];
+
+/**
+ * Kâğıdın merkezinden geçen yatay ve dikey kesikli çizgiler. Dönüşüm uygulanmış
+ * bağlama çizilir; `lineWidth` dünya birimidir (ekranda 1 CSS px için 1 / ölçek).
+ */
+export function drawCenterMark(
+  ctx: CanvasRenderingContext2D,
+  paper: Rect,
+  color: string,
+  lineWidth: number,
+): void {
+  const cx = paper.x + paper.width / 2;
+  const cy = paper.y + paper.height / 2;
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(cx, paper.y);
+  ctx.lineTo(cx, paper.y + paper.height);
+  ctx.moveTo(paper.x, cy);
+  ctx.lineTo(paper.x + paper.width, cy);
+  ctx.setLineDash(CENTER_DASH.map((d) => d * lineWidth));
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lineWidth;
   ctx.stroke();
   ctx.restore();
 }

@@ -9,8 +9,10 @@ export interface Padding {
 
 /**
  * Dünya (world) koordinatlarını ekran (CSS piksel) koordinatlarına eşler.
- *   screen = world * scale + offset
- * Dünya birimi: %100 yakınlaştırmada 1 CSS pikseli (96 DPI).
+ *   screen = R(rotation) · (world · scale) + offset
+ * Dünya birimi: %100 yakınlaştırmada 1 CSS pikseli (96 DPI). Döndürme
+ * yalnızca görünümdür (kâğıdı masada çevirmek gibi); çizim, kayıt ve
+ * çıktılar dünya koordinatlarıyla çalışır.
  */
 export class Viewport {
   static readonly MIN_SCALE = 0.05;
@@ -19,6 +21,8 @@ export class Viewport {
   offsetX = 0;
   offsetY = 0;
   scale = 1;
+  /** Görünüm açısı, radyan (ekranda saat yönü pozitif). */
+  rotation = 0;
   width = 0;
   height = 0;
 
@@ -33,18 +37,51 @@ export class Viewport {
     for (const fn of this.listeners) fn();
   }
 
+  /** Dünya noktasının ölçeklenip döndürülmüş hâli (ötelemesiz). */
+  private turn(p: Point): Point {
+    const c = Math.cos(this.rotation);
+    const s = Math.sin(this.rotation);
+    return { x: (p.x * c - p.y * s) * this.scale, y: (p.x * s + p.y * c) * this.scale };
+  }
+
   worldToScreen(p: Point): Point {
-    return { x: p.x * this.scale + this.offsetX, y: p.y * this.scale + this.offsetY };
+    const q = this.turn(p);
+    return { x: q.x + this.offsetX, y: q.y + this.offsetY };
   }
 
   screenToWorld(p: Point): Point {
-    return { x: (p.x - this.offsetX) / this.scale, y: (p.y - this.offsetY) / this.scale };
+    const dx = p.x - this.offsetX;
+    const dy = p.y - this.offsetY;
+    const c = Math.cos(this.rotation);
+    const s = Math.sin(this.rotation);
+    return { x: (dx * c + dy * s) / this.scale, y: (-dx * s + dy * c) / this.scale };
   }
 
-  /** Ekranda görünen dünya dikdörtgeni. */
+  /** Dünya açısının (radyan) ekrandaki karşılığı. */
+  screenAngle(worldAngle: number): number {
+    return worldAngle + this.rotation;
+  }
+
+  /** Dünya yönünün (birim vektör) ekrandaki karşılığı. */
+  screenDirection(d: Point): Point {
+    const c = Math.cos(this.rotation);
+    const s = Math.sin(this.rotation);
+    return { x: d.x * c - d.y * s, y: d.x * s + d.y * c };
+  }
+
+  /** Ekranda görünen alanı kapsayan dünya dikdörtgeni (dönükken köşelerin sınır kutusu). */
   visibleWorldRect(): Rect {
-    const tl = this.screenToWorld({ x: 0, y: 0 });
-    return { x: tl.x, y: tl.y, width: this.width / this.scale, height: this.height / this.scale };
+    const corners = [
+      { x: 0, y: 0 },
+      { x: this.width, y: 0 },
+      { x: 0, y: this.height },
+      { x: this.width, y: this.height },
+    ].map((p) => this.screenToWorld(p));
+    const xs = corners.map((p) => p.x);
+    const ys = corners.map((p) => p.y);
+    const x = Math.min(...xs);
+    const y = Math.min(...ys);
+    return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y };
   }
 
   resize(width: number, height: number): void {
@@ -71,39 +108,69 @@ export class Viewport {
     if (next === this.scale) return;
     const world = this.screenToWorld(anchor);
     this.scale = next;
-    this.offsetX = anchor.x - world.x * next;
-    this.offsetY = anchor.y - world.y * next;
+    this.pin(world, anchor);
     this.emit();
+  }
+
+  /** Görünüm açısını değiştirir; ekrandaki `anchor` noktası yerinde kalır. */
+  setRotation(angle: number, anchor: Point = { x: this.width / 2, y: this.height / 2 }): void {
+    // (-π, π] aralığında tutulur
+    let a = angle % (Math.PI * 2);
+    if (a > Math.PI) a -= Math.PI * 2;
+    else if (a <= -Math.PI) a += Math.PI * 2;
+    if (a === this.rotation) return;
+    const world = this.screenToWorld(anchor);
+    this.rotation = a;
+    this.pin(world, anchor);
+    this.emit();
+  }
+
+  /** Ötelemeyi, dünya noktası ekranda `screen`'e düşecek şekilde ayarlar. */
+  private pin(world: Point, screen: Point): void {
+    const q = this.turn(world);
+    this.offsetX = screen.x - q.x;
+    this.offsetY = screen.y - q.y;
   }
 
   zoomAt(anchor: Point, factor: number): void {
     this.setScale(this.scale * factor, anchor);
   }
 
-  /** Dünya dikdörtgenini ekrana ortalayarak sığdırır. Kenar boşlukları CSS piksel. */
+  /**
+   * Dünya dikdörtgenini ekrana ortalayarak sığdırır (dönükken döndürülmüş
+   * sınır kutusu sığar; açı korunur). Kenar boşlukları CSS piksel.
+   */
   fitRect(rect: Rect, padding: Padding): void {
     const availW = Math.max(1, this.width - padding.left - padding.right);
     const availH = Math.max(1, this.height - padding.top - padding.bottom);
-    const scale = clamp(
-      Math.min(availW / rect.width, availH / rect.height),
-      Viewport.MIN_SCALE,
-      Viewport.MAX_SCALE,
-    );
-    this.scale = scale;
-    this.offsetX = padding.left + (availW - rect.width * scale) / 2 - rect.x * scale;
-    this.offsetY = padding.top + (availH - rect.height * scale) / 2 - rect.y * scale;
+    const c = Math.abs(Math.cos(this.rotation));
+    const s = Math.abs(Math.sin(this.rotation));
+    const boxW = rect.width * c + rect.height * s;
+    const boxH = rect.width * s + rect.height * c;
+    this.scale = clamp(Math.min(availW / boxW, availH / boxH), Viewport.MIN_SCALE, Viewport.MAX_SCALE);
+    const center = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+    this.pin(center, { x: padding.left + availW / 2, y: padding.top + availH / 2 });
+    this.emit();
+  }
+
+  /**
+   * Dünya noktasını, kenar boşlukları dışında kalan alanın ortasına kaydırır;
+   * ölçek değişmez ("sığdır"dan farkı).
+   */
+  centerOn(world: Point, padding: Padding): void {
+    const availW = Math.max(1, this.width - padding.left - padding.right);
+    const availH = Math.max(1, this.height - padding.top - padding.bottom);
+    const before = { x: this.offsetX, y: this.offsetY };
+    this.pin(world, { x: padding.left + availW / 2, y: padding.top + availH / 2 });
+    if (before.x === this.offsetX && before.y === this.offsetY) return;
     this.emit();
   }
 
   /** Bağlama dünya → cihaz pikseli dönüşümünü uygular. */
   applyTo(ctx: CanvasRenderingContext2D, dpr: number): void {
-    ctx.setTransform(
-      this.scale * dpr,
-      0,
-      0,
-      this.scale * dpr,
-      this.offsetX * dpr,
-      this.offsetY * dpr,
-    );
+    const k = this.scale * dpr;
+    const c = Math.cos(this.rotation);
+    const s = Math.sin(this.rotation);
+    ctx.setTransform(k * c, k * s, -k * s, k * c, this.offsetX * dpr, this.offsetY * dpr);
   }
 }

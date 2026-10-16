@@ -228,3 +228,126 @@ describe('klavye ve dokunma', () => {
     expect(verts('r')).toEqual([100, 100, 345, 100, 345, 240, 100, 240]);
   });
 });
+
+describe('katmanlar', () => {
+  it('kilitli ya da gizli katmandaki şekil seçilemez; seçiliyken kilitlenirse seçim düşer', () => {
+    const bottom = doc.layers[0].id;
+    doc.setLayers([{ ...doc.layers[0], locked: true }]);
+    tool.onPointerDown(ev({ x: 200, y: 102 }));
+    tool.onPointerUp(ev({ x: 200, y: 102 }));
+    expect(tool.selected).toBeNull();
+    doc.setLayers([{ ...doc.layers[0], locked: false }]);
+    tool.select('r');
+    expect(tool.selected?.id).toBe('r');
+    doc.setLayers([{ ...doc.layers[0], id: bottom, visible: false }]);
+    expect(tool.selected).toBeNull();
+  });
+
+  it('seçili şekil başka katmana taşınır, sırası korunur, geri alınır', () => {
+    doc.setLayers([...doc.layers, { id: 'top', name: '', visible: true, locked: false, opacity: 1 }]);
+    tool.select('r');
+    tool.moveToLayer('top');
+    expect(doc.getShape('r')!.layerId).toBe('top');
+    expect(doc.shapeIndexOf('r')).toBe(0);
+    history.undo();
+    expect(doc.getShape('r')!.layerId).toBeUndefined();
+  });
+});
+
+describe('kutu', () => {
+  it('dikdörtgen kutuya dönüşür (aynı kimlik), arka köşe derinliği, ön köşe ön yüzü değiştirir', () => {
+    tool.select('r');
+    tool.convertToBox('vp', { x: 700, y: 150 });
+    const box = doc.getShape('r')!;
+    expect(box.kind).toBe('box');
+    expect(tool.shapeHandles).toHaveLength(8);
+    // Arka köşe 4 (ön köşe 0'ın karşılığı): kaçış noktasına doğru sürüklenir
+    const b4 = { x: box.vertices[8], y: box.vertices[9] };
+    const toward = { x: 100 + (700 - 100) * 0.6, y: 100 + (150 - 100) * 0.6 };
+    drag(b4, toward);
+    expect(doc.getShape('r')!.box!.depth).toBeCloseTo(0.6);
+    // Ön köşe 2: dikdörtgen gibi (karşı köşe sabit), arka yüz izler
+    drag({ x: 300, y: 200 }, { x: 340, y: 240 });
+    const after = doc.getShape('r')!;
+    expect(after.vertices.slice(0, 8)).toEqual([100, 100, 340, 100, 340, 240, 100, 240]);
+    expect(after.vertices[12]).toBeCloseTo(340 + (700 - 340) * 0.6);
+  });
+
+  it('kutu taşınınca arka yüz kaçış noktasına göre yeniden hesaplanır', () => {
+    tool.select('r');
+    tool.convertToBox('vp', { x: 700, y: 150 });
+    const depth = doc.getShape('r')!.box!.depth;
+    drag({ x: 200, y: 100 }, { x: 230, y: 120 });
+    const box = doc.getShape('r')!;
+    expect(box.vertices.slice(0, 2)).toEqual([130, 120]);
+    expect(box.vertices[8]).toBeCloseTo(130 + (700 - 130) * depth);
+  });
+
+  it('kaydırıcı gibi adım adım düzenleme tek adımda geri alınır', () => {
+    tool.select('r');
+    tool.convertToBox('vp', { x: 700, y: 150 });
+    for (const d of [0.4, 0.5, 0.6]) {
+      tool.editSelected((s) => ({ ...s, box: { ...s.box!, depth: d } }), d === 0.6);
+    }
+    expect(doc.getShape('r')!.box!.depth).toBe(0.6);
+    history.undo();
+    expect(doc.getShape('r')!.box!.depth).toBe(0.3);
+    history.undo();
+    expect(doc.getShape('r')!.kind).toBe('rect');
+  });
+});
+
+describe('2 noktalı kutu ve çizgiye dönüştürme', () => {
+  const L = { id: 'L', x: 0, y: 200 };
+  const R = { id: 'R', x: 1000, y: 200 };
+
+  function twoPointBox() {
+    doc.replaceAll([], [shape('s', 'segment', [400, 300, 400, 500])]);
+    tool.select('s');
+    tool.convertSegmentToBox(L, R);
+    return doc.getShape('s')!;
+  }
+
+  it('segment kutuya dönüşür; yan köşe o yöndeki, arka köşe iki derinliği değiştirir', () => {
+    const box = twoPointBox();
+    expect(box.kind).toBe('box');
+    expect(box.box!.second!.depth).toBe(0.25);
+    // Köşe 1 (A1): L yönünde %50'ye
+    const a1 = { x: box.vertices[2], y: box.vertices[3] };
+    drag(a1, { x: 400 + (0 - 400) * 0.5, y: 300 + (200 - 300) * 0.5 });
+    expect(doc.getShape('s')!.box!.depth).toBeCloseTo(0.5);
+    expect(doc.getShape('s')!.box!.second!.depth).toBeCloseTo(0.25);
+    // Köşe 2 (C): arka köşeyi bir noktaya taşı → C o noktaya oturur
+    const b = doc.getShape('s')!;
+    const target = { x: b.vertices[4] + 10, y: b.vertices[5] - 4 };
+    drag({ x: b.vertices[4], y: b.vertices[5] }, target);
+    const c = doc.getShape('s')!;
+    expect(c.vertices[4]).toBeCloseTo(target.x, 0);
+    expect(c.vertices[5]).toBeCloseTo(target.y, 0);
+  });
+
+  it('ön kenarın üst ucu yalnızca yüksekliği değiştirir', () => {
+    twoPointBox();
+    drag({ x: 400, y: 300 }, { x: 430, y: 260 });
+    const v = doc.getShape('s')!.vertices;
+    expect([v[0], v[1], v[8], v[9]]).toEqual([400, 260, 400, 500]);
+  });
+
+  it('çizgilere dönüştür: dikdörtgen 4 çizgi; kesikli kutuda arkada kalan kenarlar aktarılmaz; geri alınır', () => {
+    tool.select('r');
+    tool.convertToStrokes();
+    expect(doc.getShape('r')).toBeUndefined();
+    expect(doc.strokes.filter((st) => st.points.length === 4)).toHaveLength(4);
+    expect(tool.selected).toBeNull();
+    history.undo();
+    expect(doc.getShape('r')).toBeDefined();
+    expect(doc.strokes).toHaveLength(0);
+
+    const box = twoPointBox();
+    const before = doc.strokes.length;
+    tool.select(box.id);
+    tool.convertToStrokes();
+    // 12 kenardan 3'ü arkada (kutu göz hizasının altında): 9 çizgi
+    expect(doc.strokes.length - before).toBe(9);
+  });
+});

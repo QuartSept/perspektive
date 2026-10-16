@@ -1,9 +1,8 @@
 import type { DrawingDocument } from './document';
-import { drawGrid } from './grid';
+import { drawCenterMark, drawGrid } from './grid';
 import type { Paper } from './paper';
 import { EditorState } from './state';
-import { drawShape } from './shapes';
-import { drawStroke } from './stroke';
+import { drawDocument } from './doc-render';
 import { toPrintTheme, type CanvasTheme } from './theme';
 import { Viewport } from './viewport';
 import { cornerLines, cornerTargets, type CornerLineSettings } from '../perspective/corner-lines';
@@ -22,7 +21,9 @@ export interface PageSources {
   scene: PerspectiveScene;
   theme: CanvasTheme;
   /** Kâğıt ızgarası; görünürse "kılavuzlarla" çıktıya girer. */
-  grid?: { visible: boolean; spacing: number } | null;
+  grid?: { visible: boolean; spacing: number; centerMark?: boolean } | null;
+  /** Kaçış noktası işaretçisi boyutu (ekrandakiyle aynı). */
+  markerScale?: number;
   /** Köşe kaçış çizgisi ayarı; "kılavuzlarla" çıktıya girer. */
   corners?: CornerLineSettings | null;
 }
@@ -66,9 +67,14 @@ export function renderPage(src: PageSources, options: PageRenderOptions): HTMLCa
     viewport.applyTo(ctx, k);
     drawGrid(ctx, paper.rect, src.grid.spacing, theme.grid, PRINT_GRID_WIDTH, 1);
   }
+  if (options.includeGuides && src.grid?.centerMark) {
+    viewport.applyTo(ctx, k);
+    drawCenterMark(ctx, paper.rect, theme.centerMark, PRINT_GRID_WIDTH);
+  }
 
   if (options.includeGuides) {
     const state = new EditorState();
+    if (src.markerScale) state.markerScale = src.markerScale;
     const view = {
       ctx,
       dpr: k,
@@ -79,17 +85,14 @@ export function renderPage(src: PageSources, options: PageRenderOptions): HTMLCa
     };
     drawGuides(view);
     if (src.corners) {
-      drawCornerLines(view, cornerLines(doc.shapes, cornerTargets(scene, src.corners), paper.rect));
+      const shapes = doc.shapes.filter((s) => doc.isVisible(s));
+      drawCornerLines(view, cornerLines(shapes, cornerTargets(scene, src.corners), paper.rect));
     }
     drawMarkers(view);
   }
 
   viewport.applyTo(ctx, k);
-  for (const shape of doc.shapes) {
-    drawShape(ctx, shape, theme.inks[shape.style.ink]);
-  }
-  for (const stroke of doc.strokes) {
-    drawStroke(ctx, stroke, theme.inks[stroke.style.ink]);
-  }
+  // Gizli katmanlar çıktıya girmez; sıra ve opaklık korunur
+  drawDocument(ctx, doc, theme.inks);
   return canvas;
 }

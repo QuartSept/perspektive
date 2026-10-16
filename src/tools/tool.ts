@@ -30,14 +30,20 @@ export interface ToolOverlay {
   readonly preview?: Stroke | null;
   /** Kilitli perspektif doğrusu. */
   readonly snapLine?: SnapLine | null;
+  /** Ek yapışma kılavuzları (ör. kâğıt merkezi eksenleri). */
+  readonly guideLines?: readonly SnapLine[];
   /** Silinmek üzere işaretlenen stroke'lar (soluk çizilir). */
   readonly fadedStrokeIds?: ReadonlySet<string>;
   /** Geçici olarak çizilmeyen stroke'lar (yerlerine `previewStrokes` gösterilir). */
   readonly hiddenStrokeIds?: ReadonlySet<string>;
   /** Etkileşim katmanında gösterilen geçici stroke'lar (ör. piksel silgisinin kalan parçaları). */
   readonly previewStrokes?: readonly Stroke[];
+  /** Soluk gösterilen geçici stroke'lar (ör. parça silgisinin silinecek parçaları). */
+  readonly fadedPreviewStrokes?: readonly Stroke[];
   /** Silinmek üzere işaretlenen şekiller (soluk çizilir). */
   readonly fadedShapeIds?: ReadonlySet<string>;
+  /** Şekil kimliği → silinmek üzere işaretli kenarlar (soluk çizilir). */
+  readonly fadedShapeEdges?: ReadonlyMap<string, ReadonlySet<number>>;
   /** Geçici olarak çizilmeyen şekiller (ör. düzenlenirken yerine önizleme gösterilir). */
   readonly hiddenShapeIds?: ReadonlySet<string>;
   /** Çizilmekte olan şekil. */

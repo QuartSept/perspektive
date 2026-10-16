@@ -130,3 +130,55 @@ describe('köşe çizgileri', () => {
     expect(buildSvg({ paper, strokes, scene: s, theme, cornerLines: lines }, false)).not.toContain('corner-lines');
   });
 });
+
+describe('merkez çizgileri ve işaretçi boyutu', () => {
+  it('kılavuzlu çıktıda kesikli merkez çizgileri; işaretçi ekrandaki boyutta', () => {
+    const s = scene();
+    const svg = buildSvg(
+      { paper, strokes, scene: s, theme: { ...theme, centerMark: 'rgba(194, 85, 61, 0.5)' }, centerMark: true, markerScale: 0.7 },
+      true,
+    );
+    expect(svg).toContain('id="center-mark"');
+    expect(svg).toContain('stroke-dasharray="6 4"');
+    expect(count(svg, /r="3.85"/g)).toBe(2);
+    expect(buildSvg({ paper, strokes, scene: s, theme, centerMark: true }, false)).not.toContain('center-mark');
+  });
+});
+
+describe('katmanlar', () => {
+  it('her katman ayrı grup; gizli katman yazılmaz, opaklık gruba uygulanır', () => {
+    const layers = [
+      { id: 'a', name: 'Eskiz', visible: true, locked: false, opacity: 0.5 },
+      { id: 'b', name: '', visible: false, locked: false, opacity: 1 },
+      { id: 'c', name: '', visible: true, locked: false, opacity: 1 },
+    ];
+    const layered = [
+      { ...strokes[0], layerId: 'a' },
+      { ...strokes[1], id: 'gizli', layerId: 'b' },
+      { ...strokes[0], id: 'katmansiz' },
+    ];
+    const svg = buildSvg({ paper, strokes: layered, scene: scene(), theme, layers }, false);
+    expect(svg).toContain('<g id="layer-a" data-name="Eskiz" opacity="0.5">');
+    expect(svg).not.toContain('layer-b');
+    expect(svg).not.toContain('layer-c'); // boş katman yazılmaz
+    // Katmanı olmayan stroke en alttaki (a) katmanda
+    expect(count(svg.match(/<g id="layer-a"[^>]*>(.*?)<\/g>/)![1], /<path /g)).toBe(2);
+  });
+});
+
+describe('silinmiş şekil kenarları', () => {
+  it('yalnızca görünen kenarlar yazılır (açık parça, Z yok)', () => {
+    const shapes = [
+      {
+        id: 'r',
+        kind: 'rect' as const,
+        vertices: [0, 0, 10, 0, 10, 5, 0, 5],
+        style: { width: 3, opacity: 1, ink: 'black' as const },
+        cornerLines: true,
+        hiddenEdges: [0],
+      },
+    ];
+    const svg = buildSvg({ paper, strokes: [], shapes, scene: scene(), theme }, false);
+    expect(svg).toContain('<path d="M10 0L10 5L0 5L0 0" fill="none"');
+  });
+});

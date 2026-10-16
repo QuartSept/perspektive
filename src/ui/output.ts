@@ -58,11 +58,18 @@ export function downloadSvg(src: PageSources, options: OutputOptions): void {
       paper: src.paper,
       strokes: src.doc.strokes,
       shapes: src.doc.shapes,
+      layers: src.doc.layers,
       scene: src.scene,
       theme: toPrintTheme(src.theme),
       gridSpacing: src.grid?.visible ? src.grid.spacing : null,
+      centerMark: src.grid?.centerMark ?? false,
+      markerScale: src.markerScale,
       cornerLines: src.corners
-        ? cornerLines(src.doc.shapes, cornerTargets(src.scene, src.corners), src.paper.rect)
+        ? cornerLines(
+            src.doc.shapes.filter((s) => src.doc.isVisible(s)),
+            cornerTargets(src.scene, src.corners),
+            src.paper.rect,
+          )
         : [],
     },
     options.includeGuides,

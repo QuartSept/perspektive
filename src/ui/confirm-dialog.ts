@@ -25,22 +25,31 @@ export class ConfirmDialog {
     this.ok = this.dialog.querySelector('#confirm-ok')!;
     this.cancel = this.dialog.querySelector('#confirm-cancel')!;
 
-    this.ok.addEventListener('click', () => this.dialog.close('ok'));
-    this.cancel.addEventListener('click', () => this.dialog.close('cancel'));
+    // Düğmeler sonucu hemen verir: `close` olayı bazı ortamlarda (arka plandaki
+    // gömülü sekmeler) gecikebiliyor ya da hiç gelmeyebiliyor
+    this.ok.addEventListener('click', () => this.finish(true));
+    this.cancel.addEventListener('click', () => this.finish(false));
     this.dialog.addEventListener('click', (e) => {
-      if (e.target === this.dialog) this.dialog.close('cancel');
+      if (e.target === this.dialog) this.finish(false);
     });
-    // Esc dahil her kapanış burada sonuçlanır
-    this.dialog.addEventListener('close', () => {
-      const resolve = this.pending;
-      this.pending = null;
-      resolve?.(this.dialog.returnValue === 'ok');
-    });
+    // Esc ile kapanış
+    this.dialog.addEventListener('close', () => this.resolve(this.dialog.returnValue === 'ok'));
+  }
+
+  private finish(ok: boolean): void {
+    this.resolve(ok);
+    if (this.dialog.open) this.dialog.close(ok ? 'ok' : 'cancel');
+  }
+
+  private resolve(ok: boolean): void {
+    const resolve = this.pending;
+    this.pending = null;
+    resolve?.(ok);
   }
 
   ask({ message, confirmLabel, destructive = false }: ConfirmOptions): Promise<boolean> {
     // Açık bir soru varken yenisi gelirse eskisi vazgeçilmiş sayılır
-    if (this.dialog.open) this.dialog.close('cancel');
+    if (this.dialog.open) this.finish(false);
     this.message.textContent = message;
     this.ok.textContent = confirmLabel;
     this.cancel.textContent = t('confirm.cancel');

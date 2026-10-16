@@ -1,7 +1,8 @@
 import type { Point } from './geometry';
 import { gridLines } from './grid';
 import { PX_PER_MM } from './paper';
-import { isClosed, type Shape } from './shapes';
+import type { Layer } from './doc-layers';
+import { boxDash, boxOccludedEdges, edgeVisible, shapeEdges, visibleRuns, type Shape } from './shapes';
 import { strokeOutline, type InkId, type Stroke } from './stroke';
 import type { CornerLine } from '../perspective/corner-lines';
 import { rayAngles } from '../perspective/rays';
@@ -18,6 +19,7 @@ export interface SvgTheme {
   /** Kâğıt ızgarası rengi (opaklık renkte olabilir). */
   grid: string;
   cornerLineOpacity?: number;
+  centerMark?: string;
 }
 
 export interface SvgSources {
@@ -25,12 +27,21 @@ export interface SvgSources {
   strokes: readonly Stroke[];
   /** Şekiller stroke'ların altında yazılır. */
   shapes?: readonly Shape[];
+  /**
+   * Katmanlar (alttan üste); verilirse her katman ayrı `<g>` olur, gizliler
+   * yazılmaz, opaklık gruba uygulanır. Nesnenin katmanı yoksa en alttaki.
+   */
+  layers?: readonly Layer[];
   scene: PerspectiveScene;
   theme: SvgTheme;
   /** Görünür kâğıt ızgarasının aralığı (dünya birimi); yoksa ızgara yazılmaz. */
   gridSpacing?: number | null;
   /** Köşe kaçış çizgileri (kırpılmış); kılavuzlu çıktıda kesikli yazılır. */
   cornerLines?: readonly CornerLine[];
+  /** Kâğıt merkezi kılavuzu yazılsın mı. */
+  centerMark?: boolean;
+  /** Kaçış noktası işaretçisi boyutu (ekrandakiyle aynı; yoksa 1). */
+  markerScale?: number;
 }
 
 /** Kılavuz çizgi kalınlıkları dünya biriminde (ekran/yazdırma çıktısıyla aynı). */
@@ -38,6 +49,7 @@ const RAY_WIDTH = 1;
 const HORIZON_WIDTH = 1.25;
 const MARKER_RADIUS = 5.5;
 const MARKER_STROKE = 2;
+const CENTER_DASH = '6 4';
 const GRID_WIDTH = 0.75;
 const CORNER_DASH = '5 4';
 
@@ -88,11 +100,34 @@ function strokeElement(stroke: Stroke, color: string): string {
   return `<path d="${strokePathData(p)}" fill="none" stroke="${esc(color)}" stroke-width="${num(width)}" stroke-linecap="round" stroke-linejoin="round"${op}/>`;
 }
 
-function shapeElement(shape: Shape, color: string): string {
-  const v = shape.vertices;
+function boxElement(shape: Shape, color: string): string {
+  const occluded = shape.box?.back === 'solid' ? new Set<number>() : boxOccludedEdges(shape);
+  const edges = shapeEdges(shape);
+  const path = (indices: number[]) =>
+    indices.map((k) => `M${num(edges[k][0].x)} ${num(edges[k][0].y)}L${num(edges[k][1].x)} ${num(edges[k][1].y)}`).join('');
+  const shown = edges.map((_, k) => k).filter((k) => edgeVisible(shape, k));
+  const front = shown.filter((k) => !occluded.has(k));
+  const back = shape.box?.back === 'hidden' ? [] : shown.filter((k) => occluded.has(k));
+  const { width, opacity } = shape.style;
+  const attrs = `fill="none" stroke="${esc(color)}" stroke-width="${num(width)}" stroke-linecap="round" stroke-linejoin="round"`;
   const parts: string[] = [];
-  for (let i = 0; i < v.length; i += 2) parts.push(`${i === 0 ? 'M' : 'L'}${num(v[i])} ${num(v[i + 1])}`);
-  const d = parts.join('') + (isClosed(shape.kind) ? 'Z' : '');
+  if (front.length) parts.push(`<path d="${path(front)}" ${attrs}/>`);
+  if (back.length) {
+    parts.push(`<path d="${path(back)}" ${attrs} stroke-dasharray="${boxDash(width).map(num).join(' ')}"/>`);
+  }
+  const op = opacity < 1 ? ` opacity="${num(opacity)}"` : '';
+  return `<g class="box"${op}>${parts.join('')}</g>`;
+}
+
+function shapeElement(shape: Shape, color: string): string {
+  if (shape.kind === 'box') return boxElement(shape, color);
+  // Silinmiş kenarlar yazılmaz: görünen kenarlar ardışık parçalar olarak
+  const d = visibleRuns(shape)
+    .map(
+      (run) =>
+        run.points.map((q, i) => `${i === 0 ? 'M' : 'L'}${num(q.x)} ${num(q.y)}`).join('') + (run.closed ? 'Z' : ''),
+    )
+    .join('');
   const { width, opacity } = shape.style;
   const op = opacity < 1 ? ` opacity="${num(opacity)}"` : '';
   return `<path d="${d}" fill="none" stroke="${esc(color)}" stroke-width="${num(width)}" stroke-linecap="round" stroke-linejoin="round"${op}/>`;
@@ -124,6 +159,12 @@ function guideElements(src: SvgSources): string[] {
   if (src.gridSpacing) {
     const grid = gridElement(src, src.gridSpacing);
     if (grid) out.push(grid);
+  }
+  if (src.centerMark && theme.centerMark) {
+    const { color, alpha } = splitAlpha(theme.centerMark);
+    out.push(
+      `<path id="center-mark" d="M${num(w / 2)} 0V${num(h)}M0 ${num(h / 2)}H${num(w)}" fill="none" stroke="${esc(color)}" stroke-width="${GRID_WIDTH}" stroke-dasharray="${CENTER_DASH}" opacity="${num(alpha)}"/>`,
+    );
   }
   const horizon = scene.horizon();
   const angles = rayAngles(scene.rayCount, horizon?.angle ?? 0);
@@ -164,12 +205,41 @@ function guideElements(src: SvgSources): string[] {
     );
   }
 
+  const ms = src.markerScale ?? 1;
+  const r = MARKER_RADIUS * ms;
+  const sw = Math.max(1.25, MARKER_STROKE * ms);
   scene.activePoints.forEach((p) => {
     const color = theme.vanishingPoints[scene.colorIndexOf(p) % theme.vanishingPoints.length];
     out.push(
-      `<circle cx="${num(p.x)}" cy="${num(p.y)}" r="${MARKER_RADIUS}" fill="${esc(theme.markerFill)}" stroke="${esc(color)}" stroke-width="${MARKER_STROKE}"/>`,
+      `<circle cx="${num(p.x)}" cy="${num(p.y)}" r="${num(r)}" fill="${esc(theme.markerFill)}" stroke="${esc(color)}" stroke-width="${num(sw)}"/>`,
     );
   });
+  return out;
+}
+
+function drawingElements(src: SvgSources): string[] {
+  const inks = src.theme.inks;
+  const items = (shapes: readonly Shape[], strokes: readonly Stroke[]) => [
+    ...shapes.map((s) => shapeElement(s, inks[s.style.ink])),
+    ...strokes.map((s) => strokeElement(s, inks[s.style.ink])),
+  ];
+  const shapes = src.shapes ?? [];
+  if (!src.layers?.length) return items(shapes, src.strokes);
+  const ids = new Set(src.layers.map((l) => l.id));
+  const bottom = src.layers[0].id;
+  const layerOf = (o: { layerId?: string }) => (o.layerId && ids.has(o.layerId) ? o.layerId : bottom);
+  const out: string[] = [];
+  for (const layer of src.layers) {
+    if (!layer.visible) continue;
+    const content = items(
+      shapes.filter((s) => layerOf(s) === layer.id),
+      src.strokes.filter((s) => layerOf(s) === layer.id),
+    );
+    if (!content.length) continue;
+    const op = layer.opacity < 1 ? ` opacity="${num(layer.opacity)}"` : '';
+    const label = layer.name ? ` data-name="${esc(layer.name)}"` : '';
+    out.push(`<g id="layer-${esc(layer.id)}"${label}${op}>${content.join('')}</g>`);
+  }
   return out;
 }
 
@@ -182,9 +252,7 @@ export function buildSvg(src: SvgSources, includeGuides: boolean): string {
   const { width: w, height: h } = src.paper;
   const body: string[] = [];
   if (includeGuides) body.push(`<g id="guides">${guideElements(src).join('')}</g>`);
-  const shapes = (src.shapes ?? []).map((s) => shapeElement(s, src.theme.inks[s.style.ink]));
-  const strokes = src.strokes.map((s) => strokeElement(s, src.theme.inks[s.style.ink]));
-  body.push(`<g id="drawing">${[...shapes, ...strokes].join('')}</g>`);
+  body.push(`<g id="drawing">${drawingElements(src).join('')}</g>`);
 
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',

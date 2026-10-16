@@ -1,5 +1,5 @@
 import { addShapeCommand } from '../engine/commands';
-import type { DrawingDocument } from '../engine/document';
+import type { DrawingDocument, LayerBlock } from '../engine/document';
 import type { Point } from '../engine/geometry';
 import { GRID_SNAP_PX, snapAlongLine, snapToGrid } from '../engine/grid';
 import type { History } from '../engine/history';
@@ -135,6 +135,8 @@ export class ShapeTool implements Tool, ToolOverlay {
   private hover: Point | null = null;
   /** Sıradaki kenarın yapıştırılması. */
   private readonly snap: EdgeSnapper;
+  /** Etkin katman kilitli / gizliyken şekil başlamaz; nedeni bildirilir. */
+  onLayerBlocked: ((reason: LayerBlock) => void) | null = null;
 
   constructor(
     private readonly viewport: Viewport,
@@ -206,7 +208,17 @@ export class ShapeTool implements Tool, ToolOverlay {
     return true;
   }
 
+  /** Etkin katmana çizilemiyorsa bildirir ve true döner (yarım çokgen bırakılır). */
+  private blocked(): boolean {
+    const reason = this.doc.activeLayerBlocked;
+    if (!reason) return false;
+    this.cancel();
+    this.onLayerBlocked?.(reason);
+    return true;
+  }
+
   onPointerDown(e: ToolPointerEvent): void {
+    if (this.blocked()) return;
     if (this.settings.kind === 'polygon') {
       this.updateHover(e.world);
       return;
@@ -232,6 +244,7 @@ export class ShapeTool implements Tool, ToolOverlay {
 
   onPointerUp(e: ToolPointerEvent): void {
     if (this.settings.kind === 'polygon') {
+      if (this.doc.activeLayerBlocked) return;
       this.polygonClick(e.world);
       return;
     }
@@ -259,7 +272,7 @@ export class ShapeTool implements Tool, ToolOverlay {
   }
 
   private makeShape(kind: ShapeKind, vertices: number[], style: StrokeStyle): Shape {
-    return { id: newShapeId(), kind, vertices, style, cornerLines: true };
+    return { id: newShapeId(), kind, vertices, style, cornerLines: true, layerId: this.doc.activeLayerId };
   }
 
   /** Sürüklemeden köşeler; şekil çok küçükse null. */

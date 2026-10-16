@@ -7,7 +7,14 @@ import type { PerspectiveScene } from './scene';
 import type { CornerLine } from './corner-lines';
 import type { SnapLine } from './snapping';
 
+/** İşaretçi yarıçapı ve çizgisi `markerScale` = 1'de (CSS piksel). */
 export const MARKER_RADIUS = 5.5;
+const MARKER_STROKE = 2;
+
+/** Ölçeğe göre işaretçi yarıçapı ve çizgi kalınlığı (çizgi çok incelmesin). */
+export function markerMetrics(scale: number): { radius: number; stroke: number } {
+  return { radius: MARKER_RADIUS * scale, stroke: Math.max(1.25, MARKER_STROKE * scale) };
+}
 
 export interface GuideView {
   ctx: CanvasRenderingContext2D;
@@ -57,7 +64,8 @@ export function drawGuides(view: GuideView): void {
     theme.guideOpacityStrong,
     theme.guideOpacityDim,
   );
-  const angles = rayAngles(scene.rayCount, baseAngle);
+  // Işınlar ekranda çizilir: görünüm dönükse açılar da döner
+  const angles = rayAngles(scene.rayCount, viewport.screenAngle(baseAngle));
 
   screens.forEach((s, i) => {
     const reach = reachToCorners(s, width, height);
@@ -76,8 +84,9 @@ export function drawGuides(view: GuideView): void {
   if (horizon) {
     const o = viewport.worldToScreen(horizon.origin);
     const reach = reachToCorners(o, width, height);
-    const dx = Math.cos(horizon.angle) * reach;
-    const dy = Math.sin(horizon.angle) * reach;
+    const angle = viewport.screenAngle(horizon.angle);
+    const dx = Math.cos(angle) * reach;
+    const dy = Math.sin(angle) * reach;
     const active = state.horizonHovered;
     ctx.beginPath();
     ctx.moveTo(o.x - dx, o.y - dy);
@@ -86,6 +95,29 @@ export function drawGuides(view: GuideView): void {
     ctx.lineWidth = active ? 2 : 1.25;
     ctx.stroke();
   }
+}
+
+/**
+ * İmleç çizgileri: fırçanın bulunduğu yerden her kaçış noktasına ince,
+ * soluk çizgi (nokta renginde). Kılavuzlar gizliyken de çizilir.
+ */
+export function drawCursorRays(view: GuideView, pointer: Point): void {
+  const { ctx, dpr, viewport, scene, theme } = view;
+  const points = scene.activePoints;
+  if (!points.length) return;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.save();
+  ctx.lineWidth = 1;
+  ctx.globalAlpha = theme.cursorRayOpacity;
+  for (const p of points) {
+    const s = viewport.worldToScreen(p);
+    ctx.beginPath();
+    ctx.moveTo(pointer.x, pointer.y);
+    ctx.lineTo(s.x, s.y);
+    ctx.strokeStyle = vanishingPointColor(theme, scene.colorIndexOf(p));
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 /** Köşe çizgisi kesik deseni, CSS piksel. */
@@ -126,8 +158,9 @@ export function drawSnapLine(view: GuideView, line: SnapLine): void {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const o = viewport.worldToScreen(line.origin);
   const reach = reachToCorners(o, viewport.width, viewport.height);
-  const dx = line.direction.x * reach;
-  const dy = line.direction.y * reach;
+  const dir = viewport.screenDirection(line.direction);
+  const dx = dir.x * reach;
+  const dy = dir.y * reach;
   ctx.beginPath();
   ctx.moveTo(o.x - dx, o.y - dy);
   ctx.lineTo(o.x + dx, o.y + dy);
@@ -143,6 +176,7 @@ export function drawMarkers(view: GuideView): void {
   const { ctx, dpr, viewport, scene, state, theme } = view;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
+  const { radius, stroke } = markerMetrics(state.markerScale);
   scene.activePoints.forEach((p) => {
     const s = viewport.worldToScreen(p);
     const color = vanishingPointColor(theme, scene.colorIndexOf(p));
@@ -151,17 +185,17 @@ export function drawMarkers(view: GuideView): void {
 
     if (hot) {
       ctx.beginPath();
-      ctx.arc(s.x, s.y, MARKER_RADIUS + 6, 0, Math.PI * 2);
+      ctx.arc(s.x, s.y, radius + 6, 0, Math.PI * 2);
       ctx.fillStyle = theme.markerHalo;
       ctx.fill();
     }
 
     ctx.beginPath();
-    ctx.arc(s.x, s.y, hot ? MARKER_RADIUS + 1 : MARKER_RADIUS, 0, Math.PI * 2);
+    ctx.arc(s.x, s.y, hot ? radius + 1 : radius, 0, Math.PI * 2);
     ctx.fillStyle = selected ? color : theme.markerFill;
     ctx.fill();
     ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = stroke;
     ctx.stroke();
   });
 }

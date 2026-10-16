@@ -1,5 +1,5 @@
 import { addStrokeCommand } from '../engine/commands';
-import type { DrawingDocument } from '../engine/document';
+import type { DrawingDocument, LayerBlock } from '../engine/document';
 import type { Point } from '../engine/geometry';
 import { GRID_SNAP_PX, snapAlongLine, snapToGrid } from '../engine/grid';
 import type { History } from '../engine/history';
@@ -87,6 +87,8 @@ export class BrushTool implements Tool, ToolOverlay {
   private tip: Point | null = null;
   /** Bu stroke basınç kaydediyor mu (kalem + ayar açık). */
   private withPressure = false;
+  /** Etkin katman kilitli / gizliyken çizim başlamaz; nedeni bildirilir. */
+  onLayerBlocked: ((reason: LayerBlock) => void) | null = null;
 
   constructor(
     private readonly viewport: Viewport,
@@ -122,6 +124,11 @@ export class BrushTool implements Tool, ToolOverlay {
   }
 
   onPointerDown(e: ToolPointerEvent): void {
+    const blocked = this.doc.activeLayerBlocked;
+    if (blocked) {
+      this.onLayerBlocked?.(blocked);
+      return;
+    }
     // Düz çizgiler ızgara düğümünden/çizgisinden başlar; serbest stroke kendi noktasından
     const snapped = this.grid.isActive()
       ? snapToGrid(e.world, this.grid.spacing, this.gridTolerance).point
@@ -133,7 +140,12 @@ export class BrushTool implements Tool, ToolOverlay {
         : [];
     const start = straight || candidates.length ? snapped : e.world;
     this.withPressure = this.settings.pressure && e.pointerType === 'pen';
-    this.stroke = { id: newStrokeId(), points: [start.x, start.y], style: this.settings.toStyle() };
+    this.stroke = {
+      id: newStrokeId(),
+      points: [start.x, start.y],
+      style: this.settings.toStyle(),
+      layerId: this.doc.activeLayerId,
+    };
     if (this.withPressure) this.stroke.pressures = [e.pressure];
     this.tip = start;
     if (straight) {

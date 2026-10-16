@@ -21,13 +21,19 @@ interface Prefs {
     axisSnap?: boolean;
   };
   snap?: { enabled?: boolean; radius?: number };
-  eraser?: { kind?: string; radius?: number };
+  /** `kind` V4'te `type` oldu: yeni varsayılan (parça silgisi) eski kayıtlı türün üstüne geçsin. */
+  eraser?: { type?: string; radius?: number; allLayers?: boolean };
   shape?: { kind?: string };
   guidesVisible?: boolean;
   language?: string;
   onboardingDismissed?: boolean;
   theme?: string;
   sidebarPinned?: boolean;
+  markerScale?: number;
+  wheelZoom?: boolean;
+  tool?: string;
+  tutorialDone?: boolean;
+  cursorRays?: boolean;
 }
 
 export interface PrefsTargets {
@@ -42,6 +48,16 @@ export interface PrefsTargets {
   setOnboardingDismissed(dismissed: boolean): void;
   getSidebarPinned(): boolean;
   setSidebarPinned(pinned: boolean): void;
+  getMarkerScale(): number;
+  setMarkerScale(scale: number): void;
+  getWheelZoom(): boolean;
+  setWheelZoom(zoom: boolean): void;
+  getTool(): string;
+  setTool(id: string): void;
+  getTutorialDone(): boolean;
+  setTutorialDone(done: boolean): void;
+  getCursorRays(): boolean;
+  setCursorRays(enabled: boolean): void;
 }
 
 const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
@@ -66,14 +82,20 @@ export function loadPrefs(t: PrefsTargets): void {
   if (typeof s.enabled === 'boolean') t.snap.setEnabled(s.enabled);
   if (num(s.radius)) t.snap.setRadius(s.radius);
   const er = prefs.eraser ?? {};
-  if (ERASER_KINDS.includes(er.kind as EraserKind)) t.eraser.setKind(er.kind as EraserKind);
+  if (ERASER_KINDS.includes(er.type as EraserKind)) t.eraser.setKind(er.type as EraserKind);
   if (num(er.radius)) t.eraser.setRadius(er.radius);
+  if (typeof er.allLayers === 'boolean') t.eraser.setAllLayers(er.allLayers);
   const sh = prefs.shape ?? {};
   if (SHAPE_KINDS.includes(sh.kind as ShapeKind)) t.shape.setKind(sh.kind as ShapeKind);
   if (typeof prefs.guidesVisible === 'boolean') t.setGuidesVisible(prefs.guidesVisible);
   if (isLang(prefs.language)) setLanguage(prefs.language);
   if (prefs.onboardingDismissed === true) t.setOnboardingDismissed(true);
   if (typeof prefs.sidebarPinned === 'boolean') t.setSidebarPinned(prefs.sidebarPinned);
+  if (num(prefs.markerScale)) t.setMarkerScale(prefs.markerScale);
+  if (typeof prefs.wheelZoom === 'boolean') t.setWheelZoom(prefs.wheelZoom);
+  if (typeof prefs.tool === 'string') t.setTool(prefs.tool);
+  if (prefs.tutorialDone === true) t.setTutorialDone(true);
+  if (typeof prefs.cursorRays === 'boolean') t.setCursorRays(prefs.cursorRays);
   if (THEME_PREFERENCES.includes(prefs.theme as ThemePreference)) {
     t.theme.set(prefs.theme as ThemePreference);
   }
@@ -91,13 +113,18 @@ export function savePrefs(t: PrefsTargets): void {
       axisSnap: t.brush.axisSnap,
     },
     snap: { enabled: t.snap.enabled, radius: t.snap.radius },
-    eraser: { kind: t.eraser.kind, radius: t.eraser.radius },
+    eraser: { type: t.eraser.kind, radius: t.eraser.radius, allLayers: t.eraser.allLayers },
     shape: { kind: t.shape.kind },
     guidesVisible: t.getGuidesVisible(),
     language: getLanguage(),
     onboardingDismissed: t.getOnboardingDismissed(),
     theme: t.theme.preference,
     sidebarPinned: t.getSidebarPinned(),
+    markerScale: t.getMarkerScale(),
+    wheelZoom: t.getWheelZoom(),
+    tool: t.getTool(),
+    tutorialDone: t.getTutorialDone(),
+    cursorRays: t.getCursorRays(),
   };
   try {
     localStorage.setItem(KEY, JSON.stringify(prefs));

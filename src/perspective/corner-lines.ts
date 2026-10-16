@@ -1,5 +1,5 @@
 import type { Point, Rect } from '../engine/geometry';
-import type { Shape } from '../engine/shapes';
+import { cornerHasVisibleEdge, type Shape } from '../engine/shapes';
 import type { PerspectiveScene, VanishingPoint } from './scene';
 import type { SnapLine, SnapSource } from './snapping';
 
@@ -119,6 +119,8 @@ export function cornerLines(
     if (!shape.cornerLines) continue;
     const v = shape.vertices;
     for (let i = 0; i + 1 < v.length; i += 2) {
+      // Kenarları silinmiş köşeden çizgi çıkmaz (en az bir görünen kenar gerekir)
+      if (!cornerHasVisibleEdge(shape, i / 2)) continue;
       const corner = { x: v[i], y: v[i + 1] };
       for (const point of targets) {
         if (Math.hypot(point.x - corner.x, point.y - corner.y) < 1e-6) continue;

@@ -46,6 +46,8 @@ export function buildSavedDrawing({
     grid: grid.toSaved(),
     shapes: [...doc.shapes],
     cornerLines: corners.toSaved(),
+    layers: doc.layers.map((l) => ({ ...l })),
+    activeLayerId: doc.activeLayerId,
   };
 }
 
@@ -57,7 +59,7 @@ export function applySavedDrawing(
   paper.restore(saved.paper.kind, saved.paper.width, saved.paper.height, saved.paper.orientation);
   scene.restore(saved.scene);
   scene.setRayCount(saved.scene.rayCount);
-  doc.replaceAll(saved.strokes, saved.shapes);
+  doc.load(saved.strokes, saved.shapes, saved.layers, saved.activeLayerId);
   grid.restore(saved.grid);
   corners.restore(saved.cornerLines);
 }
