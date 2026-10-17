@@ -98,8 +98,9 @@ export function drawGuides(view: GuideView): void {
 }
 
 /**
- * İmleç çizgileri: fırçanın bulunduğu yerden her kaçış noktasına ince,
- * soluk çizgi (nokta renginde). Kılavuzlar gizliyken de çizilir.
+ * İmleç çizgileri: her kaçış noktasından imlecin üzerinden geçip ekran
+ * kenarına kadar uzanan ince, soluk çizgi (nokta renginde); imlecin iki
+ * yanında da yol gösterir. Kılavuzlar gizliyken de çizilir.
  */
 export function drawCursorRays(view: GuideView, pointer: Point): void {
   const { ctx, dpr, viewport, scene, theme } = view;
@@ -109,11 +110,17 @@ export function drawCursorRays(view: GuideView, pointer: Point): void {
   ctx.save();
   ctx.lineWidth = 1;
   ctx.globalAlpha = theme.cursorRayOpacity;
+  // İmleçten bu kadar öteye uzatılınca çizgi her durumda ekrandan çıkar
+  const reach = Math.hypot(ctx.canvas.width, ctx.canvas.height) / dpr;
   for (const p of points) {
     const s = viewport.worldToScreen(p);
+    const dx = pointer.x - s.x;
+    const dy = pointer.y - s.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 1) continue;
     ctx.beginPath();
-    ctx.moveTo(pointer.x, pointer.y);
-    ctx.lineTo(s.x, s.y);
+    ctx.moveTo(s.x, s.y);
+    ctx.lineTo(pointer.x + (dx / len) * reach, pointer.y + (dy / len) * reach);
     ctx.strokeStyle = vanishingPointColor(theme, scene.colorIndexOf(p));
     ctx.stroke();
   }
