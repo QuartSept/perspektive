@@ -12,6 +12,7 @@ import {
 export interface PerspectivePanelHandlers {
   onStraightLinesChange(enabled: boolean): void;
   onAxisSnapChange(enabled: boolean): void;
+  onParallelSnapChange(enabled: boolean): void;
   onModeChange(mode: PerspectiveMode): void;
   onHorizonFreeChange(free: boolean): void;
   onRayCountChange(count: number): void;
@@ -26,8 +27,10 @@ export interface PerspectivePanelHandlers {
 
 export interface PerspectivePanelView {
   scene: PerspectiveScene;
+  /** Geçerli kurgunun düz çizgi ayarı. */
   straightLines: boolean;
   axisSnap: boolean;
+  parallelSnap: boolean;
   guidesVisible: boolean;
   cursorRays: boolean;
   hasSelection: boolean;
@@ -51,9 +54,9 @@ export class PerspectivePanel {
   private readonly markerSize: HTMLInputElement;
   private readonly markerSizeValue: HTMLOutputElement;
   private readonly hint: HTMLElement;
-  private readonly freeLineOptions: HTMLElement;
   private readonly straightLines: HTMLInputElement;
   private readonly axisSnap: HTMLInputElement;
+  private readonly parallelSnap: HTMLInputElement;
   private readonly cornerOptions: HTMLElement;
   private readonly cornerTargetButtons: HTMLButtonElement[];
   private readonly cornerPoint: HTMLElement;
@@ -80,13 +83,14 @@ export class PerspectivePanel {
     });
     this.centerButton.addEventListener('click', () => handlers.onCenterPoint());
     this.hint = root.querySelector('#perspective-hint')!;
-    this.freeLineOptions = root.querySelector('#free-line-options')!;
     this.straightLines = root.querySelector('#straight-lines')!;
     this.axisSnap = root.querySelector('#axis-snap')!;
     this.straightLines.addEventListener('change', () => {
       handlers.onStraightLinesChange(this.straightLines.checked);
     });
     this.axisSnap.addEventListener('change', () => handlers.onAxisSnapChange(this.axisSnap.checked));
+    this.parallelSnap = root.querySelector('#parallel-snap')!;
+    this.parallelSnap.addEventListener('change', () => handlers.onParallelSnapChange(this.parallelSnap.checked));
 
     this.cornerOptions = root.querySelector('#corner-line-options')!;
     this.cornerTargetButtons = [...root.querySelectorAll<HTMLButtonElement>('[data-corner-target]')];
@@ -98,7 +102,7 @@ export class PerspectivePanel {
       const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-point-id]');
       if (btn) handlers.onCornerPointChange(btn.dataset.pointId!);
     });
-    radioKeys(root.querySelector('#corner-target')!, () => this.cornerTargetButtons, (b) =>
+    radioKeys(root.querySelector('#corner-target')!, () => this.cornerTargetButtons.filter((x) => !x.hidden), (b) =>
       handlers.onCornerTargetChange(b.dataset.cornerTarget as CornerTarget),
     );
     radioKeys(this.cornerPoint, () => [...this.cornerPoint.querySelectorAll('button')], (b) =>
@@ -157,12 +161,14 @@ export class PerspectivePanel {
     if (this.markerSize.value !== pct) this.markerSize.value = pct;
     this.markerSizeValue.textContent = formatPercent(view.markerScale);
 
-    // Perspektifsiz çizim seçenekleri yalnızca kapalı modda
-    this.freeLineOptions.hidden = scene.mode !== 0;
+    // Düz çizgi her kurguda (perspektifte ve kapalıyken ayrı ayar); yapışmalar yalnızca düz çizgide
     this.straightLines.checked = view.straightLines;
     this.axisSnap.checked = view.axisSnap;
-    this.axisSnap.disabled = !view.straightLines;
-    this.axisSnap.closest('.switch')?.classList.toggle('is-disabled', !view.straightLines);
+    this.parallelSnap.checked = view.parallelSnap;
+    for (const input of [this.axisSnap, this.parallelSnap]) {
+      input.disabled = !view.straightLines;
+      input.closest('.switch')?.classList.toggle('is-disabled', !view.straightLines);
+    }
 
     const count = String(scene.rayCount);
     if (this.rayCount.value !== count) this.rayCount.value = count;
@@ -177,12 +183,15 @@ export class PerspectivePanel {
     this.hint.textContent = t(hintKeyFor(view));
   }
 
-  /** Köşe çizgisi hedefi: yalnızca birden fazla kaçış noktası varken anlamlı. */
+  /** Köşe çizgileri: açık / kapalı her kurguda; "Seçili" yalnızca birden fazla nokta varken. */
   private updateCorners(view: PerspectivePanelView): void {
     const points = view.scene.activePoints;
-    this.cornerOptions.hidden = points.length < 2;
+    this.cornerOptions.hidden = points.length < 1;
+    // Tek noktada "Seçili" anlamsız: o noktaya giden çizgiler "Hepsi" gibi görünür
+    const target = view.cornerTarget === 'one' && points.length < 2 ? 'all' : view.cornerTarget;
     for (const btn of this.cornerTargetButtons) {
-      setChecked(btn, btn.dataset.cornerTarget === view.cornerTarget);
+      setChecked(btn, btn.dataset.cornerTarget === target);
+      if (btn.dataset.cornerTarget === 'one') btn.hidden = points.length < 2;
     }
     this.cornerPoint.hidden = points.length < 2 || view.cornerTarget !== 'one';
     const key = points.map((p) => `${p.id}:${view.scene.colorIndexOf(p)}`).join(',') + t('corners.pointLabel');

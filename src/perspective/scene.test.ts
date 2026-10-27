@@ -77,6 +77,8 @@ describe('PerspectiveScene', () => {
     scene.setRayCount(30);
     expect(scene.rayCount).toBe(32);
     scene.setRayCount(1);
+    expect(scene.rayCount).toBe(0);
+    scene.setRayCount(-5);
     expect(scene.rayCount).toBe(RAY_COUNT_MIN);
     scene.setRayCount(999);
     expect(scene.rayCount).toBe(RAY_COUNT_MAX);

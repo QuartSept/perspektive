@@ -43,7 +43,8 @@ export function snapshotsEqual(a: SceneSnapshot, b: SceneSnapshot): boolean {
   );
 }
 
-export const RAY_COUNT_MIN = 12;
+/** 0: hayalet ışın çizilmez (imleç ve köşe çizgileri etkilenmez). */
+export const RAY_COUNT_MIN = 0;
 export const RAY_COUNT_MAX = 72;
 export const RAY_COUNT_STEP = 4;
 export const RAY_COUNT_DEFAULT = 24;

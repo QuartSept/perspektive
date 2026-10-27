@@ -7,7 +7,7 @@ import type { Shape } from '../engine/shapes';
 import { Viewport } from '../engine/viewport';
 import { PerspectiveScene } from '../perspective/scene';
 import { axisSource, intersectLines, perspectiveSource, type SnapLine } from '../perspective/snapping';
-import { SelectTool } from './select';
+import { ROTATE_HANDLE_PX, SelectTool } from './select';
 import type { ToolPointerEvent } from './tool';
 
 let viewport: Viewport;
@@ -349,5 +349,65 @@ describe('2 noktalı kutu ve çizgiye dönüştürme', () => {
     tool.convertToStrokes();
     // 12 kenardan 3'ü arkada (kutu göz hizasının altında): 9 çizgi
     expect(doc.strokes.length - before).toBe(9);
+  });
+});
+
+describe('döndürme', () => {
+  const at = (p: Point, deg: number, r = 80): Point => {
+    // Merkez (200,150) çevresinde; 0° tutamacın başlangıç yönü (yukarı)
+    const a = ((deg - 90) * Math.PI) / 180;
+    return { x: p.x + Math.cos(a) * r, y: p.y + Math.sin(a) * r };
+  };
+  const center = { x: 200, y: 150 };
+
+  it('tutamaç üst kenarın üstünde; sürükleyince merkez çevresinde döner, tek adımda geri alınır', () => {
+    tool.select('r');
+    const h = tool.rotateHandle!;
+    expect(h.handle.x).toBeCloseTo(200);
+    expect(h.handle.y).toBeCloseTo(100 - ROTATE_HANDLE_PX);
+    drag(h.handle, at(center, 90));
+    const v = verts('r');
+    expect(v[0]).toBeCloseTo(250);
+    expect(v[1]).toBeCloseTo(50);
+    expect(doc.getShape('r')!.kind).toBe('rect');
+    history.undo();
+    expect(verts('r')).toEqual([100, 100, 300, 100, 300, 200, 100, 200]);
+  });
+
+  it('90°ye 3° içinde oturur; Shift ile 15° adım', () => {
+    tool.select('r');
+    drag(tool.rotateHandle!.handle, at(center, 88));
+    expect(verts('r')[0]).toBeCloseTo(250);
+    history.undo();
+    const h = tool.rotateHandle!.handle;
+    const shift = (p: Point): ToolPointerEvent => ({ ...ev(p), native: { shiftKey: true } as PointerEvent });
+    tool.onPointerDown(shift(h));
+    tool.onPointerMove(shift(at(center, 37)));
+    expect(tool.rotateHandle!.degrees).toBe(30);
+    tool.onPointerUp(shift(at(center, 37)));
+  });
+
+  it('döndürülmüş dikdörtgen köşeden boyutlanınca dikdörtgen kalır, karşı köşe sabit', () => {
+    tool.select('r');
+    drag(tool.rotateHandle!.handle, at(center, 30));
+    const before = verts('r');
+    const opposite = { x: before[4], y: before[5] };
+    drag({ x: before[0], y: before[1] }, { x: before[0] - 20, y: before[1] - 35 });
+    const v = verts('r');
+    expect(v[4]).toBeCloseTo(opposite.x);
+    expect(v[5]).toBeCloseTo(opposite.y);
+    const p = [0, 1, 2, 3].map((i) => ({ x: v[i * 2], y: v[i * 2 + 1] }));
+    for (let i = 0; i < 4; i++) {
+      const a = p[i];
+      const b = p[(i + 1) % 4];
+      const c = p[(i + 2) % 4];
+      expect((b.x - a.x) * (c.x - b.x) + (b.y - a.y) * (c.y - b.y)).toBeCloseTo(0, 6);
+    }
+  });
+
+  it('kutuda döndürme tutamacı yok', () => {
+    doc.replaceAll([], [{ ...shape('b', 'box', [0, 0, 10, 0, 10, 10, 0, 10, 2, 2, 8, 2, 8, 8, 2, 8]), box: { pointId: null, vp: { x: 5, y: 5 }, depth: 0.3, back: 'dashed' } }]);
+    tool.select('b');
+    expect(tool.rotateHandle).toBeNull();
   });
 });

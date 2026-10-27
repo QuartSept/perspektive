@@ -6,7 +6,7 @@ export interface SnapLine {
   origin: Point;
   /** Birim vektör. */
   direction: Point;
-  kind: 'vanishing-point' | 'vertical' | 'horizontal';
+  kind: 'vanishing-point' | 'vertical' | 'horizontal' | 'parallel';
   /** kind = 'vanishing-point' ise noktanın kimliği. */
   pointId?: string;
   /**
@@ -14,6 +14,8 @@ export interface SnapLine {
    * bir ışındır, yön hareketten belirlenir (`direction` karar anında doldurulur).
    */
   radial?: boolean;
+  /** kind = 'parallel' ise paralel alınan parça (vurgulanır). */
+  ref?: { a: Point; b: Point };
 }
 
 /** Hareket yönü bir adayla en fazla bu kadar açı farkıyla eşleşirse kilitlenir. */

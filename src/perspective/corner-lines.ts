@@ -3,9 +3,9 @@ import { cornerHasVisibleEdge, type Shape } from '../engine/shapes';
 import type { PerspectiveScene, VanishingPoint } from './scene';
 import type { SnapLine, SnapSource } from './snapping';
 
-/** Köşe çizgilerinin hedefi: tüm kaçış noktaları ya da kullanıcının seçtiği tek nokta. */
-export type CornerTarget = 'all' | 'one';
-export const CORNER_TARGETS: readonly CornerTarget[] = ['all', 'one'];
+/** Köşe çizgilerinin hedefi: tüm kaçış noktaları, kullanıcının seçtiği tek nokta ya da hiçbiri. */
+export type CornerTarget = 'all' | 'one' | 'off';
+export const CORNER_TARGETS: readonly CornerTarget[] = ['all', 'one', 'off'];
 
 export interface SavedCornerLines {
   target: CornerTarget;
@@ -59,6 +59,7 @@ export function cornerTargets(
   settings: { target: CornerTarget; pointId: string | null },
 ): VanishingPoint[] {
   const points = scene.activePoints;
+  if (settings.target === 'off') return [];
   if (settings.target === 'all' || points.length <= 1) return points;
   const chosen = points.find((p) => p.id === settings.pointId) ?? points[0];
   return [chosen];

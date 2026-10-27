@@ -170,6 +170,7 @@ function guideElements(src: SvgSources): string[] {
   const angles = rayAngles(scene.rayCount, horizon?.angle ?? 0);
 
   scene.activePoints.forEach((p) => {
+    if (!angles.length) return;
     const r = reach(p, w, h);
     const d = angles
       .map((a) => `M${num(p.x)} ${num(p.y)}L${num(p.x + Math.cos(a) * r)} ${num(p.y + Math.sin(a) * r)}`)

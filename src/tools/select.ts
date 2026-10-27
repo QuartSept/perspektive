@@ -19,7 +19,7 @@ import {
 import type { Viewport } from '../engine/viewport';
 import { distanceToLine, intersectLines, type SnapLine } from '../perspective/snapping';
 import { EdgeSnapper, type ShapeSnapping } from './shape-tools';
-import type { Tool, ToolOverlay, ToolPointerEvent } from './tool';
+import type { RotateHandle, Tool, ToolOverlay, ToolPointerEvent } from './tool';
 
 /** Köşe tutamacını yakalama yarıçapı, ekran pikseli (parmakla daha geniş). */
 export const HANDLE_HIT_PX = 10;
@@ -29,6 +29,14 @@ const SHAPE_HIT_PX = 6;
 const SHAPE_HIT_TOUCH_PX = 14;
 /** İki kenar doğrusunun kesişimi imlece bu kadar yakınsa köşe kesişime oturur. */
 const INTERSECT_PX = 24;
+/** Döndürme tutamacının şeklin üst kenarından uzaklığı, ekran pikseli. */
+export const ROTATE_HANDLE_PX = 28;
+/** Döndürme tutamacını yakalama yarıçapı, ekran pikseli (parmakla daha geniş). */
+const ROTATE_HIT_PX = 9;
+const ROTATE_HIT_TOUCH_PX = 20;
+/** Dönüş 90°'nin katlarına bu kadar yaklaşınca oturur; Shift ile 15° adım. */
+const ROTATE_SNAP = (3 * Math.PI) / 180;
+const ROTATE_STEP = (15 * Math.PI) / 180;
 
 type Drag =
   | {
@@ -40,7 +48,19 @@ type Drag =
       /** Komşu köşe başına kenar yapıştırıcı (önceki, sonraki). */
       snappers: EdgeSnapper[];
     }
-  | { kind: 'move'; original: Shape; grab: Point; snapper: EdgeSnapper };
+  | { kind: 'move'; original: Shape; grab: Point; snapper: EdgeSnapper }
+  | {
+      kind: 'rotate';
+      original: Shape;
+      /** Döndürme merkezi, dünya koordinatı. */
+      pivot: Point;
+      /** Başlangıçta merkezden imlece açı (ekran). */
+      startAngle: number;
+      /** Başlangıçta merkezden tutamaca (ekran) fark. */
+      handleOffset: Point;
+      /** O anki dönüş, radyan. */
+      angle: number;
+    };
 
 /**
  * Seç / düzenle aracı:
@@ -48,6 +68,8 @@ type Drag =
  *  - tutamacı sürükle: köşe taşınır (ızgara, kaçış ışını, eksen yapışması açık);
  *    dikdörtgende karşı köşe sabit kalır, şekil dikdörtgen kalarak yeniden boyutlanır
  *  - şeklin kenarını sürükle: şekil taşınır
+ *  - üstteki yuvarlak tutamacı sürükle: şekil merkezi çevresinde döner (90°'ye
+ *    hafif yapışır, Shift ile 15° adım; kutu kaçış noktasına bağlı olduğu için dönmez)
  *  - Delete / Backspace: seçili şekli siler (main.ts)
  * Her düzenleme tek adımda geri alınır.
  */
@@ -59,6 +81,7 @@ export class SelectTool implements Tool, ToolOverlay {
   private draft: Shape | null = null;
   private hoverHandle: number | null = null;
   private hoverShape = false;
+  private hoverRotate = false;
   /** `editSelected` dizisinin başındaki hâl (tek geri al adımı için). */
   private editOriginal: Shape | null = null;
 
@@ -92,7 +115,7 @@ export class SelectTool implements Tool, ToolOverlay {
 
   get cursor(): string {
     if (this.drag) return 'grabbing';
-    if (this.hoverHandle !== null) return 'grab';
+    if (this.hoverHandle !== null || this.hoverRotate) return 'grab';
     return this.hoverShape ? 'move' : 'default';
   }
 
@@ -107,6 +130,37 @@ export class SelectTool implements Tool, ToolOverlay {
   get shapeHandles(): readonly Point[] | undefined {
     const shape = this.draft ?? this.selected;
     return shape ? shapeVertices(shape) : undefined;
+  }
+
+  /** Seçili şeklin döndürme tutamacı (kutuda yok). */
+  get rotateHandle(): RotateHandle | null {
+    const drag = this.drag;
+    if (drag?.kind === 'rotate') {
+      const pivot = this.viewport.worldToScreen(drag.pivot);
+      const c = Math.cos(drag.angle);
+      const s = Math.sin(drag.angle);
+      const o = drag.handleOffset;
+      const handle = { x: pivot.x + o.x * c - o.y * s, y: pivot.y + o.x * s + o.y * c };
+      const degrees = Math.round((drag.angle * 180) / Math.PI);
+      return { pivot, anchor: pivot, handle, active: true, degrees };
+    }
+    const shape = this.drag ? null : this.selected;
+    if (!shape || !canRotate(shape)) return null;
+    const pts = shapeVertices(shape).map((v) => this.viewport.worldToScreen(v));
+    const xs = pts.map((p) => p.x);
+    const ys = pts.map((p) => p.y);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+    const cx = (minX + maxX) / 2;
+    return {
+      pivot: { x: cx, y: (minY + maxY) / 2 },
+      anchor: { x: cx, y: minY },
+      handle: { x: cx, y: minY - ROTATE_HANDLE_PX },
+      active: this.hoverRotate,
+      degrees: null,
+    };
   }
 
   get activeHandle(): number | null {
@@ -124,6 +178,7 @@ export class SelectTool implements Tool, ToolOverlay {
     this.draft = null;
     this.hoverHandle = null;
     this.hoverShape = false;
+    this.hoverRotate = false;
     this.select(null);
   }
 
@@ -229,6 +284,19 @@ export class SelectTool implements Tool, ToolOverlay {
   onPointerDown(e: ToolPointerEvent): void {
     const touch = e.pointerType === 'touch';
     const selected = this.selected;
+    const rotate = selected ? this.hitRotate(e.screen, touch) : null;
+    if (selected && rotate) {
+      this.drag = {
+        kind: 'rotate',
+        original: selected,
+        pivot: this.viewport.screenToWorld(rotate.pivot),
+        startAngle: Math.atan2(e.screen.y - rotate.pivot.y, e.screen.x - rotate.pivot.x),
+        handleOffset: { x: rotate.handle.x - rotate.pivot.x, y: rotate.handle.y - rotate.pivot.y },
+        angle: 0,
+      };
+      this.onChange();
+      return;
+    }
     const handle = selected ? this.hitHandle(selected, e.screen, touch) : null;
     if (selected && handle !== null) {
       const count = selected.vertices.length / 2;
@@ -256,6 +324,11 @@ export class SelectTool implements Tool, ToolOverlay {
     const drag = this.drag;
     if (!drag) {
       this.updateHover(e);
+      return;
+    }
+    if (drag.kind === 'rotate') {
+      this.draft = this.rotatedShape(drag, e);
+      this.onChange();
       return;
     }
     this.draft =
@@ -296,12 +369,38 @@ export class SelectTool implements Tool, ToolOverlay {
 
   private updateHover(e: ToolPointerEvent): void {
     const selected = this.selected;
-    const handle = selected ? this.hitHandle(selected, e.screen) : null;
-    const overShape = handle === null && this.hitShape(e.world) !== null;
-    if (handle === this.hoverHandle && overShape === this.hoverShape) return;
+    const rotate = selected ? this.hitRotate(e.screen) !== null : false;
+    const handle = selected && !rotate ? this.hitHandle(selected, e.screen) : null;
+    const overShape = !rotate && handle === null && this.hitShape(e.world) !== null;
+    if (handle === this.hoverHandle && overShape === this.hoverShape && rotate === this.hoverRotate) return;
     this.hoverHandle = handle;
     this.hoverShape = overShape;
+    this.hoverRotate = rotate;
     this.onChange();
+  }
+
+  /** İmleç döndürme tutamacının üstündeyse tutamaç (yoksa null). */
+  private hitRotate(screen: Point, touch = false): RotateHandle | null {
+    const r = this.rotateHandle;
+    if (!r) return null;
+    const d = Math.hypot(r.handle.x - screen.x, r.handle.y - screen.y);
+    return d <= (touch ? ROTATE_HIT_TOUCH_PX : ROTATE_HIT_PX) ? r : null;
+  }
+
+  /** Şekil, merkez çevresinde imlecin döndüğü kadar döner (90°'ye yapışma, Shift: 15° adım). */
+  private rotatedShape(drag: Extract<Drag, { kind: 'rotate' }>, e: ToolPointerEvent): Shape {
+    const pivot = this.viewport.worldToScreen(drag.pivot);
+    let angle = Math.atan2(e.screen.y - pivot.y, e.screen.x - pivot.x) - drag.startAngle;
+    // -π..π aralığına
+    angle = Math.atan2(Math.sin(angle), Math.cos(angle));
+    if (e.native?.shiftKey) {
+      angle = Math.round(angle / ROTATE_STEP) * ROTATE_STEP;
+    } else {
+      const right = Math.round(angle / (Math.PI / 2)) * (Math.PI / 2);
+      if (Math.abs(angle - right) <= ROTATE_SNAP) angle = right;
+    }
+    drag.angle = angle;
+    return rotateShape(drag.original, drag.pivot, angle);
   }
 
   private hitHandle(shape: Shape, screen: Point, touch = false): number | null {
@@ -389,17 +488,32 @@ export class SelectTool implements Tool, ToolOverlay {
 
   /**
    * Dikdörtgen köşesi: karşı köşe sabit; komşular sürüklenen köşeyle paylaştıkları
-   * koordinatı izler. Kenarlar eksenlere paralel kalır: köşe yalnızca ızgaraya yapışır.
+   * kenar doğrultusunu izler. Kenarlar kendi doğrultularında kalır (döndürülmüş
+   * dikdörtgen de dikdörtgen kalır): köşe yalnızca ızgaraya yapışır.
    */
   private resizedRect(pts: Point[], index: number, p: Point): number[] {
     const corner = this.newSnapper().vertex(p);
     const opposite = pts[(index + 2) % 4];
     const next = pts.map((q) => ({ ...q }));
     next[index] = corner;
-    for (const j of [(index + 1) % 4, (index + 3) % 4]) {
-      const sharesX = Math.abs(pts[j].x - pts[index].x) <= Math.abs(pts[j].y - pts[index].y);
-      next[j] = sharesX ? { x: corner.x, y: opposite.y } : { x: opposite.x, y: corner.y };
-    }
+    const neighbors = [(index + 1) % 4, (index + 3) % 4];
+    // Kenar doğrultuları: karşı köşeden komşulara (çökmüş dikdörtgende eksenler)
+    const dirs = neighbors.map((j) => {
+      const dx = pts[j].x - opposite.x;
+      const dy = pts[j].y - opposite.y;
+      const len = Math.hypot(dx, dy);
+      return len > 1e-9 ? { x: dx / len, y: dy / len } : null;
+    });
+    if (!dirs[0] && !dirs[1]) {
+      dirs[0] = { x: 1, y: 0 };
+      dirs[1] = { x: 0, y: 1 };
+    } else if (!dirs[0]) dirs[0] = { x: -dirs[1]!.y, y: dirs[1]!.x };
+    else if (!dirs[1]) dirs[1] = { x: -dirs[0].y, y: dirs[0].x };
+    neighbors.forEach((j, k) => {
+      const d = dirs[k]!;
+      const t = (corner.x - opposite.x) * d.x + (corner.y - opposite.y) * d.y;
+      next[j] = { x: opposite.x + d.x * t, y: opposite.y + d.y * t };
+    });
     return next.flatMap((q) => [q.x, q.y]);
   }
 
@@ -454,6 +568,26 @@ export class SelectTool implements Tool, ToolOverlay {
     vertices[index * 2 + 1] = corner.y;
     return { ...original, vertices };
   }
+}
+
+/** Kutu kaçış noktasına bağlı (döndürülünce perspektif bozulur): dönmez. */
+export function canRotate(shape: Shape): boolean {
+  return shape.kind !== 'box';
+}
+
+/** Şeklin köşelerini `pivot` çevresinde `angle` radyan döndürür. */
+export function rotateShape(shape: Shape, pivot: Point, angle: number): Shape {
+  if (angle === 0) return shape;
+  const c = Math.cos(angle);
+  const s = Math.sin(angle);
+  const v = shape.vertices;
+  const vertices: number[] = [];
+  for (let i = 0; i < v.length; i += 2) {
+    const dx = v[i] - pivot.x;
+    const dy = v[i + 1] - pivot.y;
+    vertices.push(pivot.x + dx * c - dy * s, pivot.y + dx * s + dy * c);
+  }
+  return { ...shape, vertices };
 }
 
 /**

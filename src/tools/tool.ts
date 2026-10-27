@@ -25,6 +25,20 @@ export interface ToolPointerEvent {
 }
 
 /** Etkin aracın tuvalde anlık gösterdiği geri bildirim. */
+/** Döndürme tutamacı, CSS piksel (ekran). */
+export interface RotateHandle {
+  /** Döndürme merkezi. */
+  pivot: Point;
+  /** Tutamacın bağlandığı nokta (şeklin üst kenarı ortası; sürüklerken merkez). */
+  anchor: Point;
+  /** Tutamaç dairesinin merkezi. */
+  handle: Point;
+  /** Üzerinde ya da sürükleniyor. */
+  active: boolean;
+  /** Sürüklenirken o anki dönüş, derece (yoksa null). */
+  degrees: number | null;
+}
+
 export interface ToolOverlay {
   /** Çizilmekte olan stroke. */
   readonly preview?: Stroke | null;
@@ -54,6 +68,8 @@ export interface ToolOverlay {
   readonly shapeHandles?: readonly Point[];
   /** Vurgulanan (üzerinde ya da sürüklenen) tutamaç. */
   readonly activeHandle?: number | null;
+  /** Seçili şeklin döndürme tutamacı (ekran koordinatı). */
+  readonly rotateHandle?: RotateHandle | null;
   /** İmleç yerine çizilen daire yarıçapı, CSS piksel (ör. silgi). */
   readonly cursorRadius?: number | null;
 }

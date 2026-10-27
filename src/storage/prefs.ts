@@ -18,7 +18,9 @@ interface Prefs {
     smoothing?: number;
     pressure?: boolean;
     straightLines?: boolean;
+    straightLinesPerspective?: boolean;
     axisSnap?: boolean;
+    parallelSnap?: boolean;
   };
   snap?: { enabled?: boolean; radius?: number };
   /** `kind` V4'te `type` oldu: yeni varsayılan (parça silgisi) eski kayıtlı türün üstüne geçsin. */
@@ -76,7 +78,9 @@ export function loadPrefs(t: PrefsTargets): void {
   if (num(b.smoothing)) t.brush.setSmoothing(b.smoothing);
   if (typeof b.pressure === 'boolean') t.brush.setPressure(b.pressure);
   if (typeof b.straightLines === 'boolean') t.brush.setStraightLines(b.straightLines);
+  if (typeof b.straightLinesPerspective === 'boolean') t.brush.setStraightLinesPerspective(b.straightLinesPerspective);
   if (typeof b.axisSnap === 'boolean') t.brush.setAxisSnap(b.axisSnap);
+  if (typeof b.parallelSnap === 'boolean') t.brush.setParallelSnap(b.parallelSnap);
   if (INK_IDS.includes(b.ink as InkId)) t.brush.setInk(b.ink as InkId);
   const s = prefs.snap ?? {};
   if (typeof s.enabled === 'boolean') t.snap.setEnabled(s.enabled);
@@ -110,7 +114,9 @@ export function savePrefs(t: PrefsTargets): void {
       smoothing: t.brush.smoothing,
       pressure: t.brush.pressure,
       straightLines: t.brush.straightLines,
+      straightLinesPerspective: t.brush.straightLinesPerspective,
       axisSnap: t.brush.axisSnap,
+      parallelSnap: t.brush.parallelSnap,
     },
     snap: { enabled: t.snap.enabled, radius: t.snap.radius },
     eraser: { type: t.eraser.kind, radius: t.eraser.radius, allLayers: t.eraser.allLayers },

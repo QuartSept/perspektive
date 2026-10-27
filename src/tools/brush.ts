@@ -31,12 +31,16 @@ const NEAR_POINT_PX = 10;
 /** Yumuşatma %100'deyken "ip" uzunluğu, ekran pikseli. */
 const SMOOTHING_MAX_PX = 14;
 
-/** Perspektifsiz modda düz çizgi davranışı. */
+/** Düz çizgi davranışı (her kurguda; perspektifte ve kapalıyken ayrı ayar). */
 export interface StraightLineSource {
-  /** Stroke başlangıcında: düz çizgi modu etkin mi (perspektif kapalı + ayar açık). */
+  /** Stroke başlangıcında: düz çizgi modu etkin mi (geçerli kurgunun ayarı açık). */
   isActive(): boolean;
-  /** Şu an eksene yapışma etkin mi (ayar açık, Space basılı değil). */
+  /** Şu an eksene yapışma etkin mi (ayar açık, Alt basılı değil). */
   axisSnap(): boolean;
+  /** Şu an mevcut düz çizgilere paralel yapışma etkin mi (ayar açık, Alt basılı değil). */
+  parallelSnap(): boolean;
+  /** Başlangıçtan geçen, yakındaki düz çizgilere paralel adaylar. */
+  parallelLines(start: Point): SnapLine[];
 }
 
 const axes = axisSource();
@@ -60,13 +64,23 @@ export interface MagnetSource {
  * Stroke aşamaları:
  *  deciding  ilk birkaç pikselde hareket yönü toplanır
  *  locked    stroke, seçilen perspektif doğrusuna izdüşürülür (düz çizgi)
- *  straight  perspektifsiz düz çizgi: başlangıç → imleç; yataya/dikeye yapışabilir
+ *  straight  düz çizgi: başlangıç → imleç; kaçış ışınlarına (mıknatıs), eksenlere ve
+ *            mevcut düz çizgilere paralel doğrulara yapışabilir
  *  free      serbest çizim (mıknatıs kapalı, aday yok ya da yarıçap aşıldı)
  */
 type Phase =
   | { kind: 'deciding'; start: Point; candidates: SnapLine[] }
   | { kind: 'locked'; line: SnapLine; start: Point }
-  | { kind: 'straight'; start: Point; axis: SnapLine | null }
+  | {
+      kind: 'straight';
+      start: Point;
+      /** Yapışılan doğru (yoksa serbest yön). */
+      line: SnapLine | null;
+      /** Başlangıçtan geçen adaylar (gruplar ayrı: Alt / ayar değişince anında süzülür). */
+      perspective: SnapLine[];
+      axes: SnapLine[];
+      parallel: SnapLine[];
+    }
   | { kind: 'free' };
 
 /**
@@ -115,7 +129,7 @@ export class BrushTool implements Tool, ToolOverlay {
   /** Kilitli olunan perspektif doğrusu ya da yapışılan eksen (görsel geri bildirim için). */
   get snapLine(): SnapLine | null {
     if (this.phase.kind === 'locked') return this.phase.line;
-    if (this.phase.kind === 'straight') return this.phase.axis;
+    if (this.phase.kind === 'straight') return this.phase.line;
     return null;
   }
 
@@ -151,7 +165,15 @@ export class BrushTool implements Tool, ToolOverlay {
     if (straight) {
       // Düz çizgi tek kalınlıkta: basınç kaydedilmez
       delete this.stroke.pressures;
-      this.phase = { kind: 'straight', start, axis: null };
+      this.phase = {
+        kind: 'straight',
+        start,
+        line: null,
+        // Noktanın üstünden başlayan serbest ışın her yöne geçerli: düz çizgide anlamsız
+        perspective: this.snapSource(start, 0).filter((l) => !l.radial),
+        axes: axes(start, 0),
+        parallel: this.straight.parallelLines(start),
+      };
       this.onPreviewChange();
       return;
     }
@@ -265,28 +287,40 @@ export class BrushTool implements Tool, ToolOverlay {
   }
 
   /**
-   * Perspektifsiz düz çizgi: stroke başlangıç ve imleçten oluşur. Eksene
-   * yapışma açıkken yataya/dikeye 4° içinde yaklaşınca tam eksene oturur;
-   * titremesin diye ancak 6°'yi aşınca bırakır.
+   * Düz çizgi: stroke başlangıç ve imleçten oluşur. Yön bir adaya (kaçış ışını,
+   * eksen, paralel) 4° içinde yaklaşınca tam ona oturur; titremesin diye ancak
+   * 6°'yi aşınca bırakır. Aday başlangıçtan geçmiyorsa (köşe çizgisi) iki uç da
+   * doğruya izdüşürülür.
    */
-  private setStraightEnd(phase: { start: Point; axis: SnapLine | null }, p: Point): void {
+  private setStraightEnd(phase: Extract<Phase, { kind: 'straight' }>, p: Point): void {
     const { start } = phase;
+    const candidates = [
+      ...(this.magnet.isActive() ? phase.perspective : []),
+      ...(this.straight.axisSnap() ? phase.axes : []),
+      ...(this.straight.parallelSnap() ? phase.parallel : []),
+    ];
     const dx = p.x - start.x;
     const dy = p.y - start.y;
     const len = Math.hypot(dx, dy);
-    if (!this.straight.axisSnap() || len < 1e-9) {
-      phase.axis = null;
+    if (!candidates.length || len < 1e-9) {
+      phase.line = null;
     } else {
       const move = { x: dx / len, y: dy / len };
-      const keep = phase.axis && undirectedAngle(move, phase.axis.direction) <= AXIS_RELEASE_ANGLE;
-      if (!keep) phase.axis = chooseLine(axes(start, 0), start, p, AXIS_SNAP_ANGLE);
+      const keep =
+        phase.line &&
+        candidates.includes(phase.line) &&
+        undirectedAngle(move, phase.line.direction) <= AXIS_RELEASE_ANGLE;
+      if (!keep) phase.line = chooseLine(candidates, start, p, AXIS_SNAP_ANGLE);
     }
-    let end: Point;
-    if (phase.axis) end = this.endOnLine(phase.axis, p);
-    else if (this.grid.isActive()) end = snapToGrid(p, this.grid.spacing, this.gridTolerance).point;
-    else end = p;
     const stroke = this.stroke!;
     stroke.points.length = 0;
+    if (phase.line) {
+      const s = projectOnLine(phase.line, start);
+      const end = this.endOnLine(phase.line, p);
+      stroke.points.push(s.x, s.y, end.x, end.y);
+      return;
+    }
+    const end = this.grid.isActive() ? snapToGrid(p, this.grid.spacing, this.gridTolerance).point : p;
     stroke.points.push(start.x, start.y, end.x, end.y);
   }
 

@@ -11,8 +11,9 @@ Hesap ve sunucu yoktur; her şey tarayıcınızda kalır.
 
 - 1, 2 ve 3 nokta perspektif (3 noktada dikey kaçış noktası: kuşbakışı / solucan bakışı); kaçış noktaları kâğıt dışına da konabilir
 - Perspektif kapatılabilir: her yöne düz çizgi (başlangıç → bitiş), yatay/dikeye yapışma; kurgu saklanır
+- Düz çizgi (`L`): perspektif açıkken ve kapalıyken ayrı ayarlanır; kaçış ışınlarına (mıknatıs açıkken), yatay/dikeye ve yakındaki düz çizgilere / şekil kenarlarına paralel yapışır (paralel alınan çizgi vurgulanır; her yapışma kapatılabilir)
 - Kâğıt ızgarası (5 / 10 / 20 mm, gerçek ölçek): göster ve ızgaraya yapış ayrı; gizliyken yapışma açıksa görünmez cetvel. Ayar çizimle kaydedilir, "kılavuzlarla" çıktılara girer
-- Hayalet ışınlar (12–72), imleç yaklaştıkça ilgili noktanın ışınları belirginleşir
+- Hayalet ışınlar (0–72; 0'da hiç çizilmez), imleç yaklaştıkça ilgili noktanın ışınları belirginleşir
 - İmleç çizgileri: fırça seçiliyken her kaçış noktasından imlecin üzerinden geçip ekran kenarına uzanan ince, soluk çizgi (kılavuzlar `G` ile gizliyken de görünür; panelden kapatılabilir)
 - Kaçış noktası her araçta (fırça, şekil, seç) tutulup taşınabilir; boyutu ayarlanabilir, "Merkeze al" ile kâğıt merkezine yerleşir, taşırken merkez eksenlerine yapışır (`Shift` ile kapalı)
 - "Merkeze git" (`C`): görünüm ölçeği koruyarak kâğıdın ortasına kayar; isteğe bağlı merkez çizgileri
@@ -22,9 +23,9 @@ Hesap ve sunucu yoktur; her şey tarayıcınızda kalır.
 - Fırça (kalınlık, opaklık, yumuşatma, 8 renk), silgi (kesişimden kesişime parça, bütün çizgi ya da kısmi/piksel), geri al / ileri al
 - Katmanlar (en fazla 20): ekle, çoğalt, sırala, birleştir, sil, göster/gizle, kilitle, opaklık, yeniden adlandır; silgi yalnızca etkin katmanda (isteğe bağlı tümü), kilitli/gizli katmana dokunulmaz; gizli katmanlar çıktıya girmez, SVG'de her katman ayrı grup
 - Şekiller: doğru parçası, dikdörtgen, üçgen, çokgen (tıkla-tıkla); köşeler ızgaraya, kenarlar kaçış ışınlarına / eksenlere yapışır; silgi şekli bütün olarak ya da (parça / kısmi silgide) kenar kenar siler; kenarı silinen şeklin köşeleri düzenlenebilir kalır
-- Seç / düzenle: şekle tıkla, köşe tutamacını sürükle (dikdörtgen karşı köşesi sabit yeniden boyutlanır) ya da şekli taşı; Delete ile sil
+- Seç / düzenle: şekle tıkla, köşe tutamacını sürükle (dikdörtgen karşı köşesi sabit yeniden boyutlanır) ya da şekli taşı; üstteki yuvarlak tutamaçla döndür (90°'ye hafif yapışır, `Shift`: 15° adım; kutu dönmez); Delete ile sil
 - Derinlikli kutu: seçili dikdörtgen bir kaçış noktasına (1 nokta), seçili dikey doğru parçası iki ufuk noktasına (2 nokta) doğru "Kutuya dönüştür" ile kutu olur; derinlik kaydırıcılardan ya da köşelerden, arka kenarlar kesikli / görünür / gizli; kaçış noktaları taşınınca kutu uyar; "Çizgilere dönüştür" şekli düz çizgilere çevirir
-- Köşe kaçış çizgileri: şekil köşelerinden kaçış noktalarına kesikli kılavuzlar (hepsine ya da seçilen noktaya; şekil başına kapatılabilir); fırça bu çizgilere kilitlenir, "kılavuzlarla" çıktılara girer
+- Köşe kaçış çizgileri: şekil köşelerinden kaçış noktalarına kesikli kılavuzlar (hepsine, seçilen noktaya ya da kapalı; şekil başına da kapatılabilir); fırça bu çizgilere kilitlenir, "kılavuzlarla" çıktılara girer
 - A4, A5, kare ve ekran boyu kâğıt (A4/A5 için dikey ya da yatay, varsayılan dikey; çizim varsa çizgiler ve kaçış noktaları kâğıtla birlikte döner); sonsuz kaydırma ve yakınlaştırma
 - Otomatik kayıt (IndexedDB), PNG ve SVG (gerçek ölçek) dışa aktarma, A4 yazdırma (yalnızca çizim / kılavuzlarla)
 - Proje dosyası (.json) kaydet / aç; dosyayı tuvale sürükleyip bırakarak da açılır
@@ -40,7 +41,7 @@ Klavye kısayolları uygulama içinde `?` ile açılır. `Space` + sürükle gö
 mıknatıs geçici kapalıdır (serbest çizim); fare tekerleği kaydırır, `Ctrl` + tekerlek yakınlaştırır
 (yardım penceresinden "tekerlek yakınlaştırsın" seçilebilir). Dokunmatikte iki parmakla dokunmak geri alır,
 üç parmakla ileri alır. Başlıcaları: `V` seç / düzenle, `B` fırça, `E` silgi,
-`S` şekil (tekrar basınca tür değişir), `P` kaçış noktası, `H` kaydır, `M` mıknatıs, `G` kılavuzlar,
+`S` şekil (tekrar basınca tür değişir), `P` kaçış noktası, `H` kaydır, `M` mıknatıs, `L` düz çizgi, `G` kılavuzlar,
 `#` kâğıt ızgarası, ok tuşları seçili şekli kaydırır.
 
 ## Geliştirme
