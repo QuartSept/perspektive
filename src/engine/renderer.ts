@@ -19,7 +19,7 @@ import {
   type GuideView,
 } from '../perspective/guide-renderer';
 import type { PerspectiveScene } from '../perspective/scene';
-import type { ToolOverlay } from '../tools/tool';
+import type { RotateHandle, ToolOverlay } from '../tools/tool';
 
 /** Şekil köşe tutamacı kenar uzunluğu, CSS piksel. */
 const HANDLE_SIZE = 8;
@@ -198,6 +198,7 @@ export class Renderer {
     if (overlay?.shapeHandles?.length) {
       this.drawHandles(ctx, overlay.shapeHandles, overlay.activeHandle ?? null);
     }
+    if (overlay?.rotateHandle) this.drawRotateHandle(ctx, overlay.rotateHandle);
     if (this.state.markersVisible) drawMarkers(this.guideView(ctx));
     if (overlay?.cursorRadius && this.state.pointer) {
       this.drawCursorCircle(ctx, this.state.pointer, overlay.cursorRadius);
@@ -224,6 +225,39 @@ export class Renderer {
       ctx.strokeStyle = i === active ? t.snap : t.cursor;
       ctx.stroke();
     });
+  }
+
+  /** Döndürme tutamacı: bağlantı çizgisi, yuvarlak tutamaç; sürüklerken merkez ve açı. */
+  private drawRotateHandle(ctx: CanvasRenderingContext2D, r: RotateHandle): void {
+    const { dpr } = this.layers;
+    const t = this.theme;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.beginPath();
+    ctx.moveTo(r.anchor.x, r.anchor.y);
+    ctx.lineTo(r.handle.x, r.handle.y);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = r.active ? t.snap : t.cursor;
+    ctx.stroke();
+    const radius = r.active ? HANDLE_SIZE / 2 + 2 : HANDLE_SIZE / 2 + 1;
+    ctx.beginPath();
+    ctx.arc(r.handle.x, r.handle.y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = r.active ? t.snap : t.markerFill;
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    if (r.degrees === null) return;
+    // Merkez artı işareti ve açı
+    ctx.beginPath();
+    ctx.moveTo(r.pivot.x - 4, r.pivot.y);
+    ctx.lineTo(r.pivot.x + 4, r.pivot.y);
+    ctx.moveTo(r.pivot.x, r.pivot.y - 4);
+    ctx.lineTo(r.pivot.x, r.pivot.y + 4);
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.font = '12px system-ui, sans-serif';
+    ctx.fillStyle = t.snap;
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(`${r.degrees}°`, r.handle.x + 10, r.handle.y - 6);
   }
 
   /** Ekran uzayında, açık ve koyu zeminde görünür çift halkalı imleç. */

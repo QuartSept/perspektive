@@ -18,8 +18,15 @@ export class BrushSettings implements StrokeStyle {
   pressure = true;
   /** Perspektif kapalıyken çizgi başlangıç → bitiş düz çizgiye indirgensin mi. */
   straightLines = true;
-  /** Perspektifsiz düz çizgi yataya/dikeye yapışsın mı. */
+  /**
+   * Perspektif açıkken düz çizgi (ayrı ayar: varsayılan mıknatıslı serbest
+   * çizim; düz çizgide ışınlara mıknatıs açıkken yapışır).
+   */
+  straightLinesPerspective = false;
+  /** Düz çizgi yataya/dikeye yapışsın mı. */
   axisSnap = true;
+  /** Düz çizgi yakındaki mevcut düz çizgilere paralel yapışsın mı. */
+  parallelSnap = true;
 
   private listeners = new Set<() => void>();
 
@@ -66,6 +73,28 @@ export class BrushSettings implements StrokeStyle {
   setStraightLines(enabled: boolean): void {
     if (enabled === this.straightLines) return;
     this.straightLines = enabled;
+    this.emit();
+  }
+
+  setStraightLinesPerspective(enabled: boolean): void {
+    if (enabled === this.straightLinesPerspective) return;
+    this.straightLinesPerspective = enabled;
+    this.emit();
+  }
+
+  /** Kurguya göre düz çizgi ayarı (0: perspektif kapalı). */
+  straightFor(mode: number): boolean {
+    return mode === 0 ? this.straightLines : this.straightLinesPerspective;
+  }
+
+  setStraightFor(mode: number, enabled: boolean): void {
+    if (mode === 0) this.setStraightLines(enabled);
+    else this.setStraightLinesPerspective(enabled);
+  }
+
+  setParallelSnap(enabled: boolean): void {
+    if (enabled === this.parallelSnap) return;
+    this.parallelSnap = enabled;
     this.emit();
   }
 

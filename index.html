@@ -301,14 +301,18 @@
           <button type="button" role="radio" data-mode="3" data-i18n="perspective.threeShort" data-i18n-title="perspective.threePoint">3</button>
         </div>
 
-        <div class="panel__stack" id="free-line-options" hidden>
-          <label class="switch">
+        <div class="panel__stack" id="free-line-options">
+          <label class="switch" data-i18n-title="freeLine.straightTitle">
             <input type="checkbox" id="straight-lines" />
-            <span data-i18n="freeLine.straight">Düz çizgi</span>
+            <span data-i18n="freeLine.straight">Düz çizgi (L)</span>
           </label>
           <label class="switch">
             <input type="checkbox" id="axis-snap" />
             <span data-i18n="freeLine.axisSnap">Eksene yapış</span>
+          </label>
+          <label class="switch" data-i18n-title="freeLine.parallelSnapTitle">
+            <input type="checkbox" id="parallel-snap" />
+            <span data-i18n="freeLine.parallelSnap">Paralel yapış</span>
           </label>
         </div>
 
@@ -347,6 +351,7 @@
           <div class="segmented" id="corner-target" role="radiogroup" aria-labelledby="corner-target-label">
             <button type="button" role="radio" data-corner-target="all" data-i18n="corners.all" data-i18n-title="corners.allTitle">Hepsi</button>
             <button type="button" role="radio" data-corner-target="one" data-i18n="corners.one" data-i18n-title="corners.oneTitle">Seçili</button>
+            <button type="button" role="radio" data-corner-target="off" data-i18n="corners.off" data-i18n-title="corners.offTitle">Kapalı</button>
           </div>
           <div class="segmented" id="corner-point" role="radiogroup" data-i18n-aria-label="corners.point" hidden></div>
         </div>
@@ -457,6 +462,7 @@
             <dt><kbd data-i18n="help.keySpace">Space</kbd> + <span data-i18n="help.drag">sürükle</span></dt><dd data-i18n="help.space"></dd>
             <dt><kbd>Alt</kbd></dt><dd data-i18n="help.alt"></dd>
             <dt><kbd>M</kbd></dt><dd data-i18n="help.magnet"></dd>
+            <dt><kbd>L</kbd></dt><dd data-i18n="help.straight"></dd>
             <dt><kbd>G</kbd></dt><dd data-i18n="help.guides"></dd>
             <dt><kbd>#</kbd></dt><dd data-i18n="help.paperGrid"></dd>
             <dt><kbd>[</kbd> <kbd>]</kbd></dt><dd data-i18n="help.size"></dd>

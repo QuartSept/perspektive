@@ -5,6 +5,7 @@ import { gridSource, PaperGrid } from '../engine/grid';
 import { History } from '../engine/history';
 import { Viewport } from '../engine/viewport';
 import { cornerLines, cornerLineSource, preferCornerLines } from '../perspective/corner-lines';
+import { parallelCandidates, type Segment } from '../perspective/parallel';
 import { PerspectiveScene } from '../perspective/scene';
 import { combineSources, distanceToLine, perspectiveSource } from '../perspective/snapping';
 import { BrushTool } from './brush';
@@ -23,6 +24,8 @@ let straightActive: boolean;
 let axisSnapOn: boolean;
 let grid: PaperGrid;
 let gridSpaceHeld: boolean;
+let parallelOn: boolean;
+let segments: Segment[];
 let brush: BrushTool;
 
 beforeEach(() => {
@@ -37,6 +40,8 @@ beforeEach(() => {
   axisSnapOn = true;
   grid = new PaperGrid();
   gridSpaceHeld = false;
+  parallelOn = true;
+  segments = [];
   brush = new BrushTool(
     viewport,
     doc,
@@ -44,7 +49,7 @@ beforeEach(() => {
     settings,
     combineSources(perspectiveSource(scene), gridSource(grid)),
     { isActive: () => magnetActive, radius: 20 },
-    { isActive: () => straightActive, axisSnap: () => axisSnapOn },
+    { isActive: () => straightActive, axisSnap: () => axisSnapOn, parallelSnap: () => parallelOn, parallelLines: (start) => parallelCandidates(segments, start, 1) },
     {
       isActive: () => grid.snap && !gridSpaceHeld,
       get spacing() {
@@ -155,9 +160,41 @@ describe('BrushTool snapping', () => {
   });
 });
 
-describe('perspektifsiz düz çizgi', () => {
+describe('düz çizgi', () => {
   beforeEach(() => {
     straightActive = true;
+  });
+
+  it('perspektif açıkken: kaçış noktasına 4° yakın düz çizgi tam ışına oturur, uzakta serbest', () => {
+    // (300,300) → sağ nokta (940,400): ~8.9°
+    const a = Math.atan2(100, 640) + (3 * Math.PI) / 180;
+    const s = draw([{ x: 300, y: 300 }, { x: 300 + Math.cos(a) * 300, y: 300 + Math.sin(a) * 300 }]);
+    const ray = { origin: { x: 300, y: 300 }, direction: { x: 640 / Math.hypot(640, 100), y: 100 / Math.hypot(640, 100) }, kind: 'vanishing-point' as const };
+    expect(distanceToLine(ray, { x: s.points[2], y: s.points[3] })).toBeCloseTo(0);
+    const b = (40 * Math.PI) / 180;
+    const free = draw([{ x: 300, y: 300 }, { x: 300 + Math.cos(b) * 200, y: 300 + Math.sin(b) * 200 }]);
+    expect(free.points[2]).toBeCloseTo(300 + Math.cos(b) * 200);
+    // Mıknatıs kapalıyken kaçış ışınına yapışmaz
+    magnetActive = false;
+    const off = draw([{ x: 300, y: 300 }, { x: 300 + Math.cos(a) * 300, y: 300 + Math.sin(a) * 300 }]);
+    expect(off.points[3]).toBeCloseTo(300 + Math.sin(a) * 300);
+  });
+
+  it('mevcut düz çizgiye 4° yakın düz çizgi tam paralel olur; ayar kapalıyken olmaz', () => {
+    magnetActive = false;
+    axisSnapOn = false;
+    // 25° eğik referans çizgi
+    const ref = (25 * Math.PI) / 180;
+    segments = [{ a: { x: 500, y: 600 }, b: { x: 500 + Math.cos(ref) * 300, y: 600 + Math.sin(ref) * 300 } }];
+    const a = ref + (2.5 * Math.PI) / 180;
+    const path = [{ x: 300, y: 300 }, { x: 300 + Math.cos(a) * 250, y: 300 + Math.sin(a) * 250 }];
+    const s = draw(path);
+    const angle = Math.atan2(s.points[3] - s.points[1], s.points[2] - s.points[0]);
+    expect(angle).toBeCloseTo(ref, 6);
+    expect(brush.snapLine).toBeNull();
+    parallelOn = false;
+    const t = draw(path);
+    expect(Math.atan2(t.points[3] - t.points[1], t.points[2] - t.points[0])).toBeCloseTo(a, 6);
   });
 
   const angled = (deg: number, len = 200): Point[] => {
@@ -298,7 +335,7 @@ describe('köşe kaçış çizgisine kilit', () => {
       settings,
       preferCornerLines(perspectiveSource(scene), cornerLineSource(() => lines)),
       { isActive: () => true, radius: 20 },
-      { isActive: () => false, axisSnap: () => false },
+      { isActive: () => false, axisSnap: () => false, parallelSnap: () => false, parallelLines: () => [] },
       { isActive: () => false, spacing: 10 },
       () => {},
     );

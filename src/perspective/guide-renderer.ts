@@ -175,6 +175,17 @@ export function drawSnapLine(view: GuideView, line: SnapLine): void {
   ctx.globalAlpha = theme.snapOpacity;
   ctx.lineWidth = 2;
   ctx.stroke();
+  if (line.ref) {
+    // Paralel alınan parça: hangi çizgiye paralel olduğu görünsün
+    const a = viewport.worldToScreen(line.ref.a);
+    const b = viewport.worldToScreen(line.ref.b);
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.globalAlpha = Math.min(1, theme.snapOpacity * 1.6);
+    ctx.lineWidth = 4;
+    ctx.stroke();
+  }
   ctx.globalAlpha = 1;
 }
 

@@ -36,6 +36,7 @@ import {
   cornerTargets,
   preferCornerLines,
 } from './perspective/corner-lines';
+import { parallelCandidates, type Segment } from './perspective/parallel';
 import { axisSource, combineSources, perspectiveSource, type SnapLine } from './perspective/snapping';
 import { buildTemplate, type TemplateId } from './perspective/templates';
 import { buildGrid } from './perspective/grid';
@@ -47,7 +48,14 @@ import { EraserPanel } from './ui/eraser-panel';
 import { ShapeSettings, ShapeTool, type ShapeSnapping } from './tools/shape-tools';
 import { SelectTool } from './tools/select';
 import { syncBoxes } from './perspective/boxes';
-import { BOX_DEPTH_MAX, BOX_DEPTH_MIN, rebuildBox, type BoxBackStyle, type Shape } from './engine/shapes';
+import {
+  BOX_DEPTH_MAX,
+  BOX_DEPTH_MIN,
+  rebuildBox,
+  visibleEdges,
+  type BoxBackStyle,
+  type Shape,
+} from './engine/shapes';
 import { ShapePanel } from './ui/shape-panel';
 import { HandTool } from './tools/hand';
 import { Autosave } from './storage/autosave';
@@ -163,12 +171,38 @@ const brush = new BrushTool(
     },
   },
   {
-    isActive: () => scene.mode === 0 && brushSettings.straightLines,
+    isActive: () => brushSettings.straightFor(scene.mode),
     axisSnap: () => brushSettings.axisSnap && !state.temporaryFree,
+    parallelSnap: () => brushSettings.parallelSnap && !state.temporaryFree,
+    parallelLines: (start) => parallelCandidates(straightSegments(), start, PARALLEL_MIN_PX / viewport.scale),
   },
   gridSnapper,
   () => renderer.requestRender('interaction'),
 );
+
+/** Paralel yapışmada bundan kısa (ekranda) parçalar yön kaynağı olmaz. */
+const PARALLEL_MIN_PX = 16;
+
+/** Görünen düz parçalar: şekil kenarları ve iki noktalı (düz) stroke'lar, ekrandakiler. */
+function* straightSegments(): Generator<Segment> {
+  const view = viewport.visibleWorldRect();
+  const inView = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+    Math.max(a.x, b.x) >= view.x &&
+    Math.min(a.x, b.x) <= view.x + view.width &&
+    Math.max(a.y, b.y) >= view.y &&
+    Math.min(a.y, b.y) <= view.y + view.height;
+  for (const shape of doc.shapes) {
+    if (!doc.isVisible(shape)) continue;
+    for (const { a, b } of visibleEdges(shape)) if (inView(a, b)) yield { a, b };
+  }
+  for (const stroke of doc.strokes) {
+    if (stroke.points.length !== 4 || !doc.isVisible(stroke)) continue;
+    const [ax, ay, bx, by] = stroke.points;
+    const a = { x: ax, y: ay };
+    const b = { x: bx, y: by };
+    if (inView(a, b)) yield { a, b };
+  }
+}
 
 const perspectiveLines = perspectiveSource(scene);
 const axisLines = axisSource();
@@ -436,8 +470,9 @@ function updateSelectPanel(): void {
 const brushPanel = new BrushPanel(document.getElementById('brush-panel')!, brushSettings, snapSettings);
 
 const panel = new PerspectivePanel(panelEl, {
-  onStraightLinesChange: (enabled) => brushSettings.setStraightLines(enabled),
+  onStraightLinesChange: (enabled) => brushSettings.setStraightFor(scene.mode, enabled),
   onAxisSnapChange: (enabled) => brushSettings.setAxisSnap(enabled),
+  onParallelSnapChange: (enabled) => brushSettings.setParallelSnap(enabled),
   onModeChange: changeMode,
   onHorizonFreeChange: (free) => editScene(history, scene, () => scene.setHorizonLocked(!free)),
   onRayCountChange: (count) => scene.setRayCount(count),
@@ -1006,8 +1041,9 @@ function toastWithUndo(key: MessageKey): void {
 function updatePanel(): void {
   panel.update({
     scene,
-    straightLines: brushSettings.straightLines,
+    straightLines: brushSettings.straightFor(scene.mode),
     axisSnap: brushSettings.axisSnap,
+    parallelSnap: brushSettings.parallelSnap,
     guidesVisible: state.guidesVisible,
     cursorRays,
     hasSelection: state.selectedPointId !== null,
@@ -1507,6 +1543,13 @@ window.addEventListener('keydown', (e) => {
     case 'M':
       snapSettings.setEnabled(!snapSettings.enabled);
       break;
+    case 'l':
+    case 'L': {
+      const on = !brushSettings.straightFor(scene.mode);
+      brushSettings.setStraightFor(scene.mode, on);
+      toast.show(t(on ? 'freeLine.on' : 'freeLine.off'));
+      break;
+    }
     case 'g':
     case 'G':
       setGuidesVisible(!state.guidesVisible);
